@@ -1,166 +1,292 @@
 <?php
+
 declare(strict_types=1);
 
 require_once "database.php";
+
 require_once "auth.php";
 
-/* ========================================
-   START SESSION
-======================================== */
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 
 /* ========================================
-   REDIRECT IF ALREADY LOGGED IN
+   IF ALREADY LOGGED IN
 ======================================== */
+
 if (isLoggedIn()) {
+
     header("Location: index.php");
+
     exit;
 }
 
-/* ========================================
-   LOGIN VARIABLES
-======================================== */
+
+$message = "";
+
+$messageType = "";
+
 $email = "";
-$error = "";
-$success = "";
+
+
+/* ========================================
+   LOGIN RATE LIMIT
+======================================== */
+
+if (!isset($_SESSION["login_attempts"])) {
+
+    $_SESSION["login_attempts"] = 0;
+}
+
+if (!isset($_SESSION["login_lock_until"])) {
+
+    $_SESSION["login_lock_until"] = 0;
+}
+
 
 /* ========================================
    HANDLE LOGIN
 ======================================== */
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     /* ========================================
-       CSRF CHECK
+       CHECK LOGIN LOCK
     ======================================== */
+
     if (
-        !isset($_POST["csrf_token"]) ||
-        !hash_equals(
-            $_SESSION["csrf_token"] ?? "",
-            $_POST["csrf_token"]
-        )
+        isset($_SESSION["login_lock_until"]) &&
+        time() < (int) $_SESSION["login_lock_until"]
     ) {
-        $error = "Invalid request. Please refresh the page and try again.";
+
+        $message =
+            "Too many login attempts. Please try again later.";
+
+        $messageType = "error";
+
     } else {
 
-        $email = trim($_POST["email"] ?? "");
-        $password = $_POST["password"] ?? "";
-
         /* ========================================
-           VALIDATION
+           CSRF CHECK
         ======================================== */
-        if ($email === "" || $password === "") {
-            $error = "Please enter your email and password.";
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = "Please enter a valid email address.";
+
+        $csrfToken = $_POST["csrf_token"] ?? null;
+
+        if (!verifyCsrfToken(
+            is_string($csrfToken) ? $csrfToken : null
+        )) {
+
+            $message =
+                "Invalid form request. Please try again.";
+
+            $messageType = "error";
+
         } else {
 
             /* ========================================
-               FIND USER
+               GET LOGIN VALUES
             ======================================== */
-            $stmt = $conn->prepare("
-                SELECT
-                    id,
-                    name,
-                    first_name,
-                    middle_name,
-                    last_name,
-                    email,
-                    birthdate,
-                    phone,
-                    password,
-                    created_at
-                FROM users
-                WHERE email = ?
-                LIMIT 1
-            ");
 
-            $stmt->execute([$email]);
+            $email =
+                trim((string) ($_POST["email"] ?? ""));
 
-            $user = $stmt->fetch();
+            $password =
+                (string) ($_POST["password"] ?? "");
+
 
             /* ========================================
-               VERIFY PASSWORD
+               VALIDATION
             ======================================== */
-            if ($user && password_verify($password, $user["password"])) {
 
-                /* ========================================
-                   REHASH PASSWORD IF NEEDED
-                ======================================== */
-                if (password_needs_rehash(
-                    $user["password"],
-                    PASSWORD_DEFAULT
-                )) {
+            if (
+                $email === "" ||
+                $password === ""
+            ) {
 
-                    $newHash = password_hash(
-                        $password,
-                        PASSWORD_DEFAULT
-                    );
+                $message =
+                    "Please enter your email and password.";
 
-                    $updatePassword = $conn->prepare("
-                        UPDATE users
-                        SET password = ?
-                        WHERE id = ?
-                    ");
+                $messageType = "error";
 
-                    $updatePassword->execute([
-                        $newHash,
-                        $user["id"]
-                    ]);
-                }
 
-                /* ========================================
-                   REGENERATE SESSION ID
-                ======================================== */
-                session_regenerate_id(true);
+            } elseif (
+                !filter_var(
+                    $email,
+                    FILTER_VALIDATE_EMAIL
+                )
+            ) {
 
-                /* ========================================
-                   SAVE LOGIN SESSION
-                ======================================== */
-                $_SESSION["user_id"] = (int) $user["id"];
+                $message =
+                    "Please enter a valid email address.";
 
-                $_SESSION["user"] = [
-                    "id" => (int) $user["id"],
-                    "name" => $user["name"],
-                    "first_name" => $user["first_name"] ?? "",
-                    "middle_name" => $user["middle_name"] ?? "",
-                    "last_name" => $user["last_name"] ?? "",
-                    "email" => $user["email"],
-                    "birthdate" => $user["birthdate"] ?? "",
-                    "phone" => $user["phone"] ?? "",
-                    "created_at" => $user["created_at"]
-                ];
+                $messageType = "error";
 
-                /* ========================================
-                   LOGIN SUCCESS
-                   REDIRECT DIRECTLY TO HOME/DASHBOARD
-                ======================================== */
-                header("Location: index.php");
-                exit;
 
             } else {
 
                 /* ========================================
-                   GENERIC LOGIN ERROR
+                   FIND USER
                 ======================================== */
-                $error = "Invalid email or password.";
+
+                $stmt = $conn->prepare("
+                    SELECT
+                        id,
+                        name,
+                        email,
+                        phone,
+                        password
+                    FROM users
+                    WHERE email = ?
+                    LIMIT 1
+                ");
+
+                $stmt->execute([$email]);
+
+                $user =
+                    $stmt->fetch(PDO::FETCH_ASSOC);
+
+
+                /* ========================================
+                   CHECK PASSWORD
+                ======================================== */
+
+                if (
+                    $user &&
+                    isset($user["password"]) &&
+                    password_verify(
+                        $password,
+                        $user["password"]
+                    )
+                ) {
+
+                    /* ========================================
+                       REHASH IF NEEDED
+                    ======================================== */
+
+                    if (
+                        password_needs_rehash(
+                            $user["password"],
+                            PASSWORD_DEFAULT
+                        )
+                    ) {
+
+                        $newHash =
+                            password_hash(
+                                $password,
+                                PASSWORD_DEFAULT
+                            );
+
+                        $update =
+                            $conn->prepare("
+                                UPDATE users
+                                SET password = ?
+                                WHERE id = ?
+                            ");
+
+                        $update->execute([
+                            $newHash,
+                            (int) $user["id"]
+                        ]);
+                    }
+
+
+                    /* ========================================
+                       RESET LOGIN ATTEMPTS
+                    ======================================== */
+
+                    $_SESSION["login_attempts"] = 0;
+
+                    $_SESSION["login_lock_until"] = 0;
+
+
+                    /* ========================================
+                       REGENERATE SESSION ID
+                    ======================================== */
+
+                    session_regenerate_id(true);
+
+
+                    /* ========================================
+                       SAVE SESSION
+                    ======================================== */
+
+                    $_SESSION["user_id"] =
+                        (int) $user["id"];
+
+                    $_SESSION["user_name"] =
+                        (string) $user["name"];
+
+                    $_SESSION["user_email"] =
+                        (string) $user["email"];
+
+                    $_SESSION["user_phone"] =
+                        (string) ($user["phone"] ?? "");
+
+
+                    /* ========================================
+                       NEW CSRF TOKEN
+                    ======================================== */
+
+                    $_SESSION["csrf_token"] =
+                        bin2hex(random_bytes(32));
+
+
+                    /* ========================================
+                       GO TO HOME / DASHBOARD
+                    ======================================== */
+
+                    header("Location: index.php");
+
+                    exit;
+
+
+                } else {
+
+                    /* ========================================
+                       FAILED LOGIN
+                    ======================================== */
+
+                    $_SESSION["login_attempts"]++;
+
+
+                    /**
+                     * After 5 failed attempts,
+                     * temporarily lock login.
+                     */
+
+                    if (
+                        $_SESSION["login_attempts"] >= 5
+                    ) {
+
+                        $_SESSION["login_lock_until"] =
+                            time() + 60;
+
+                        $_SESSION["login_attempts"] = 0;
+
+                        $message =
+                            "Too many login attempts. Please try again later.";
+
+                    } else {
+
+                        /**
+                         * Generic message.
+                         *
+                         * This avoids telling attackers
+                         * whether the email exists.
+                         */
+
+                        $message =
+                            "Incorrect email or password.";
+                    }
+
+                    $messageType = "error";
+                }
             }
         }
     }
 }
 
-/* ========================================
-   CREATE CSRF TOKEN
-======================================== */
-if (empty($_SESSION["csrf_token"])) {
-    $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
-}
-
-$csrfToken = $_SESSION["csrf_token"];
-
 ?>
+
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -174,12 +300,16 @@ $csrfToken = $_SESSION["csrf_token"];
 
     <meta
         name="description"
-        content="Login to Bais Rouilo Gaming Cafe."
+        content="Login to your Bais Rouilo Gaming Cafe account."
     >
 
-    <title>LOGIN | Bais Rouilo Gaming Cafe</title>
+    <title>
+        LOGIN | Bais Rouilo Gaming Cafe
+    </title>
+
 
     <!-- GOOGLE FONTS -->
+
     <link
         rel="preconnect"
         href="https://fonts.googleapis.com"
@@ -196,7 +326,9 @@ $csrfToken = $_SESSION["csrf_token"];
         rel="stylesheet"
     >
 
+
     <!-- MAIN CSS -->
+
     <link
         rel="stylesheet"
         href="assets/css/style.css"
@@ -204,7 +336,9 @@ $csrfToken = $_SESSION["csrf_token"];
 
 </head>
 
+
 <body>
+
 
 <!-- ========================================
      HEADER
@@ -214,64 +348,81 @@ $csrfToken = $_SESSION["csrf_token"];
 
     <div class="container nav-container">
 
+
         <!-- LOGO -->
+
         <a
             href="index.php"
             class="brand"
         >
+
             <img
                 src="assets/images/logo.png"
                 alt="Bais Rouilo Gaming Cafe"
             >
+
         </a>
 
+
         <!-- MOBILE MENU -->
+
         <button
             class="menu-toggle"
             aria-label="Open menu"
             aria-expanded="false"
+            type="button"
         >
+
             <span></span>
+
             <span></span>
+
             <span></span>
+
         </button>
 
-        <!-- NAVIGATION -->
+
+        <!-- MAIN NAVIGATION -->
+
         <nav
             class="main-nav"
             id="mainNav"
         >
 
             <a href="index.php#home">
+
                 HOME
+
             </a>
 
             <a href="index.php#pcs">
+
                 PCS
+
             </a>
 
             <a href="index.php#rates">
+
                 RATES
+
             </a>
 
             <a href="index.php#tournaments">
+
                 TOURNAMENTS
+
             </a>
 
             <a href="index.php#gallery">
+
                 GALLERY
+
             </a>
 
             <a href="contact.php">
-                CONTACT
-            </a>
 
-            <!-- BOOK NOW -->
-            <a
-                href="register.php"
-                class="nav-button"
-            >
-                BOOK NOW
+                CONTACT
+
             </a>
 
         </nav>
@@ -289,81 +440,73 @@ $csrfToken = $_SESSION["csrf_token"];
 
     <div class="container form-page">
 
-        <!-- PAGE LABEL -->
+
         <p class="section-kicker">
-            CUSTOMER LOGIN
+
+            CUSTOMER ACCOUNT
+
         </p>
 
-        <!-- PAGE TITLE -->
+
         <h1 class="page-title">
-            LOGIN <span>ACCOUNT</span>
+
+            <span>LOGIN</span>
+
         </h1>
+
+
+        <!-- MESSAGE -->
+
+        <?php if ($message !== ""): ?>
+
+            <div
+                class="form-message <?= htmlspecialchars(
+                    $messageType,
+                    ENT_QUOTES,
+                    "UTF-8"
+                ) ?>"
+            >
+
+                <?= htmlspecialchars(
+                    $message,
+                    ENT_QUOTES,
+                    "UTF-8"
+                ) ?>
+
+            </div>
+
+        <?php endif; ?>
 
 
         <!-- ========================================
              LOGIN FORM
         ======================================== -->
 
-        <div class="booking-form">
-
-            <h2
-                style="
-                    color:#39FF14;
-                    font-family:'Orbitron',sans-serif;
-                    font-size:20px;
-                    margin:0 0 25px;
-                "
-            >
-                WELCOME BACK
-            </h2>
+        <form
+            action="login.php"
+            method="POST"
+            class="booking-form"
+        >
 
 
-            <!-- ERROR MESSAGE -->
-            <?php if ($error !== ""): ?>
+            <!-- CSRF TOKEN -->
 
-                <div
-                    class="form-message"
-                    style="
-                        margin-bottom:20px;
-                        color:#ff4444;
-                        border-color:#ff4444;
-                    "
-                >
-                    <?= htmlspecialchars($error) ?>
-                </div>
-
-            <?php endif; ?>
-
-
-            <!-- SUCCESS MESSAGE -->
-            <?php if ($success !== ""): ?>
-
-                <div
-                    class="form-message"
-                    style="
-                        margin-bottom:20px;
-                    "
-                >
-                    <?= htmlspecialchars($success) ?>
-                </div>
-
-            <?php endif; ?>
-
-
-            <form
-                method="POST"
-                action=""
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="<?= htmlspecialchars(
+                    csrfToken(),
+                    ENT_QUOTES,
+                    "UTF-8"
+                ) ?>"
             >
 
-                <!-- CSRF TOKEN -->
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?= htmlspecialchars($csrfToken) ?>"
-                >
+
+            <div class="form-row">
 
 
                 <!-- EMAIL -->
+
                 <label>
 
                     Email Address
@@ -371,7 +514,11 @@ $csrfToken = $_SESSION["csrf_token"];
                     <input
                         type="email"
                         name="email"
-                        value="<?= htmlspecialchars($email) ?>"
+                        value="<?= htmlspecialchars(
+                            $email,
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>"
                         placeholder="Enter your email"
                         autocomplete="email"
                         required
@@ -381,6 +528,7 @@ $csrfToken = $_SESSION["csrf_token"];
 
 
                 <!-- PASSWORD -->
+
                 <label>
 
                     Password
@@ -395,57 +543,45 @@ $csrfToken = $_SESSION["csrf_token"];
 
                 </label>
 
-
-                <!-- SUBMIT -->
-                <div
-                    style="
-                        margin-top:25px;
-                        display:flex;
-                        justify-content:center;
-                    "
-                >
-
-                    <button
-                        type="submit"
-                        class="green-button"
-                        style="
-                            border:none;
-                            cursor:pointer;
-                            padding:13px 28px;
-                        "
-                    >
-                        LOGIN
-                    </button>
-
-                </div>
-
-            </form>
-
-
-            <!-- REGISTER -->
-            <div
-                style="
-                    text-align:center;
-                    margin-top:30px;
-                    font-size:14px;
-                "
-            >
-
-                Don't have an account?
-
-                <a
-                    href="register.php"
-                    style="
-                        color:#39FF14;
-                        font-weight:700;
-                    "
-                >
-                    REGISTER HERE
-                </a>
-
             </div>
 
-        </div>
+
+            <!-- LOGIN BUTTON -->
+
+            <button
+                type="submit"
+                class="green-button"
+            >
+
+                LOGIN
+
+            </button>
+
+        </form>
+
+
+        <!-- CREATE ACCOUNT -->
+
+        <p
+            style="
+                text-align: center;
+                margin-top: 20px;
+                font-size: 12px;
+            "
+        >
+
+            Don't have an account?
+
+            <a
+                href="register.php"
+                style="color:#39FF14;"
+            >
+
+                CREATE ACCOUNT
+
+            </a>
+
+        </p>
 
     </div>
 
@@ -458,28 +594,37 @@ $csrfToken = $_SESSION["csrf_token"];
 
 <script>
 
-const menuToggle = document.querySelector(".menu-toggle");
-const mainNav = document.querySelector(".main-nav");
+const menuToggle =
+    document.querySelector(".menu-toggle");
+
+const mainNav =
+    document.querySelector(".main-nav");
+
 
 if (menuToggle && mainNav) {
 
-    menuToggle.addEventListener("click", function () {
+    menuToggle.addEventListener(
+        "click",
+        function () {
 
-        mainNav.classList.toggle("open");
+            mainNav.classList.toggle("open");
 
-        const isOpen =
-            mainNav.classList.contains("open");
+            const isOpen =
+                mainNav.classList.contains("open");
 
-        menuToggle.setAttribute(
-            "aria-expanded",
-            isOpen ? "true" : "false"
-        );
+            menuToggle.setAttribute(
+                "aria-expanded",
+                isOpen ? "true" : "false"
+            );
 
-    });
+        }
+    );
 
 }
 
 </script>
 
+
 </body>
+
 </html>
