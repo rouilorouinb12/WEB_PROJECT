@@ -1,0 +1,1494 @@
+:root {
+    --green: #39FF14;
+    --black: #000000;
+    --white: #FFFFFF;
+    --gray: #D7D7D7;
+    --dark: #070707;
+    --border: rgba(57, 255, 20, .85);
+    --container: 1450px;
+}
+
+/* ========================================
+   RESET
+======================================== */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    color: var(--white);
+    background: var(--black);
+    font-family: "Montserrat", Arial, sans-serif;
+    overflow-x: hidden;
+}
+
+img {
+    display: block;
+    max-width: 100%;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+.container {
+    width: min(var(--container), calc(100% - 80px));
+    margin: 0 auto;
+}
+
+h1,
+h2,
+h3,
+.main-nav,
+.eyebrow,
+.section-kicker,
+.stat-card strong,
+.setup-content strong,
+.rate-card,
+.green-button {
+    font-family: "Orbitron", sans-serif;
+}
+
+
+/* ========================================
+   CLICKABLE ELEMENTS
+======================================== */
+
+a,
+button {
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+
+/* ========================================
+   HEADER / NAVIGATION
+======================================== */
+
+.site-header {
+    height: 101px;
+    border-bottom: 1px solid #171717;
+    background: #000;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-container {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1002;
+}
+
+.brand img {
+    width: 260px;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.main-nav {
+    display: flex;
+    align-items: center;
+    gap: 34px;
+    font-size: 12px;
+    font-weight: 600;
+    position: relative;
+    z-index: 1001;
+}
+
+.main-nav a {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 15px 0;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.main-nav a:not(.nav-button)::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 4px;
+    width: 0;
+    height: 3px;
+    background: var(--green);
+    transition: width .25s ease;
+}
+
+.main-nav a:not(.nav-button):hover::after,
+.main-nav a.active:not(.nav-button)::after {
+    width: 100%;
+}
+
+.nav-button,
+.green-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    background: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    font-weight: 800;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+    transition:
+        transform .2s ease,
+        box-shadow .2s ease,
+        background .2s ease;
+}
+
+.nav-button {
+    padding: 13px 22px !important;
+}
+
+.nav-button:hover,
+.green-button:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        0 0 12px rgba(57, 255, 20, .6),
+        0 0 30px rgba(57, 255, 20, .2);
+}
+
+.menu-toggle {
+    display: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    z-index: 1002;
+}
+
+.menu-toggle span {
+    display: block;
+    width: 28px;
+    height: 2px;
+    margin: 5px;
+    background: white;
+}
+
+
+/* ========================================
+   HERO
+======================================== */
+
+.hero {
+    padding: 0 0 100px;
+}
+
+.hero-grid {
+    display: grid;
+    grid-template-columns: 42% 58%;
+    min-height: 430px;
+}
+
+.hero-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-right: 50px;
+}
+
+.eyebrow,
+.section-kicker {
+    margin: 0 0 7px;
+    color: var(--green);
+    font-size: 12px;
+    letter-spacing: .2px;
+}
+
+.hero h1 {
+    margin: 0;
+    font-size: clamp(38px, 4vw, 62px);
+    line-height: .98;
+    font-weight: 600;
+    letter-spacing: -1.2px;
+}
+
+.hero h1 span,
+.section-heading span,
+.page-title span,
+.cta-box span,
+.contact-info span {
+    color: var(--green);
+}
+
+.hero-description {
+    max-width: 450px;
+    margin: 22px 0;
+    color: #eee;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.hero-buttons {
+    display: flex;
+    gap: 15px;
+    position: relative;
+    z-index: 10;
+}
+
+.outline-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 116px;
+    height: 40px;
+    padding: 0 15px;
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    font: 700 11px "Orbitron", sans-serif;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+    transition:
+        background .2s ease,
+        color .2s ease,
+        box-shadow .2s ease,
+        transform .2s ease;
+}
+
+.outline-button:hover {
+    background: var(--green);
+    color: #000;
+    transform: translateY(-2px);
+    box-shadow:
+        0 0 12px rgba(57, 255, 20, .5),
+        0 0 25px rgba(57, 255, 20, .2);
+}
+
+.outline-button span {
+    color: var(--green);
+    font-size: 19px;
+    margin-left: 7px;
+}
+
+.outline-button:hover span {
+    color: #000;
+}
+
+
+/* ========================================
+   HERO BUTTONS
+   SAME DESIGN AS BOOK NOW
+======================================== */
+
+.hero-buttons .outline-button {
+    color: #000;
+    background: var(--green);
+    border: 1px solid var(--green);
+    font-weight: 800;
+}
+
+.hero-buttons .outline-button span {
+    color: #000;
+}
+
+.hero-buttons .outline-button:hover {
+    background: var(--green);
+    color: #000;
+    transform: translateY(-3px);
+    box-shadow:
+        0 0 12px rgba(57, 255, 20, .6),
+        0 0 30px rgba(57, 255, 20, .2);
+}
+
+.hero-buttons .outline-button:hover span {
+    color: #000;
+}
+
+.hero-photo {
+    width: 100%;
+    height: 430px;
+    overflow: hidden;
+}
+
+.hero-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+
+/* ========================================
+   STATS
+======================================== */
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 19px;
+    margin-top: 55px;
+}
+
+.stat-card {
+    min-height: 78px;
+    border: 1px solid var(--green);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 11px 20px;
+    transition: .25s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow:
+        0 0 12px rgba(57, 255, 20, .35),
+        0 0 30px rgba(57, 255, 20, .12);
+}
+
+.stat-icon {
+    width: 52px;
+    min-width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--green);
+}
+
+.stat-icon svg {
+    width: 48px;
+    height: 48px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.stat-card strong {
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.stat-card small {
+    display: block;
+    margin-top: 5px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+
+/* ========================================
+   GENERAL SECTIONS
+======================================== */
+
+.section {
+    padding: 55px 0;
+}
+
+.section-kicker {
+    text-align: center;
+    font-size: 11px;
+    margin-bottom: 8px;
+}
+
+.section-heading {
+    margin: 0 auto 35px;
+    text-align: center;
+    font-size: 34px;
+    line-height: 1.05;
+    font-weight: 600;
+}
+
+
+/* ========================================
+   GAMING SETUPS ONLY
+======================================== */
+
+.combined-section {
+    padding: 55px 0 70px;
+}
+
+.setups-container {
+    width: 100%;
+    scroll-margin-top: 125px;
+}
+
+.setups-kicker {
+    margin-bottom: 30px;
+}
+
+
+/* ========================================
+   FEATURES
+======================================== */
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px;
+}
+
+.feature-card {
+    text-align: center;
+    padding: 0 5px;
+}
+
+.feature-icon {
+    height: 67px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 8px;
+}
+
+.feature-icon img {
+    width: 58px;
+    height: 58px;
+    object-fit: contain;
+    margin: auto;
+}
+
+.feature-card h3 {
+    min-height: 28px;
+    margin: 0 0 7px;
+    font-size: 11px;
+    line-height: 1.1;
+}
+
+.feature-card p {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.3;
+    color: #ddd;
+}
+
+
+/* ========================================
+   GAMING SETUPS
+======================================== */
+
+.setup-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+}
+
+.setup-card {
+    border: 1px solid var(--green);
+    border-radius: 9px;
+    overflow: hidden;
+    background: #000;
+    transition:
+        transform .25s ease,
+        box-shadow .25s ease;
+}
+
+.setup-card:hover {
+    transform: translateY(-7px);
+    box-shadow:
+        0 0 15px rgba(57, 255, 20, .35),
+        0 0 35px rgba(57, 255, 20, .12);
+}
+
+.setup-image {
+    height: 180px;
+    overflow: hidden;
+}
+
+.setup-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .35s ease;
+}
+
+.setup-card:hover .setup-image img {
+    transform: scale(1.06);
+}
+
+.setup-content {
+    padding: 14px;
+}
+
+.setup-content h3 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.setup-content p {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.setup-content strong {
+    display: block;
+    margin-top: 10px;
+    color: var(--green);
+    font-size: 12px;
+}
+
+
+/* ========================================
+   RATES
+======================================== */
+
+.rates-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+}
+
+.rate-card {
+    min-height: 125px;
+    border: 1px solid var(--green);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: .25s ease;
+}
+
+.rate-card:hover {
+    transform: translateY(-5px);
+    box-shadow:
+        0 0 15px rgba(57, 255, 20, .35),
+        0 0 30px rgba(57, 255, 20, .1);
+}
+
+.rate-card h3 {
+    margin: 0;
+    color: var(--green);
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.rate-card strong {
+    color: var(--green);
+    font-size: 25px;
+    line-height: 1.4;
+}
+
+.rate-card span {
+    font: 700 9px "Montserrat", sans-serif;
+}
+
+
+/* ========================================
+   TOURNAMENTS PAGE
+======================================== */
+
+.tournaments-page {
+    min-height: 700px;
+    padding: 80px 0 100px;
+}
+
+.tournament-grid {
+    display: grid;
+    gap: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.tournament-card {
+    display: grid;
+    grid-template-columns: 100px 1fr auto;
+    align-items: center;
+    gap: 25px;
+    padding: 25px;
+    border: 1px solid var(--green);
+    border-radius: 10px;
+    background: #050505;
+    transition:
+        transform .25s ease,
+        box-shadow .25s ease;
+}
+
+.tournament-card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        0 0 15px rgba(57, 255, 20, .25),
+        0 0 30px rgba(57, 255, 20, .08);
+}
+
+.tournament-date {
+    border-right: 1px solid rgba(57, 255, 20, .5);
+    text-align: center;
+}
+
+.tournament-date span {
+    display: block;
+    color: var(--green);
+    font-family: "Orbitron", sans-serif;
+    font-size: 35px;
+    font-weight: 700;
+}
+
+.tournament-date small {
+    display: block;
+    margin-top: 5px;
+    font-family: "Orbitron", sans-serif;
+    font-size: 11px;
+    color: #ddd;
+}
+
+.tournament-info h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+}
+
+.tournament-info p {
+    margin: 0 0 10px;
+    color: #ccc;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.tournament-info span {
+    color: var(--green);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+
+/* ========================================
+   GALLERY
+======================================== */
+
+.gallery-section {
+    padding-bottom: 100px;
+    overflow: hidden;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    align-items: start;
+    padding-top: 20px;
+}
+
+.gallery-item {
+    width: 100%;
+    height: 300px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid var(--green);
+    background: #000;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    transition:
+        transform .35s ease,
+        box-shadow .35s ease,
+        border-color .35s ease;
+    z-index: 1;
+}
+
+.gallery-item:nth-child(1) {
+    margin-top: 0;
+}
+
+.gallery-item:nth-child(2) {
+    margin-top: 65px;
+}
+
+.gallery-item:nth-child(3) {
+    margin-top: 0;
+}
+
+.gallery-item:nth-child(4) {
+    margin-top: 65px;
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition:
+        transform .4s ease,
+        filter .4s ease;
+}
+
+.gallery-item:hover {
+    z-index: 5;
+    transform: translateY(-8px);
+    border-color: var(--green);
+    box-shadow:
+        0 0 10px rgba(57, 255, 20, .8),
+        0 0 25px rgba(57, 255, 20, .55),
+        0 0 50px rgba(57, 255, 20, .25);
+}
+
+.gallery-item:hover img {
+    transform: scale(1.07);
+    filter:
+        brightness(1.08)
+        contrast(1.05);
+}
+
+.gallery-item::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background:
+        linear-gradient(
+            135deg,
+            rgba(57, 255, 20, .12),
+            transparent 50%
+        );
+    transition: opacity .35s ease;
+}
+
+.gallery-item:hover::after {
+    opacity: 1;
+}
+
+
+/* ========================================
+   REVIEWS
+======================================== */
+
+.reviews-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+}
+
+.review-card {
+    min-height: 190px;
+    border: 1px solid rgba(57, 255, 20, .75);
+    border-radius: 9px;
+    padding: 18px;
+    position: relative;
+    transition:
+        transform .25s ease,
+        box-shadow .25s ease;
+}
+
+.review-card:hover {
+    transform: translateY(-5px);
+    box-shadow:
+        0 0 15px rgba(57, 255, 20, .2);
+}
+
+.review-stars {
+    position: absolute;
+    top: 15px;
+    right: 16px;
+    color: var(--green);
+    letter-spacing: 3px;
+    font-size: 19px;
+}
+
+.quote {
+    color: var(--green);
+    font: 800 62px/45px Arial, sans-serif;
+}
+
+.review-card h3 {
+    max-width: 75%;
+    margin: 4px 0 7px;
+    font: 500 12px/1.3 "Montserrat", sans-serif;
+}
+
+.review-card p {
+    max-width: 85%;
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.reviewer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 15px;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.reviewer img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+
+/* ========================================
+   CTA
+======================================== */
+
+.cta-section {
+    padding: 60px 0;
+    position: relative;
+    z-index: 20;
+}
+
+.cta-box {
+    position: relative;
+    min-height: 215px;
+    padding: 30px 55px;
+    border: 1px solid var(--green);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+    background: #000;
+}
+
+.cta-box::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("../images/cta-pattern.png");
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+    opacity: .75;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.cta-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+.cta-button {
+    position: relative;
+    z-index: 5;
+    pointer-events: auto;
+}
+
+.cta-logo img {
+    width: 95px;
+    max-width: 100%;
+}
+
+.cta-text h2 {
+    margin: 0 0 10px;
+    font-size: 34px;
+    line-height: 1.1;
+    font-weight: 500;
+}
+
+.cta-text p {
+    margin: 0;
+    color: #eeeeee;
+    font-size: 17px;
+    line-height: 1.4;
+}
+
+.cta-button {
+    min-width: 190px;
+    min-height: 64px;
+    padding: 0 35px;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+
+/* ========================================
+   FOOTER
+======================================== */
+
+.site-footer {
+    padding-top: 20px;
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns:
+        1.6fr
+        .8fr
+        .95fr
+        1fr;
+    gap: 45px;
+    padding: 30px 0 52px;
+}
+
+.footer-brand img {
+    width: 235px;
+}
+
+.footer-brand p {
+    margin: 21px 0 12px;
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.social-links {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.social-links a {
+    width: 25px;
+    height: 25px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 800;
+    position: relative;
+    z-index: 5;
+}
+
+.footer-column h3 {
+    margin: 0 0 15px;
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.footer-column a,
+.footer-column p {
+    display: block;
+    margin: 0 0 8px;
+    color: #eee;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.footer-column a {
+    position: relative;
+    z-index: 5;
+    pointer-events: auto;
+}
+
+.footer-column a:hover {
+    color: var(--green);
+}
+
+.copyright {
+    min-height: 61px;
+    border-top: 1px solid #252525;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 7px;
+    color: #eee;
+    font-size: 14px;
+    text-align: center;
+    padding: 15px;
+}
+
+.copyright span {
+    font-size: 25px;
+}
+
+
+/* ========================================
+   INNER PAGES
+   SPACING ADJUSTED ONLY
+======================================== */
+
+.inner-page {
+    min-height: 600px;
+    padding: 45px 0;
+}
+
+.form-page,
+.contact-page {
+    max-width: 980px;
+}
+
+.page-title {
+    margin: 0 0 25px;
+    text-align: center;
+    font-size: 42px;
+    font-weight: 600;
+}
+
+
+/* ========================================
+   FORMS
+   SPACING ADJUSTED ONLY
+======================================== */
+
+.booking-form {
+    padding: 28px 35px;
+    border: 1px solid var(--green);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, .75);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 14px;
+}
+
+.booking-form label {
+    display: grid;
+    gap: 7px;
+    color: #eee;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.booking-form input,
+.booking-form textarea,
+.booking-form select {
+    width: 100%;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 12px;
+    color: #fff;
+    background: #070707;
+    outline: none;
+}
+
+.booking-form input:focus,
+.booking-form textarea:focus,
+.booking-form select:focus {
+    border-color: var(--green);
+    box-shadow:
+        0 0 10px rgba(57, 255, 20, .2);
+}
+
+.form-message {
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-size: 12px;
+}
+
+.form-message.error {
+    border-color: #ff4141;
+    color: #ff8080;
+}
+
+
+/* ========================================
+   BIRTHDATE SPACING FIX
+   ONLY THE BIRTHDATE FIELD
+======================================== */
+
+.booking-form label:has(input[type="date"]) {
+    gap: 0;
+}
+
+.booking-form input[type="date"] {
+    margin-top: 0;
+}
+
+
+/* ========================================
+   CONTACT
+======================================== */
+
+.contact-layout {
+    display: grid;
+    grid-template-columns: .8fr 1.2fr;
+    gap: 35px;
+}
+
+.contact-info h2 {
+    margin: 0 0 25px;
+    font-size: 30px;
+}
+
+.contact-info p {
+    color: #eee;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+
+/* ========================================
+   SCROLL ANIMATION
+======================================== */
+
+.reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+        opacity .55s ease,
+        transform .55s ease;
+}
+
+.reveal.show {
+    opacity: 1;
+    transform: none;
+}
+
+
+/* ========================================
+   LIGHTBOX
+======================================== */
+
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    background: rgba(0, 0, 0, .94);
+    opacity: 0;
+    pointer-events: none;
+    transition: .2s;
+}
+
+.lightbox.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.lightbox img {
+    max-width: 92vw;
+    max-height: 88vh;
+    border: 1px solid var(--green);
+    box-shadow:
+        0 0 25px rgba(57, 255, 20, .35);
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 18px;
+    right: 25px;
+    color: #fff;
+    background: transparent;
+    border: 0;
+    font-size: 40px;
+    cursor: pointer;
+    z-index: 10000;
+}
+
+
+/* ========================================
+   TABLET
+======================================== */
+
+@media (max-width: 1100px) {
+
+    .container {
+        width: calc(100% - 50px);
+    }
+
+    .brand img {
+        width: 225px;
+    }
+
+    .main-nav {
+        gap: 20px;
+    }
+
+    .hero-grid {
+        grid-template-columns: 42% 58%;
+    }
+
+    .setup-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .feature-grid {
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 30px;
+    }
+
+    .gallery-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+
+    .gallery-item {
+        height: 220px;
+    }
+
+    .gallery-item:nth-child(2),
+    .gallery-item:nth-child(4) {
+        margin-top: 50px;
+    }
+
+}
+
+
+/* ========================================
+   TABLET / MOBILE NAV
+======================================== */
+
+@media (max-width: 900px) {
+
+    .container {
+        width: calc(100% - 40px);
+    }
+
+    .brand img {
+        width: 210px;
+    }
+
+    .menu-toggle {
+        display: block;
+    }
+
+    .main-nav {
+        display: none;
+        position: absolute;
+        top: 101px;
+        left: 0;
+        right: 0;
+        padding: 18px 25px 25px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        background: #000;
+        border-bottom: 1px solid #222;
+        z-index: 1001;
+    }
+
+    .main-nav.open {
+        display: flex;
+    }
+
+    .main-nav a {
+        padding: 13px 0;
+    }
+
+    .hero-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-copy {
+        padding: 50px 0 30px;
+    }
+
+    .hero-photo {
+        height: 350px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .feature-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .rates-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+    }
+
+    .gallery-item {
+        height: 260px;
+    }
+
+    .gallery-item:nth-child(1),
+    .gallery-item:nth-child(3) {
+        margin-top: 0;
+    }
+
+    .gallery-item:nth-child(2),
+    .gallery-item:nth-child(4) {
+        margin-top: 45px;
+    }
+
+    .tournament-card {
+        grid-template-columns: 90px 1fr;
+    }
+
+    .tournament-card .outline-button {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .cta-box {
+        padding: 30px;
+    }
+
+    .cta-box::before {
+        background-size: 240px 208px;
+        background-position: 0 0;
+    }
+
+    .cta-content {
+        gap: 18px;
+    }
+
+}
+
+
+/* ========================================
+   MOBILE
+======================================== */
+
+@media (max-width: 600px) {
+
+    .container {
+        width: calc(100% - 30px);
+    }
+
+    .site-header {
+        height: 82px;
+    }
+
+    .brand img {
+        width: 190px;
+    }
+
+    .main-nav {
+        top: 82px;
+    }
+
+    .hero h1 {
+        font-size: 38px;
+    }
+
+    .hero-photo {
+        height: 260px;
+    }
+
+    .hero-buttons {
+        flex-wrap: wrap;
+    }
+
+    .stats-grid,
+    .feature-grid,
+    .setup-grid,
+    .rates-grid,
+    .reviews-grid,
+    .footer-grid,
+    .form-row,
+    .contact-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        margin-top: 15px;
+    }
+
+    .gallery-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .gallery-item,
+    .gallery-item:nth-child(1),
+    .gallery-item:nth-child(2),
+    .gallery-item:nth-child(3),
+    .gallery-item:nth-child(4) {
+        height: 260px;
+        margin-top: 0;
+    }
+
+    .tournament-card {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .tournament-date {
+        border-right: none;
+        border-bottom: 1px solid rgba(57, 255, 20, .5);
+        padding-bottom: 15px;
+    }
+
+    .tournament-card .outline-button {
+        grid-column: auto;
+        justify-self: center;
+    }
+
+    .cta-section {
+        padding: 40px 0;
+    }
+
+    .cta-box {
+        min-height: auto;
+        flex-direction: column;
+        text-align: center;
+        justify-content: center;
+        gap: 25px;
+        padding: 35px 25px;
+    }
+
+    .cta-box::before {
+        background-size: 240px 208px;
+        background-position: 0 0;
+        opacity: .55;
+    }
+
+    .cta-content {
+        flex-direction: column;
+    }
+
+    .cta-logo img {
+        width: 75px;
+    }
+
+    .cta-button {
+        min-width: 170px;
+        min-height: 54px;
+    }
+
+    .cta-text h2 {
+        font-size: 26px;
+    }
+
+    .cta-text p {
+        font-size: 14px;
+    }
+
+    .page-title {
+        font-size: 31px;
+    }
+
+    .booking-form {
+        padding: 22px;
+    }
+
+    .section-heading {
+        font-size: 28px;
+    }
+
+    .setups-container {
+        scroll-margin-top: 95px;
+    }
+
+}
