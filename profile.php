@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 require_once "database.php";
@@ -32,18 +31,7 @@ $stmt = $conn->prepare("
 
 $stmt->execute([$userId]);
 
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-
-/* ========================================
-   SAFETY CHECK
-======================================== */
-
-if (!$user) {
-
-    header("Location: logout.php");
-    exit;
-}
+$user = $stmt->fetch();
 
 
 /* ========================================
@@ -64,27 +52,28 @@ $bookingStmt = $conn->prepare("
         b.status,
         b.created_at,
         gs.name AS setup_name
-
     FROM bookings b
-
-    LEFT JOIN gaming_setups gs
-        ON gs.id = b.setup_id
-
+    LEFT JOIN gaming_setups gs ON gs.id = b.setup_id
     WHERE b.email = ?
-
-    ORDER BY
-        b.booking_date DESC,
-        b.start_time DESC
+    ORDER BY b.booking_date DESC, b.start_time DESC
 ");
 
 $bookingStmt->execute([$user["email"]]);
 
-$bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
+$bookings = $bookingStmt->fetchAll();
 
+
+/* ========================================
+   SAFETY CHECK
+======================================== */
+
+if (!$user) {
+    header("Location: logout.php");
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -104,8 +93,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
     <title>MY PROFILE | Bais Rouilo Gaming Cafe</title>
 
 
-    <!-- GOOGLE FONTS -->
-
     <link
         rel="preconnect"
         href="https://fonts.googleapis.com"
@@ -113,7 +100,7 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
     <link
         rel="preconnect"
-        href="https://fonts.gstatic.com"
+        href="https://fonts.googleapis.com"
         crossorigin
     >
 
@@ -122,8 +109,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
         rel="stylesheet"
     >
 
-
-    <!-- MAIN CSS -->
 
     <link
         rel="stylesheet"
@@ -145,8 +130,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="container nav-container">
 
 
-        <!-- LOGO -->
-
         <a
             href="index.php"
             class="brand"
@@ -160,13 +143,10 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
         </a>
 
 
-        <!-- MOBILE MENU -->
-
         <button
             class="menu-toggle"
             aria-label="Open menu"
             aria-expanded="false"
-            type="button"
         >
 
             <span></span>
@@ -175,8 +155,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
         </button>
 
-
-        <!-- MAIN NAVIGATION -->
 
         <nav
             class="main-nav"
@@ -221,12 +199,12 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 </header>
 
 
-
 <!-- ========================================
      PROFILE
 ======================================== -->
 
 <main class="inner-page">
+
 
     <div class="container form-page">
 
@@ -240,22 +218,7 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
             MY <span>PROFILE</span>
         </h1>
 
-
-
-        <!-- ========================================
-             PROFILE TABS
-        ======================================== -->
-
-        <div
-            style="
-                display:flex;
-                justify-content:center;
-                gap:15px;
-                flex-wrap:wrap;
-                margin-bottom:35px;
-            "
-        >
-
+        <div style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap; margin-bottom:35px;">
             <a
                 href="#account"
                 class="green-button"
@@ -265,38 +228,28 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                 ACCOUNT
             </a>
 
-
             <a
                 href="#history"
                 class="outline-button"
-                style="
-                    padding:13px 22px;
-                    color:#39FF14;
-                "
+                style="color:#39FF14; padding:13px 22px;"
                 data-profile-tab="history"
             >
                 HISTORY
             </a>
-
         </div>
-
 
 
         <!-- ========================================
              ACCOUNT INFORMATION
         ======================================== -->
 
-        <div
-            class="booking-form"
-            id="account"
-            data-profile-section="account"
-        >
+        <div class="booking-form" id="account" data-profile-section="account">
 
 
             <h2
                 style="
                     color:#39FF14;
-                    font-family:'Orbitron', sans-serif;
+                    font-family:'Orbitron',sans-serif;
                     font-size:20px;
                     margin:0 0 25px;
                 "
@@ -305,11 +258,8 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
             </h2>
 
 
-
             <div class="form-row">
 
-
-                <!-- FULL NAME -->
 
                 <label>
 
@@ -317,19 +267,12 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <input
                         type="text"
-                        value="<?= htmlspecialchars(
-                            (string) ($user["name"] ?? ""),
-                            ENT_QUOTES,
-                            "UTF-8"
-                        ) ?>"
+                        value="<?= htmlspecialchars($user['name'] ?? '') ?>"
                         readonly
                     >
 
                 </label>
 
-
-
-                <!-- EMAIL -->
 
                 <label>
 
@@ -337,11 +280,7 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <input
                         type="email"
-                        value="<?= htmlspecialchars(
-                            (string) ($user["email"] ?? ""),
-                            ENT_QUOTES,
-                            "UTF-8"
-                        ) ?>"
+                        value="<?= htmlspecialchars($user['email'] ?? '') ?>"
                         readonly
                     >
 
@@ -351,11 +290,8 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
 
 
-
             <div class="form-row">
 
-
-                <!-- PHONE -->
 
                 <label>
 
@@ -363,19 +299,12 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <input
                         type="text"
-                        value="<?= htmlspecialchars(
-                            (string) ($user["phone"] ?? ""),
-                            ENT_QUOTES,
-                            "UTF-8"
-                        ) ?>"
+                        value="<?= htmlspecialchars($user['phone'] ?? '') ?>"
                         readonly
                     >
 
                 </label>
 
-
-
-                <!-- MEMBER SINCE -->
 
                 <label>
 
@@ -383,18 +312,7 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                     <input
                         type="text"
-                        value="<?= htmlspecialchars(
-                            date(
-                                "F d, Y",
-                                strtotime(
-                                    (string) (
-                                        $user["created_at"] ?? "now"
-                                    )
-                                )
-                            ),
-                            ENT_QUOTES,
-                            "UTF-8"
-                        ) ?>"
+                        value="<?= date('F d, Y', strtotime($user['created_at'] ?? 'now')) ?>"
                         readonly
                     >
 
@@ -403,9 +321,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
             </div>
 
-
-
-            <!-- ACCOUNT BUTTONS -->
 
             <div
                 style="
@@ -416,7 +331,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                 "
             >
 
-
                 <a
                     href="book.php"
                     class="green-button"
@@ -426,18 +340,13 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                 </a>
 
 
-
                 <a
                     href="logout.php"
                     class="outline-button"
-                    style="
-                        padding:13px 22px;
-                        color:#39FF14;
-                    "
+                    style="color:#39FF14;"
                 >
                     LOGOUT
                 </a>
-
 
             </div>
 
@@ -445,18 +354,11 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
 
-
         <!-- ========================================
              BOOKING HISTORY
         ======================================== -->
 
-        <div
-            id="history"
-            data-profile-section="history"
-            style="
-                display:none;
-            "
-        >
+        <div id="history" data-profile-section="history" style="margin-top:45px; display:none;">
 
 
             <p class="section-kicker">
@@ -470,7 +372,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
             >
                 MY <span>BOOKINGS</span>
             </h2>
-
 
 
             <?php if (count($bookings) === 0): ?>
@@ -501,7 +402,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
 
-
             <?php else: ?>
 
 
@@ -522,8 +422,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                         >
 
 
-                            <!-- BOOKING HEADER -->
-
                             <div
                                 style="
                                     display:flex;
@@ -535,20 +433,16 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                                 "
                             >
 
-
                                 <h3
                                     style="
                                         margin:0;
                                         color:#39FF14;
-                                        font-family:'Orbitron', sans-serif;
+                                        font-family:'Orbitron',sans-serif;
                                         font-size:15px;
                                     "
                                 >
-
-                                    BOOKING #<?= (int) $booking["id"] ?>
-
+                                    BOOKING #<?= (int) $booking['id'] ?>
                                 </h3>
-
 
 
                                 <span
@@ -559,23 +453,11 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                                         text-transform:uppercase;
                                     "
                                 >
-
-                                    <?= htmlspecialchars(
-                                        (string) (
-                                            $booking["status"] ?? ""
-                                        ),
-                                        ENT_QUOTES,
-                                        "UTF-8"
-                                    ) ?>
-
+                                    <?= htmlspecialchars($booking['status']) ?>
                                 </span>
-
 
                             </div>
 
-
-
-                            <!-- ROW 1 -->
 
                             <div class="form-row">
 
@@ -586,19 +468,11 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                                     <input
                                         type="text"
-                                        value="<?= htmlspecialchars(
-                                            (string) (
-                                                $booking["setup_name"]
-                                                ?? "Not Available"
-                                            ),
-                                            ENT_QUOTES,
-                                            "UTF-8"
-                                        ) ?>"
+                                        value="<?= htmlspecialchars($booking['setup_name']) ?>"
                                         readonly
                                     >
 
                                 </label>
-
 
 
                                 <label>
@@ -607,19 +481,7 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                                     <input
                                         type="text"
-                                        value="<?= htmlspecialchars(
-                                            date(
-                                                "F d, Y",
-                                                strtotime(
-                                                    (string) (
-                                                        $booking["booking_date"]
-                                                        ?? "now"
-                                                    )
-                                                )
-                                            ),
-                                            ENT_QUOTES,
-                                            "UTF-8"
-                                        ) ?>"
+                                        value="<?= date('F d, Y', strtotime($booking['booking_date'])) ?>"
                                         readonly
                                     >
 
@@ -628,9 +490,6 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                             </div>
 
-
-
-                            <!-- ROW 2 -->
 
                             <div class="form-row">
 
@@ -641,24 +500,11 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                                     <input
                                         type="text"
-                                        value="<?= htmlspecialchars(
-                                            date(
-                                                "h:i A",
-                                                strtotime(
-                                                    (string) (
-                                                        $booking["start_time"]
-                                                        ?? "00:00:00"
-                                                    )
-                                                )
-                                            ),
-                                            ENT_QUOTES,
-                                            "UTF-8"
-                                        ) ?>"
+                                        value="<?= date('h:i A', strtotime($booking['start_time'])) ?>"
                                         readonly
                                     >
 
                                 </label>
-
 
 
                                 <label>
@@ -667,15 +513,7 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
                                     <input
                                         type="text"
-                                        value="<?= (int) (
-                                            $booking["hours"] ?? 0
-                                        ) ?> hour<?= (
-                                            (int) (
-                                                $booking["hours"] ?? 0
-                                            ) !== 1
-                                            ? "s"
-                                            : ""
-                                        ) ?>"
+                                        value="<?= (int) $booking['hours'] ?> hour<?= ((int) $booking['hours'] !== 1 ? 's' : '') ?>"
                                         readonly
                                     >
 
@@ -685,13 +523,7 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                             </div>
 
 
-
-                            <!-- NOTES -->
-
-                            <?php if (
-                                !empty($booking["message"])
-                            ): ?>
-
+                            <?php if (!empty($booking['message'])): ?>
 
                                 <label>
 
@@ -700,14 +532,10 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
                                     <textarea
                                         readonly
                                         rows="3"
-                                    ><?= htmlspecialchars(
-                                        (string) $booking["message"],
-                                        ENT_QUOTES,
-                                        "UTF-8"
-                                    ) ?></textarea>
+                                        style="resize:none;"
+                                    ><?= htmlspecialchars($booking['message']) ?></textarea>
 
                                 </label>
-
 
                             <?php endif; ?>
 
@@ -729,8 +557,8 @@ $bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
     </div>
 
-</main>
 
+</main>
 
 
 <!-- ========================================
@@ -745,7 +573,6 @@ const profileTabs =
 const profileSections =
     document.querySelectorAll("[data-profile-section]");
 
-
 function showProfileSection(sectionName) {
 
     profileSections.forEach(function (section) {
@@ -757,28 +584,19 @@ function showProfileSection(sectionName) {
 
     });
 
-
     profileTabs.forEach(function (tab) {
 
-        if (
-            tab.dataset.profileTab === sectionName
-        ) {
-
-            /* ACTIVE BUTTON */
+        if (tab.dataset.profileTab === sectionName) {
 
             tab.classList.add("green-button");
             tab.classList.remove("outline-button");
-
             tab.style.color = "";
             tab.style.padding = "13px 22px";
 
         } else {
 
-            /* INACTIVE BUTTON */
-
             tab.classList.add("outline-button");
             tab.classList.remove("green-button");
-
             tab.style.color = "#39FF14";
             tab.style.padding = "13px 22px";
 
@@ -788,46 +606,34 @@ function showProfileSection(sectionName) {
 
 }
 
-
 profileTabs.forEach(function (tab) {
 
-    tab.addEventListener(
-        "click",
-        function (event) {
+    tab.addEventListener("click", function (event) {
 
-            event.preventDefault();
+        event.preventDefault();
 
-            const sectionName =
-                tab.dataset.profileTab;
+        const sectionName = tab.dataset.profileTab;
 
-            showProfileSection(sectionName);
+        showProfileSection(sectionName);
 
-            history.replaceState(
-                null,
-                "",
-                "#" + sectionName
-            );
+        history.replaceState(
+            null,
+            "",
+            "#" + sectionName
+        );
 
-        }
-    );
+    });
 
 });
-
-
-/* ========================================
-   CHECK INITIAL HASH
-======================================== */
 
 const initialSection =
     window.location.hash === "#history"
         ? "history"
         : "account";
 
-
 showProfileSection(initialSection);
 
 </script>
-
 
 
 <!-- ========================================
@@ -836,31 +642,24 @@ showProfileSection(initialSection);
 
 <script>
 
-const menuToggle =
-    document.querySelector(".menu-toggle");
-
-const mainNav =
-    document.querySelector(".main-nav");
-
+const menuToggle = document.querySelector(".menu-toggle");
+const mainNav = document.querySelector(".main-nav");
 
 if (menuToggle && mainNav) {
 
-    menuToggle.addEventListener(
-        "click",
-        function () {
+    menuToggle.addEventListener("click", function () {
 
-            mainNav.classList.toggle("open");
+        mainNav.classList.toggle("open");
 
-            const isOpen =
-                mainNav.classList.contains("open");
+        const isOpen =
+            mainNav.classList.contains("open");
 
-            menuToggle.setAttribute(
-                "aria-expanded",
-                isOpen ? "true" : "false"
-            );
+        menuToggle.setAttribute(
+            "aria-expanded",
+            isOpen ? "true" : "false"
+        );
 
-        }
-    );
+    });
 
 }
 
