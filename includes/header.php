@@ -1,7 +1,9 @@
 <?php
 
 if (session_status() === PHP_SESSION_NONE) {
+
     session_start();
+
 }
 
 $currentPage = basename($_SERVER["PHP_SELF"]);
@@ -35,6 +37,7 @@ $userName = $_SESSION["user"]["name"] ?? "";
     </title>
 
     <!-- GOOGLE FONTS -->
+
     <link
         rel="preconnect"
         href="https://fonts.googleapis.com"
@@ -52,6 +55,7 @@ $userName = $_SESSION["user"]["name"] ?? "";
     >
 
     <!-- MAIN CSS -->
+
     <link
         rel="stylesheet"
         href="assets/css/style.css"
@@ -66,6 +70,7 @@ $userName = $_SESSION["user"]["name"] ?? "";
     <div class="container nav-container">
 
         <!-- LOGO -->
+
         <a
             href="index.php"
             class="brand"
@@ -80,6 +85,7 @@ $userName = $_SESSION["user"]["name"] ?? "";
 
 
         <!-- MOBILE MENU -->
+
         <button
             class="menu-toggle"
             aria-label="Open menu"
@@ -95,6 +101,7 @@ $userName = $_SESSION["user"]["name"] ?? "";
 
 
         <!-- MAIN NAVIGATION -->
+
         <nav
             class="main-nav"
             id="mainNav"
@@ -107,21 +114,26 @@ $userName = $_SESSION["user"]["name"] ?? "";
                 HOME
             </a>
 
+
             <a href="index.php#pcs">
                 PCS
             </a>
+
 
             <a href="index.php#rates">
                 RATES
             </a>
 
+
             <a href="index.php#tournaments">
                 TOURNAMENTS
             </a>
 
+
             <a href="index.php#gallery">
                 GALLERY
             </a>
+
 
             <a
                 href="contact.php"
@@ -131,13 +143,27 @@ $userName = $_SESSION["user"]["name"] ?? "";
             </a>
 
 
-            <!-- BOOK NOW -->
-            <a
-                href="book.php"
-                class="nav-button"
-            >
-                BOOK NOW
-            </a>
+            <!-- PROFILE / BOOK NOW -->
+
+            <?php if ($isLoggedIn): ?>
+
+                <a
+                    href="profile.php"
+                    class="nav-button"
+                >
+                    PROFILE
+                </a>
+
+            <?php else: ?>
+
+                <a
+                    href="login.php"
+                    class="nav-button"
+                >
+                    BOOK NOW
+                </a>
+
+            <?php endif; ?>
 
         </nav>
 
