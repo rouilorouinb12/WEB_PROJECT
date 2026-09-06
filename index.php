@@ -1,6 +1,11 @@
 <?php
-
 require_once "database.php";
+require_once "auth.php";
+
+if (!isLoggedIn()) {
+    header("Location: login.php");
+    exit;
+}
 
 include "includes/header.php";
 
