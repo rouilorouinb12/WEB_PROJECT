@@ -219,9 +219,8 @@ if (!$user) {
         </h1>
 
         <div style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap; margin-bottom:35px;">
-            <a href="#account" class="green-button" style="padding:13px 22px;">ACCOUNT</a>
-            <a href="#history" class="outline-button" style="color:#39FF14;">HISTORY</a>
-            <a href="logout.php" class="outline-button" style="color:#39FF14;">LOGOUT</a>
+            <a href="#account" class="green-button" style="padding:13px 22px;" data-profile-tab="account">ACCOUNT</a>
+            <a href="#history" class="outline-button" style="color:#39FF14;" data-profile-tab="history">HISTORY</a>
         </div>
 
 
@@ -229,7 +228,7 @@ if (!$user) {
              ACCOUNT INFORMATION
         ======================================== -->
 
-        <div class="booking-form" id="account">
+        <div class="booking-form" id="account" data-profile-section="account">
 
 
             <h2
@@ -344,7 +343,7 @@ if (!$user) {
              BOOKING HISTORY
         ======================================== -->
 
-        <div id="history" style="margin-top:45px;">
+        <div id="history" data-profile-section="history" style="margin-top:45px; display:none;">
 
 
             <p class="section-kicker">
@@ -544,6 +543,55 @@ if (!$user) {
 
 
 </main>
+
+
+<!-- ========================================
+     PROFILE TAB SCRIPT
+======================================== -->
+<script>
+
+const profileTabs = document.querySelectorAll("[data-profile-tab]");
+const profileSections = document.querySelectorAll("[data-profile-section]");
+
+function showProfileSection(sectionName) {
+
+    profileSections.forEach(function (section) {
+        section.style.display =
+            section.dataset.profileSection === sectionName
+                ? "block"
+                : "none";
+    });
+
+    profileTabs.forEach(function (tab) {
+        if (tab.dataset.profileTab === sectionName) {
+            tab.classList.add("green-button");
+            tab.classList.remove("outline-button");
+        } else {
+            tab.classList.add("outline-button");
+            tab.classList.remove("green-button");
+        }
+    });
+}
+
+profileTabs.forEach(function (tab) {
+    tab.addEventListener("click", function (event) {
+        event.preventDefault();
+
+        const sectionName = tab.dataset.profileTab;
+        showProfileSection(sectionName);
+
+        history.replaceState(null, "", "#" + sectionName);
+    });
+});
+
+const initialSection =
+    window.location.hash === "#history"
+        ? "history"
+        : "account";
+
+showProfileSection(initialSection);
+
+</script>
 
 
 <!-- ========================================
