@@ -66,7 +66,7 @@ include "includes/header.php";
             </p>
 
             <h1 class="page-title">
-                THANK YOU, <span><?= htmlspecialchars($booking["name"]) ?></span>
+                THANK YOU, <span><?= htmlspecialchars($booking["customer_name"]) ?></span>
             </h1>
 
 
@@ -92,13 +92,13 @@ include "includes/header.php";
 
                 <p>
                     <strong>Customer:</strong>
-                    <?= htmlspecialchars($booking["name"]) ?>
+                    <?= htmlspecialchars($booking["customer_name"]) ?>
                 </p>
 
 
                 <p>
                     <strong>Phone:</strong>
-                    <?= htmlspecialchars($booking["phone"]) ?>
+                    <?= htmlspecialchars($booking["phone"] ?? "") ?>
                 </p>
 
 
@@ -114,7 +114,7 @@ include "includes/header.php";
 
                 <p>
                     <strong>Gaming Setup:</strong>
-                    <?= htmlspecialchars($booking["station"]) ?>
+                    <?= htmlspecialchars($booking["setup_name"] ?? "Unknown Setup") ?>
                 </p>
 
 
@@ -129,7 +129,7 @@ include "includes/header.php";
                     <?= htmlspecialchars(
                         date(
                             "h:i A",
-                            strtotime($booking["booking_time"])
+                            strtotime($booking["start_time"])
                         )
                     ) ?>
                 </p>
@@ -142,11 +142,11 @@ include "includes/header.php";
                 </p>
 
 
-                <?php if (!empty($booking["notes"])): ?>
+                <?php if (!empty($booking["message"])): ?>
 
                     <p>
                         <strong>Notes:</strong>
-                        <?= htmlspecialchars($booking["notes"]) ?>
+                        <?= htmlspecialchars($booking["message"]) ?>
                     </p>
 
                 <?php endif; ?>
