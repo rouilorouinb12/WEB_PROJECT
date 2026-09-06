@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once "database.php";
@@ -31,7 +32,18 @@ $stmt = $conn->prepare("
 
 $stmt->execute([$userId]);
 
-$user = $stmt->fetch();
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+
+/* ========================================
+   SAFETY CHECK
+======================================== */
+
+if (!$user) {
+
+    header("Location: logout.php");
+    exit;
+}
 
 
 /* ========================================
@@ -52,28 +64,27 @@ $bookingStmt = $conn->prepare("
         b.status,
         b.created_at,
         gs.name AS setup_name
+
     FROM bookings b
-    LEFT JOIN gaming_setups gs ON gs.id = b.setup_id
+
+    LEFT JOIN gaming_setups gs
+        ON gs.id = b.setup_id
+
     WHERE b.email = ?
-    ORDER BY b.booking_date DESC, b.start_time DESC
+
+    ORDER BY
+        b.booking_date DESC,
+        b.start_time DESC
 ");
 
 $bookingStmt->execute([$user["email"]]);
 
-$bookings = $bookingStmt->fetchAll();
+$bookings = $bookingStmt->fetchAll(PDO::FETCH_ASSOC);
 
-
-/* ========================================
-   SAFETY CHECK
-======================================== */
-
-if (!$user) {
-    header("Location: logout.php");
-    exit;
-}
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -93,6 +104,8 @@ if (!$user) {
     <title>MY PROFILE | Bais Rouilo Gaming Cafe</title>
 
 
+    <!-- GOOGLE FONTS -->
+
     <link
         rel="preconnect"
         href="https://fonts.googleapis.com"
@@ -100,7 +113,7 @@ if (!$user) {
 
     <link
         rel="preconnect"
-        href="https://fonts.googleapis.com"
+        href="https://fonts.gstatic.com"
         crossorigin
     >
 
@@ -109,6 +122,8 @@ if (!$user) {
         rel="stylesheet"
     >
 
+
+    <!-- MAIN CSS -->
 
     <link
         rel="stylesheet"
@@ -130,6 +145,8 @@ if (!$user) {
     <div class="container nav-container">
 
 
+        <!-- LOGO -->
+
         <a
             href="index.php"
             class="brand"
@@ -143,10 +160,13 @@ if (!$user) {
         </a>
 
 
+        <!-- MOBILE MENU -->
+
         <button
             class="menu-toggle"
             aria-label="Open menu"
             aria-expanded="false"
+            type="button"
         >
 
             <span></span>
@@ -155,6 +175,8 @@ if (!$user) {
 
         </button>
 
+
+        <!-- MAIN NAVIGATION -->
 
         <nav
             class="main-nav"
@@ -199,12 +221,12 @@ if (!$user) {
 </header>
 
 
+
 <!-- ========================================
      PROFILE
 ======================================== -->
 
 <main class="inner-page">
-
 
     <div class="container form-page">
 
@@ -218,23 +240,63 @@ if (!$user) {
             MY <span>PROFILE</span>
         </h1>
 
-        <div style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap; margin-bottom:35px;">
-            <a href="#account" class="green-button" style="padding:13px 22px;" data-profile-tab="account">ACCOUNT</a>
-            <a href="#history" class="outline-button" style="color:#39FF14;" data-profile-tab="history">HISTORY</a>
+
+
+        <!-- ========================================
+             PROFILE TABS
+        ======================================== -->
+
+        <div
+            style="
+                display:flex;
+                justify-content:center;
+                gap:15px;
+                flex-wrap:wrap;
+                margin-bottom:35px;
+            "
+        >
+
+            <a
+                href="#account"
+                class="green-button"
+                style="padding:13px 22px;"
+                data-profile-tab="account"
+            >
+                ACCOUNT
+            </a>
+
+
+            <a
+                href="#history"
+                class="outline-button"
+                style="
+                    padding:13px 22px;
+                    color:#39FF14;
+                "
+                data-profile-tab="history"
+            >
+                HISTORY
+            </a>
+
         </div>
+
 
 
         <!-- ========================================
              ACCOUNT INFORMATION
         ======================================== -->
 
-        <div class="booking-form" id="account" data-profile-section="account">
+        <div
+            class="booking-form"
+            id="account"
+            data-profile-section="account"
+        >
 
 
             <h2
                 style="
                     color:#39FF14;
-                    font-family:'Orbitron',sans-serif;
+                    font-family:'Orbitron', sans-serif;
                     font-size:20px;
                     margin:0 0 25px;
                 "
@@ -243,8 +305,11 @@ if (!$user) {
             </h2>
 
 
+
             <div class="form-row">
 
+
+                <!-- FULL NAME -->
 
                 <label>
 
@@ -252,12 +317,19 @@ if (!$user) {
 
                     <input
                         type="text"
-                        value="<?= htmlspecialchars($user['name'] ?? '') ?>"
+                        value="<?= htmlspecialchars(
+                            (string) ($user["name"] ?? ""),
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>"
                         readonly
                     >
 
                 </label>
 
+
+
+                <!-- EMAIL -->
 
                 <label>
 
@@ -265,7 +337,11 @@ if (!$user) {
 
                     <input
                         type="email"
-                        value="<?= htmlspecialchars($user['email'] ?? '') ?>"
+                        value="<?= htmlspecialchars(
+                            (string) ($user["email"] ?? ""),
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>"
                         readonly
                     >
 
@@ -275,8 +351,11 @@ if (!$user) {
             </div>
 
 
+
             <div class="form-row">
 
+
+                <!-- PHONE -->
 
                 <label>
 
@@ -284,12 +363,19 @@ if (!$user) {
 
                     <input
                         type="text"
-                        value="<?= htmlspecialchars($user['phone'] ?? '') ?>"
+                        value="<?= htmlspecialchars(
+                            (string) ($user["phone"] ?? ""),
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>"
                         readonly
                     >
 
                 </label>
 
+
+
+                <!-- MEMBER SINCE -->
 
                 <label>
 
@@ -297,7 +383,18 @@ if (!$user) {
 
                     <input
                         type="text"
-                        value="<?= date('F d, Y', strtotime($user['created_at'] ?? 'now')) ?>"
+                        value="<?= htmlspecialchars(
+                            date(
+                                "F d, Y",
+                                strtotime(
+                                    (string) (
+                                        $user["created_at"] ?? "now"
+                                    )
+                                )
+                            ),
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>"
                         readonly
                     >
 
@@ -306,6 +403,9 @@ if (!$user) {
 
             </div>
 
+
+
+            <!-- ACCOUNT BUTTONS -->
 
             <div
                 style="
@@ -316,6 +416,7 @@ if (!$user) {
                 "
             >
 
+
                 <a
                     href="book.php"
                     class="green-button"
@@ -325,13 +426,18 @@ if (!$user) {
                 </a>
 
 
+
                 <a
                     href="logout.php"
                     class="outline-button"
-                    style="color:#39FF14;"
+                    style="
+                        padding:13px 22px;
+                        color:#39FF14;
+                    "
                 >
                     LOGOUT
                 </a>
+
 
             </div>
 
@@ -339,11 +445,18 @@ if (!$user) {
         </div>
 
 
+
         <!-- ========================================
              BOOKING HISTORY
         ======================================== -->
 
-        <div id="history" data-profile-section="history" style="margin-top:45px; display:none;">
+        <div
+            id="history"
+            data-profile-section="history"
+            style="
+                display:none;
+            "
+        >
 
 
             <p class="section-kicker">
@@ -357,6 +470,7 @@ if (!$user) {
             >
                 MY <span>BOOKINGS</span>
             </h2>
+
 
 
             <?php if (count($bookings) === 0): ?>
@@ -387,6 +501,7 @@ if (!$user) {
                 </div>
 
 
+
             <?php else: ?>
 
 
@@ -407,6 +522,8 @@ if (!$user) {
                         >
 
 
+                            <!-- BOOKING HEADER -->
+
                             <div
                                 style="
                                     display:flex;
@@ -418,16 +535,20 @@ if (!$user) {
                                 "
                             >
 
+
                                 <h3
                                     style="
                                         margin:0;
                                         color:#39FF14;
-                                        font-family:'Orbitron',sans-serif;
+                                        font-family:'Orbitron', sans-serif;
                                         font-size:15px;
                                     "
                                 >
-                                    BOOKING #<?= (int) $booking['id'] ?>
+
+                                    BOOKING #<?= (int) $booking["id"] ?>
+
                                 </h3>
+
 
 
                                 <span
@@ -438,11 +559,23 @@ if (!$user) {
                                         text-transform:uppercase;
                                     "
                                 >
-                                    <?= htmlspecialchars($booking['status']) ?>
+
+                                    <?= htmlspecialchars(
+                                        (string) (
+                                            $booking["status"] ?? ""
+                                        ),
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>
+
                                 </span>
+
 
                             </div>
 
+
+
+                            <!-- ROW 1 -->
 
                             <div class="form-row">
 
@@ -453,11 +586,19 @@ if (!$user) {
 
                                     <input
                                         type="text"
-                                        value="<?= htmlspecialchars($booking['setup_name']) ?>"
+                                        value="<?= htmlspecialchars(
+                                            (string) (
+                                                $booking["setup_name"]
+                                                ?? "Not Available"
+                                            ),
+                                            ENT_QUOTES,
+                                            "UTF-8"
+                                        ) ?>"
                                         readonly
                                     >
 
                                 </label>
+
 
 
                                 <label>
@@ -466,7 +607,19 @@ if (!$user) {
 
                                     <input
                                         type="text"
-                                        value="<?= date('F d, Y', strtotime($booking['booking_date'])) ?>"
+                                        value="<?= htmlspecialchars(
+                                            date(
+                                                "F d, Y",
+                                                strtotime(
+                                                    (string) (
+                                                        $booking["booking_date"]
+                                                        ?? "now"
+                                                    )
+                                                )
+                                            ),
+                                            ENT_QUOTES,
+                                            "UTF-8"
+                                        ) ?>"
                                         readonly
                                     >
 
@@ -475,6 +628,9 @@ if (!$user) {
 
                             </div>
 
+
+
+                            <!-- ROW 2 -->
 
                             <div class="form-row">
 
@@ -485,11 +641,24 @@ if (!$user) {
 
                                     <input
                                         type="text"
-                                        value="<?= date('h:i A', strtotime($booking['start_time'])) ?>"
+                                        value="<?= htmlspecialchars(
+                                            date(
+                                                "h:i A",
+                                                strtotime(
+                                                    (string) (
+                                                        $booking["start_time"]
+                                                        ?? "00:00:00"
+                                                    )
+                                                )
+                                            ),
+                                            ENT_QUOTES,
+                                            "UTF-8"
+                                        ) ?>"
                                         readonly
                                     >
 
                                 </label>
+
 
 
                                 <label>
@@ -498,7 +667,15 @@ if (!$user) {
 
                                     <input
                                         type="text"
-                                        value="<?= (int) $booking['hours'] ?> hour<?= ((int) $booking['hours'] !== 1 ? 's' : '') ?>"
+                                        value="<?= (int) (
+                                            $booking["hours"] ?? 0
+                                        ) ?> hour<?= (
+                                            (int) (
+                                                $booking["hours"] ?? 0
+                                            ) !== 1
+                                            ? "s"
+                                            : ""
+                                        ) ?>"
                                         readonly
                                     >
 
@@ -508,7 +685,13 @@ if (!$user) {
                             </div>
 
 
-                            <?php if (!empty($booking['message'])): ?>
+
+                            <!-- NOTES -->
+
+                            <?php if (
+                                !empty($booking["message"])
+                            ): ?>
+
 
                                 <label>
 
@@ -517,9 +700,14 @@ if (!$user) {
                                     <textarea
                                         readonly
                                         rows="3"
-                                    ><?= htmlspecialchars($booking['message']) ?></textarea>
+                                    ><?= htmlspecialchars(
+                                        (string) $booking["message"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?></textarea>
 
                                 </label>
+
 
                             <?php endif; ?>
 
@@ -541,57 +729,105 @@ if (!$user) {
 
     </div>
 
-
 </main>
+
 
 
 <!-- ========================================
      PROFILE TAB SCRIPT
 ======================================== -->
+
 <script>
 
-const profileTabs = document.querySelectorAll("[data-profile-tab]");
-const profileSections = document.querySelectorAll("[data-profile-section]");
+const profileTabs =
+    document.querySelectorAll("[data-profile-tab]");
+
+const profileSections =
+    document.querySelectorAll("[data-profile-section]");
+
 
 function showProfileSection(sectionName) {
 
     profileSections.forEach(function (section) {
+
         section.style.display =
             section.dataset.profileSection === sectionName
                 ? "block"
                 : "none";
+
     });
+
 
     profileTabs.forEach(function (tab) {
-        if (tab.dataset.profileTab === sectionName) {
+
+        if (
+            tab.dataset.profileTab === sectionName
+        ) {
+
+            /* ACTIVE BUTTON */
+
             tab.classList.add("green-button");
             tab.classList.remove("outline-button");
+
+            tab.style.color = "";
+            tab.style.padding = "13px 22px";
+
         } else {
+
+            /* INACTIVE BUTTON */
+
             tab.classList.add("outline-button");
             tab.classList.remove("green-button");
+
+            tab.style.color = "#39FF14";
+            tab.style.padding = "13px 22px";
+
         }
+
     });
+
 }
 
+
 profileTabs.forEach(function (tab) {
-    tab.addEventListener("click", function (event) {
-        event.preventDefault();
 
-        const sectionName = tab.dataset.profileTab;
-        showProfileSection(sectionName);
+    tab.addEventListener(
+        "click",
+        function (event) {
 
-        history.replaceState(null, "", "#" + sectionName);
-    });
+            event.preventDefault();
+
+            const sectionName =
+                tab.dataset.profileTab;
+
+            showProfileSection(sectionName);
+
+            history.replaceState(
+                null,
+                "",
+                "#" + sectionName
+            );
+
+        }
+    );
+
 });
+
+
+/* ========================================
+   CHECK INITIAL HASH
+======================================== */
 
 const initialSection =
     window.location.hash === "#history"
         ? "history"
         : "account";
 
+
 showProfileSection(initialSection);
 
 </script>
+
 
 
 <!-- ========================================
@@ -600,24 +836,31 @@ showProfileSection(initialSection);
 
 <script>
 
-const menuToggle = document.querySelector(".menu-toggle");
-const mainNav = document.querySelector(".main-nav");
+const menuToggle =
+    document.querySelector(".menu-toggle");
+
+const mainNav =
+    document.querySelector(".main-nav");
+
 
 if (menuToggle && mainNav) {
 
-    menuToggle.addEventListener("click", function () {
+    menuToggle.addEventListener(
+        "click",
+        function () {
 
-        mainNav.classList.toggle("open");
+            mainNav.classList.toggle("open");
 
-        const isOpen =
-            mainNav.classList.contains("open");
+            const isOpen =
+                mainNav.classList.contains("open");
 
-        menuToggle.setAttribute(
-            "aria-expanded",
-            isOpen ? "true" : "false"
-        );
+            menuToggle.setAttribute(
+                "aria-expanded",
+                isOpen ? "true" : "false"
+            );
 
-    });
+        }
+    );
 
 }
 
