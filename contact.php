@@ -19,14 +19,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $phone = trim($_POST["phone"] ?? "");
     $msg = trim($_POST["message"] ?? "");
 
-
     $errors = validateContactInput(
         $name,
         $email,
         $phone,
         $msg
     );
-
 
     if (!$errors) {
 
@@ -42,7 +40,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $phone !== "" ? $phone : null,
             $msg
         ]);
-
 
         $message = "Message sent successfully!";
 
@@ -68,7 +65,6 @@ include "includes/header.php";
             LET'S <span>CONNECT.</span>
         </h1>
 
-
         <?php if ($message): ?>
 
             <div class="form-message">
@@ -76,7 +72,6 @@ include "includes/header.php";
             </div>
 
         <?php endif; ?>
-
 
         <?php if ($errors): ?>
 
@@ -93,7 +88,6 @@ include "includes/header.php";
             </div>
 
         <?php endif; ?>
-
 
         <div class="contact-layout">
 
@@ -119,7 +113,6 @@ include "includes/header.php";
 
             </div>
 
-
             <form
                 method="POST"
                 class="booking-form"
@@ -136,7 +129,6 @@ include "includes/header.php";
                     >
                 </label>
 
-
                 <label>
                     Email
 
@@ -146,7 +138,6 @@ include "includes/header.php";
                         value="<?= htmlspecialchars($email) ?>"
                     >
                 </label>
-
 
                 <label>
                     Phone
@@ -158,7 +149,6 @@ include "includes/header.php";
                     >
                 </label>
 
-
                 <label>
                     Message *
 
@@ -169,7 +159,6 @@ include "includes/header.php";
                     ><?= htmlspecialchars($msg) ?></textarea>
 
                 </label>
-
 
                 <button
                     type="submit"
