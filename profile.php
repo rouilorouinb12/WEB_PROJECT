@@ -4,18 +4,13 @@ declare(strict_types=1);
 require_once "database.php";
 require_once "auth.php";
 
-/* ========================================
-   REQUIRE LOGIN
-======================================== */
-
 requireLogin();
 
+$userId = currentUserId();
 
 /* ========================================
    GET CURRENT USER
 ======================================== */
-
-$userId = currentUserId();
 
 $stmt = $conn->prepare("
     SELECT
@@ -38,24 +33,37 @@ $user = $stmt->fetch();
    GET CUSTOMER BOOKINGS
 ======================================== */
 
-$bookingStmt = $conn->prepare("
-    SELECT
-        id,
-        station,
-        booking_date,
-        booking_time,
-        hours,
-        notes,
-        status,
-        created_at
-    FROM bookings
-    WHERE user_id = ?
-    ORDER BY booking_date DESC, booking_time DESC
-");
+$bookings = [];
 
-$bookingStmt->execute([$userId]);
+if ($user) {
 
-$bookings = $bookingStmt->fetchAll();
+    $bookingStmt = $conn->prepare("
+        SELECT
+            b.id,
+            b.customer_name,
+            b.email,
+            b.phone,
+            b.setup_id,
+            b.booking_date,
+            b.start_time,
+            b.hours,
+            b.message,
+            b.status,
+            b.created_at,
+            gs.name AS setup_name
+        FROM bookings b
+        LEFT JOIN gaming_setups gs
+            ON gs.id = b.setup_id
+        WHERE b.email = ?
+        ORDER BY b.booking_date DESC, b.start_time DESC
+    ");
+
+    $bookingStmt->execute([
+        $user["email"]
+    ]);
+
+    $bookings = $bookingStmt->fetchAll();
+}
 
 
 /* ========================================
@@ -63,9 +71,12 @@ $bookings = $bookingStmt->fetchAll();
 ======================================== */
 
 if (!$user) {
+
     header("Location: logout.php");
     exit;
+
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -138,10 +149,13 @@ if (!$user) {
         </a>
 
 
+        <!-- MOBILE MENU -->
+
         <button
             class="menu-toggle"
             aria-label="Open menu"
             aria-expanded="false"
+            type="button"
         >
 
             <span></span>
@@ -150,6 +164,8 @@ if (!$user) {
 
         </button>
 
+
+        <!-- MAIN NAVIGATION -->
 
         <nav
             class="main-nav"
@@ -180,11 +196,14 @@ if (!$user) {
                 CONTACT
             </a>
 
+
+            <!-- PROFILE -->
+
             <a
-                href="book.php"
+                href="profile.php"
                 class="nav-button"
             >
-                BOOK NOW
+                PROFILE
             </a>
 
         </nav>
@@ -242,7 +261,7 @@ if (!$user) {
 
                     <input
                         type="text"
-                        value="<?= htmlspecialchars($user['name']) ?>"
+                        value="<?= htmlspecialchars($user['name'] ?? '') ?>"
                         readonly
                     >
 
@@ -255,7 +274,7 @@ if (!$user) {
 
                     <input
                         type="email"
-                        value="<?= htmlspecialchars($user['email']) ?>"
+                        value="<?= htmlspecialchars($user['email'] ?? '') ?>"
                         readonly
                     >
 
@@ -274,7 +293,7 @@ if (!$user) {
 
                     <input
                         type="text"
-                        value="<?= htmlspecialchars($user['phone']) ?>"
+                        value="<?= htmlspecialchars($user['phone'] ?? '') ?>"
                         readonly
                     >
 
@@ -287,7 +306,7 @@ if (!$user) {
 
                     <input
                         type="text"
-                        value="<?= date('F d, Y', strtotime($user['created_at'])) ?>"
+                        value="<?= !empty($user['created_at']) ? date('F d, Y', strtotime($user['created_at'])) : '' ?>"
                         readonly
                     >
 
@@ -408,6 +427,7 @@ if (!$user) {
                                 "
                             >
 
+
                                 <h3
                                     style="
                                         margin:0;
@@ -428,8 +448,9 @@ if (!$user) {
                                         text-transform:uppercase;
                                     "
                                 >
-                                    <?= htmlspecialchars($booking['status']) ?>
+                                    <?= htmlspecialchars($booking['status'] ?? '') ?>
                                 </span>
+
 
                             </div>
 
@@ -443,7 +464,7 @@ if (!$user) {
 
                                     <input
                                         type="text"
-                                        value="<?= htmlspecialchars($booking['station']) ?>"
+                                        value="<?= htmlspecialchars($booking['setup_name'] ?? 'Unknown Setup') ?>"
                                         readonly
                                     >
 
@@ -456,7 +477,7 @@ if (!$user) {
 
                                     <input
                                         type="text"
-                                        value="<?= date('F d, Y', strtotime($booking['booking_date'])) ?>"
+                                        value="<?= !empty($booking['booking_date']) ? date('F d, Y', strtotime($booking['booking_date'])) : '' ?>"
                                         readonly
                                     >
 
@@ -475,7 +496,7 @@ if (!$user) {
 
                                     <input
                                         type="text"
-                                        value="<?= date('h:i A', strtotime($booking['booking_time'])) ?>"
+                                        value="<?= !empty($booking['start_time']) ? date('h:i A', strtotime($booking['start_time'])) : '' ?>"
                                         readonly
                                     >
 
@@ -498,7 +519,7 @@ if (!$user) {
                             </div>
 
 
-                            <?php if (!empty($booking['notes'])): ?>
+                            <?php if (!empty($booking['message'])): ?>
 
                                 <label>
 
@@ -507,7 +528,7 @@ if (!$user) {
                                     <textarea
                                         readonly
                                         rows="3"
-                                    ><?= htmlspecialchars($booking['notes']) ?></textarea>
+                                    ><?= htmlspecialchars($booking['message']) ?></textarea>
 
                                 </label>
 
