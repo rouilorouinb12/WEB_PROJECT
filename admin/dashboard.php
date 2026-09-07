@@ -7,21 +7,17 @@ require_once "../auth.php";
 
 requireLogin();
 
-/*
-|--------------------------------------------------------------------------
-| ADMIN ONLY
-|--------------------------------------------------------------------------
-*/
+/* ========================================
+   ADMIN ONLY
+======================================== */
 if (($_SESSION["user_role"] ?? "customer") !== "admin") {
     http_response_code(403);
     die("Access denied.");
 }
 
-/*
-|--------------------------------------------------------------------------
-| GET RECENT BOOKINGS
-|--------------------------------------------------------------------------
-*/
+/* ========================================
+   GET RECENT BOOKINGS
+======================================== */
 $stmt = $conn->prepare("
     SELECT
         b.id,
@@ -45,11 +41,9 @@ $stmt->execute();
 
 $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/*
-|--------------------------------------------------------------------------
-| COUNT BOOKINGS
-|--------------------------------------------------------------------------
-*/
+/* ========================================
+   COUNT BOOKINGS
+======================================== */
 $countStmt = $conn->query("
     SELECT
         COUNT(*) AS total,
@@ -65,7 +59,6 @@ $totalBookings = (int) ($counts["total"] ?? 0);
 $pendingBookings = (int) ($counts["pending"] ?? 0);
 $acceptedBookings = (int) ($counts["accepted"] ?? 0);
 $rejectedBookings = (int) ($counts["rejected"] ?? 0);
-
 ?>
 
 <!DOCTYPE html>
@@ -116,6 +109,10 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
 
     <style>
 
+        /* ========================================
+           ADMIN STATS
+        ======================================== */
+
         .admin-stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -143,6 +140,11 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
             font-weight: 700;
         }
 
+
+        /* ========================================
+           ADMIN ACTION BUTTONS
+        ======================================== */
+
         .admin-actions {
             display: flex;
             gap: 12px;
@@ -160,13 +162,38 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
             font-size: 11px;
             font-weight: 800;
             border-radius: 3px;
+            border: 1px solid #39FF14;
+            transition: .2s ease;
         }
 
-        .admin-button.dark {
-            background: #111;
-            color: #fff;
-            border: 1px solid rgba(57,255,20,.4);
+        .admin-button:hover {
+            background: #39FF14;
+            color: #000;
+            box-shadow: 0 0 15px rgba(57,255,20,.45);
         }
+
+        /*
+           IMPORTANT:
+           VIEW WEBSITE IS ALSO GREEN.
+           No dark/black button anymore.
+        */
+
+        .admin-button.dark {
+            background: #39FF14;
+            color: #000;
+            border: 1px solid #39FF14;
+        }
+
+        .admin-button.dark:hover {
+            background: #39FF14;
+            color: #000;
+            box-shadow: 0 0 15px rgba(57,255,20,.45);
+        }
+
+
+        /* ========================================
+           ADMIN TABLE
+        ======================================== */
 
         .admin-table-wrap {
             overflow-x: auto;
@@ -197,6 +224,11 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
             color: #fff;
         }
 
+
+        /* ========================================
+           BOOKING STATUS
+        ======================================== */
+
         .status {
             display: inline-block;
             padding: 5px 9px;
@@ -218,6 +250,11 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
             color: #ff4d4d;
         }
 
+
+        /* ========================================
+           RESPONSIVE
+        ======================================== */
+
         @media (max-width: 800px) {
 
             .admin-stats {
@@ -238,7 +275,13 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
 
 </head>
 
+
 <body>
+
+
+<!-- ========================================
+     HEADER
+======================================== -->
 
 <header class="site-header">
 
@@ -248,11 +291,14 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
             href="../index.php"
             class="brand"
         >
+
             <img
                 src="../assets/images/logo.png"
                 alt="Bais Rouilo Gaming Cafe"
             >
+
         </a>
+
 
         <button
             class="menu-toggle"
@@ -260,10 +306,13 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
             aria-expanded="false"
             type="button"
         >
+
             <span></span>
             <span></span>
             <span></span>
+
         </button>
+
 
         <nav
             class="main-nav"
@@ -293,6 +342,11 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
 </header>
 
 
+
+<!-- ========================================
+     ADMIN DASHBOARD
+======================================== -->
+
 <main class="inner-page">
 
     <div class="container form-page">
@@ -301,53 +355,81 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
             ADMIN PANEL
         </p>
 
+
         <h1 class="page-title">
             <span>DASHBOARD</span>
         </h1>
 
 
+
+        <!-- ========================================
+             BOOKING STATISTICS
+        ======================================== -->
+
         <div class="admin-stats">
 
             <div class="admin-stat">
+
                 <h3>
                     <?= $totalBookings ?>
                 </h3>
+
                 <p>
                     TOTAL BOOKINGS
                 </p>
+
             </div>
 
+
             <div class="admin-stat">
+
                 <h3>
                     <?= $pendingBookings ?>
                 </h3>
+
                 <p>
                     PENDING
                 </p>
+
             </div>
 
+
             <div class="admin-stat">
+
                 <h3>
                     <?= $acceptedBookings ?>
                 </h3>
+
                 <p>
                     ACCEPTED
                 </p>
+
             </div>
 
+
             <div class="admin-stat">
+
                 <h3>
                     <?= $rejectedBookings ?>
                 </h3>
+
                 <p>
                     REJECTED
                 </p>
+
             </div>
 
         </div>
 
 
+
+        <!-- ========================================
+             ADMIN ACTIONS
+        ======================================== -->
+
         <div class="admin-actions">
+
+            <!-- MANAGE BOOKINGS -->
 
             <a
                 href="bookings.php"
@@ -356,15 +438,33 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
                 MANAGE BOOKINGS
             </a>
 
+
+            <!-- CUSTOMER REVIEWS -->
+
+            <a
+                href="reviews.php"
+                class="admin-button"
+            >
+                CUSTOMER REVIEWS
+            </a>
+
+
+            <!-- VIEW WEBSITE -->
+
             <a
                 href="../index.php"
-                class="admin-button dark"
+                class="admin-button"
             >
                 VIEW WEBSITE
             </a>
 
         </div>
 
+
+
+        <!-- ========================================
+             RECENT BOOKINGS TABLE
+        ======================================== -->
 
         <div class="admin-table-wrap">
 
@@ -376,21 +476,34 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
 
                         <th>ID</th>
 
-                        <th>CUSTOMER</th>
+                        <th>
+                            CUSTOMER
+                        </th>
 
-                        <th>SETUP</th>
+                        <th>
+                            SETUP
+                        </th>
 
-                        <th>DATE</th>
+                        <th>
+                            DATE
+                        </th>
 
-                        <th>TIME</th>
+                        <th>
+                            TIME
+                        </th>
 
-                        <th>HOURS</th>
+                        <th>
+                            HOURS
+                        </th>
 
-                        <th>STATUS</th>
+                        <th>
+                            STATUS
+                        </th>
 
                     </tr>
 
                 </thead>
+
 
                 <tbody>
 
@@ -399,29 +512,42 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
                     <tr>
 
                         <td colspan="7">
+
                             No bookings found.
+
                         </td>
 
                     </tr>
 
                 <?php else: ?>
 
+
                     <?php foreach ($bookings as $booking): ?>
 
                         <tr>
 
+
+                            <!-- ID -->
+
                             <td>
+
                                 #<?= (int) $booking["id"] ?>
+
                             </td>
+
+
+                            <!-- CUSTOMER -->
 
                             <td>
 
                                 <strong>
+
                                     <?= htmlspecialchars(
                                         (string) $booking["customer_name"],
                                         ENT_QUOTES,
                                         "UTF-8"
                                     ) ?>
+
                                 </strong>
 
                                 <br>
@@ -434,33 +560,56 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
 
                             </td>
 
+
+                            <!-- SETUP -->
+
                             <td>
+
                                 <?= htmlspecialchars(
                                     (string) ($booking["setup_name"] ?? "Unknown"),
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
+
                             </td>
 
+
+                            <!-- DATE -->
+
                             <td>
+
                                 <?= htmlspecialchars(
                                     (string) $booking["booking_date"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
+
                             </td>
 
+
+                            <!-- TIME -->
+
                             <td>
+
                                 <?= htmlspecialchars(
                                     (string) $booking["start_time"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
+
                             </td>
 
+
+                            <!-- HOURS -->
+
                             <td>
+
                                 <?= (int) $booking["hours"] ?>
+
                             </td>
+
+
+                            <!-- STATUS -->
 
                             <td>
 
@@ -471,18 +620,22 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
                                         "UTF-8"
                                     ) ?>"
                                 >
+
                                     <?= htmlspecialchars(
                                         (string) $booking["status"],
                                         ENT_QUOTES,
                                         "UTF-8"
                                     ) ?>
+
                                 </span>
 
                             </td>
 
+
                         </tr>
 
                     <?php endforeach; ?>
+
 
                 <?php endif; ?>
 
@@ -497,6 +650,11 @@ $rejectedBookings = (int) ($counts["rejected"] ?? 0);
 </main>
 
 
+
+<!-- ========================================
+     MOBILE MENU
+======================================== -->
+
 <script>
 
 const menuToggle =
@@ -504,6 +662,7 @@ const menuToggle =
 
 const mainNav =
     document.querySelector(".main-nav");
+
 
 if (menuToggle && mainNav) {
 
@@ -528,5 +687,7 @@ if (menuToggle && mainNav) {
 
 </script>
 
+
 </body>
+
 </html>

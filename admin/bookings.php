@@ -16,87 +16,187 @@ if (($_SESSION["user_role"] ?? "customer") !== "admin") {
 }
 
 $message = "";
-$messageType = "";
+$error = "";
 
 /* ========================================
-   HANDLE ACCEPT / REJECT
+   HANDLE BOOKING ACTION
 ======================================== */
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $csrfToken = $_POST["csrf_token"] ?? null;
+    try {
 
-    if (
-        !verifyCsrfToken(
-            is_string($csrfToken) ? $csrfToken : null
-        )
-    ) {
+        /* ----------------------------------------
+           VERIFY CSRF
+        ---------------------------------------- */
+        $csrf = $_POST["csrf_token"] ?? "";
 
-        $message = "Invalid form request. Please try again.";
-        $messageType = "error";
+        if (!is_string($csrf) || !verifyCsrfToken($csrf)) {
+            throw new RuntimeException(
+                "Invalid request. Please refresh the page and try again."
+            );
+        }
 
-    } else {
-
+        /* ----------------------------------------
+           GET BOOKING ID
+        ---------------------------------------- */
         $bookingId = filter_var(
             $_POST["booking_id"] ?? null,
             FILTER_VALIDATE_INT
         );
 
+        if ($bookingId === false || $bookingId <= 0) {
+            throw new RuntimeException("Invalid booking.");
+        }
+
+        /* ----------------------------------------
+           GET ACTION
+        ---------------------------------------- */
         $action = $_POST["action"] ?? "";
 
-        if (
-            !$bookingId ||
-            !in_array(
-                $action,
-                ["accept", "reject"],
-                true
-            )
-        ) {
+        if (!is_string($action)) {
+            throw new RuntimeException("Invalid action.");
+        }
 
-            $message = "Invalid booking request.";
-            $messageType = "error";
+        if (!in_array($action, ["accept", "reject"], true)) {
+            throw new RuntimeException("Invalid action.");
+        }
 
-        } else {
-
-            /*
-             * Convert admin action into booking status.
-             */
-            $newStatus =
-                $action === "accept"
-                    ? "accepted"
-                    : "rejected";
+        /* ========================================
+           ACCEPT
+        ======================================== */
+        if ($action === "accept") {
 
             $stmt = $conn->prepare("
                 UPDATE bookings
-                SET status = ?
+                SET status = 'accepted'
+                WHERE id = ?
+                AND status = 'pending'
+            ");
+
+            $stmt->execute([$bookingId]);
+
+            /*
+             * IMPORTANT:
+             * Do not rely only on rowCount().
+             * Check the actual database value after UPDATE.
+             */
+            $checkStmt = $conn->prepare("
+                SELECT status
+                FROM bookings
                 WHERE id = ?
                 LIMIT 1
             ");
 
-            $stmt->execute([
-                $newStatus,
-                (int) $bookingId
-            ]);
+            $checkStmt->execute([$bookingId]);
 
-            if ($stmt->rowCount() > 0) {
+            $currentStatus = $checkStmt->fetchColumn();
 
-                if ($action === "accept") {
-                    $message = "Booking accepted successfully.";
-                } else {
-                    $message = "Booking rejected successfully.";
-                }
+            if ($currentStatus === "accepted") {
 
-                $messageType = "success";
+                /*
+                 * Redirect after successful update.
+                 * This removes POST refresh problems.
+                 */
+                header(
+                    "Location: bookings.php?updated=accepted"
+                );
+                exit;
+
+            } elseif ($currentStatus === "pending") {
+
+                $error =
+                    "The booking is still pending. The status was not updated.";
+
+            } elseif ($currentStatus === false) {
+
+                $error =
+                    "Booking not found.";
 
             } else {
 
-                $message =
-                    "Booking was not found or its status was already unchanged.";
-
-                $messageType = "error";
+                $error =
+                    "This booking has already been processed.";
             }
         }
+
+        /* ========================================
+           REJECT
+        ======================================== */
+        if ($action === "reject") {
+
+            $stmt = $conn->prepare("
+                UPDATE bookings
+                SET status = 'rejected'
+                WHERE id = ?
+                AND status = 'pending'
+            ");
+
+            $stmt->execute([$bookingId]);
+
+            /*
+             * Check the actual database value.
+             */
+            $checkStmt = $conn->prepare("
+                SELECT status
+                FROM bookings
+                WHERE id = ?
+                LIMIT 1
+            ");
+
+            $checkStmt->execute([$bookingId]);
+
+            $currentStatus = $checkStmt->fetchColumn();
+
+            if ($currentStatus === "rejected") {
+
+                header(
+                    "Location: bookings.php?updated=rejected"
+                );
+                exit;
+
+            } elseif ($currentStatus === "pending") {
+
+                $error =
+                    "The booking is still pending. The status was not updated.";
+
+            } elseif ($currentStatus === false) {
+
+                $error =
+                    "Booking not found.";
+
+            } else {
+
+                $error =
+                    "This booking has already been processed.";
+            }
+        }
+
+    } catch (Throwable $e) {
+
+        $error = $e->getMessage();
     }
 }
+
+
+/* ========================================
+   SUCCESS MESSAGE AFTER REDIRECT
+======================================== */
+if (isset($_GET["updated"])) {
+
+    $updated = $_GET["updated"];
+
+    if ($updated === "accepted") {
+
+        $message =
+            "Booking accepted successfully.";
+
+    } elseif ($updated === "rejected") {
+
+        $message =
+            "Booking rejected successfully.";
+    }
+}
+
 
 /* ========================================
    GET ALL BOOKINGS
@@ -107,31 +207,40 @@ $stmt = $conn->prepare("
         b.customer_name,
         b.email,
         b.phone,
-        b.setup_id,
         b.booking_date,
         b.start_time,
         b.hours,
         b.message,
         b.status,
         b.created_at,
-        gs.name AS setup_name
+        gs.name AS setup_name,
+        gs.price_per_hour
+
     FROM bookings b
+
     LEFT JOIN gaming_setups gs
         ON gs.id = b.setup_id
+
     ORDER BY
         CASE
-            WHEN b.status = 'pending' THEN 0
-            WHEN b.status = 'accepted' THEN 1
-            ELSE 2
+            WHEN b.status = 'pending' THEN 1
+            WHEN b.status = 'accepted' THEN 2
+            WHEN b.status = 'rejected' THEN 3
+            ELSE 4
         END,
-        b.booking_date ASC,
-        b.start_time ASC,
+
         b.created_at DESC
 ");
 
 $stmt->execute();
 
 $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+/* ========================================
+   CSRF TOKEN
+======================================== */
+$csrfToken = csrfToken();
 
 ?>
 
@@ -149,12 +258,13 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <meta
         name="description"
-        content="Manage gaming cafe bookings."
+        content="Admin booking management - Bais Rouilo Gaming Cafe."
     >
 
     <title>
         BOOKINGS | ADMIN | Bais Rouilo Gaming Cafe
     </title>
+
 
     <!-- GOOGLE FONTS -->
 
@@ -174,6 +284,7 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         rel="stylesheet"
     >
 
+
     <!-- MAIN CSS -->
 
     <link
@@ -181,14 +292,32 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         href="../assets/css/style.css"
     >
 
+
     <style>
 
-        .admin-actions {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
+        /* ========================================
+           ADMIN BOOKINGS
+        ======================================== */
+
+        .admin-bookings-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
         }
+
+
+        /* ========================================
+           TOP ACTIONS
+        ======================================== */
+
+        .admin-top-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+
 
         .admin-button {
             display: inline-block;
@@ -200,119 +329,263 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
             font-size: 11px;
             font-weight: 800;
             border-radius: 3px;
+            border: 1px solid #39FF14;
+            transition: .2s ease;
         }
 
-        .admin-button.dark {
-            background: #111;
-            color: #fff;
-            border: 1px solid rgba(57,255,20,.4);
+
+        .admin-button:hover {
+            background: #39FF14;
+            color: #000;
+            box-shadow:
+                0 0 15px
+                rgba(57,255,20,.45);
         }
+
+
+        .admin-button.dark {
+            background: #39FF14;
+            color: #000;
+            border: 1px solid #39FF14;
+        }
+
+
+        /* ========================================
+           MESSAGE
+        ======================================== */
+
+        .admin-message {
+            border: 1px solid #39FF14;
+            background: rgba(57,255,20,.08);
+            color: #39FF14;
+            padding: 15px 18px;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+
+        .admin-error {
+            border: 1px solid #ff3333;
+            background: rgba(255,0,0,.08);
+            color: #ff6666;
+            padding: 15px 18px;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+
+        /* ========================================
+           TABLE
+        ======================================== */
 
         .admin-table-wrap {
             overflow-x: auto;
             border: 1px solid rgba(57,255,20,.3);
         }
 
+
         .admin-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1200px;
+            min-width: 1100px;
         }
+
 
         .admin-table th,
         .admin-table td {
             padding: 14px;
-            border-bottom: 1px solid rgba(255,255,255,.08);
+            border-bottom:
+                1px solid
+                rgba(255,255,255,.08);
             text-align: left;
-            vertical-align: top;
             font-size: 12px;
+            vertical-align: middle;
         }
+
 
         .admin-table th {
             color: #39FF14;
             font-family: Orbitron, sans-serif;
             font-size: 10px;
+            font-weight: 800;
             white-space: nowrap;
         }
+
 
         .admin-table td {
             color: #fff;
         }
 
-        .customer-info strong {
-            display: block;
-            margin-bottom: 4px;
+
+        .admin-table tr:hover {
+            background:
+                rgba(57,255,20,.025);
         }
 
-        .customer-info small {
-            display: block;
-            opacity: .75;
-            margin-top: 2px;
-        }
+
+        /* ========================================
+           STATUS
+        ======================================== */
 
         .status {
             display: inline-block;
-            padding: 6px 10px;
-            font-size: 10px;
+            padding: 6px 11px;
+            font-family: Orbitron, sans-serif;
+            font-size: 9px;
             font-weight: 800;
             text-transform: uppercase;
-            border: 1px solid rgba(255,255,255,.2);
+            border: 1px solid;
+            white-space: nowrap;
         }
 
+
         .status.pending {
-            color: #fff;
+            color: #39FF14;
+            border-color: #39FF14;
+            background:
+                rgba(57,255,20,.08);
         }
+
 
         .status.accepted {
             color: #39FF14;
-            border-color: rgba(57,255,20,.5);
+            border-color: #39FF14;
+            background:
+                rgba(57,255,20,.08);
         }
+
 
         .status.rejected {
-            color: #ff4d4d;
-            border-color: rgba(255,77,77,.5);
+            color: #ff5555;
+            border-color: #ff5555;
+            background:
+                rgba(255,0,0,.08);
         }
 
-        .booking-message {
-            max-width: 220px;
-            line-height: 1.5;
-            opacity: .85;
-        }
+
+        /* ========================================
+           ACTION BUTTONS
+        ======================================== */
 
         .booking-actions {
             display: flex;
             gap: 8px;
+            align-items: center;
             flex-wrap: wrap;
         }
 
-        .action-form {
+
+        .booking-actions form {
             margin: 0;
         }
 
-        .action-button {
-            border: 0;
-            padding: 8px 12px;
+
+        .booking-action {
+            display: inline-block;
+            padding: 8px 13px;
             font-family: Orbitron, sans-serif;
             font-size: 9px;
             font-weight: 800;
             cursor: pointer;
-            border-radius: 3px;
+            text-decoration: none;
+            border-radius: 2px;
+            transition: .2s ease;
         }
 
-        .action-button.accept {
+
+        /* ACCEPT */
+
+        .accept-button {
             background: #39FF14;
+            color: #000;
+            border: 1px solid #39FF14;
+        }
+
+
+        .accept-button:hover {
+            background: #39FF14;
+            color: #000;
+            box-shadow:
+                0 0 10px
+                rgba(57,255,20,.45);
+        }
+
+
+        /* REJECT */
+
+        .reject-button {
+            background: transparent;
+            color: #ff5555;
+            border: 1px solid #ff5555;
+        }
+
+
+        .reject-button:hover {
+            background: #ff5555;
             color: #000;
         }
 
-        .action-button.reject {
-            background: #ff4d4d;
-            color: #fff;
+
+        /* ========================================
+           COMPLETED ACTION
+        ======================================== */
+
+        .action-complete {
+            display: inline-block;
+            padding: 6px 10px;
+            font-family: Orbitron, sans-serif;
+            font-size: 9px;
+            font-weight: 800;
+            white-space: nowrap;
+            border: 1px solid;
         }
 
+
+        .action-complete.accepted {
+            color: #39FF14;
+            border-color: #39FF14;
+            background: rgba(57,255,20,.08);
+        }
+
+
+        .action-complete.rejected {
+            color: #ff5555;
+            border-color: #ff5555;
+            background: rgba(255,0,0,.08);
+        }
+
+
+        /* ========================================
+           EMPTY TABLE
+        ======================================== */
+
         .no-bookings {
-            text-align: center !important;
-            padding: 35px !important;
-            opacity: .7;
+            text-align: center;
+            padding: 45px 20px;
+            border:
+                1px solid
+                rgba(57,255,20,.25);
+            color:
+                rgba(255,255,255,.6);
+        }
+
+
+        /* ========================================
+           MOBILE
+        ======================================== */
+
+        @media (max-width: 600px) {
+
+            .admin-top-actions {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .admin-button {
+                width: 100%;
+                text-align: center;
+            }
+
         }
 
     </style>
@@ -335,7 +608,7 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <!-- LOGO -->
 
         <a
-            href="../index.php"
+            href="dashboard.php"
             class="brand"
         >
 
@@ -363,7 +636,7 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </button>
 
 
-        <!-- ADMIN NAVIGATION -->
+        <!-- NAVIGATION -->
 
         <nav
             class="main-nav"
@@ -374,13 +647,24 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 DASHBOARD
             </a>
 
-            <a href="bookings.php">
+
+            <a
+                href="bookings.php"
+                class="active"
+            >
                 BOOKINGS
             </a>
+
+
+            <a href="reviews.php">
+                REVIEWS
+            </a>
+
 
             <a href="../index.php">
                 WEBSITE
             </a>
+
 
             <a href="logout.php">
                 LOGOUT
@@ -393,377 +677,600 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </header>
 
 
+
 <!-- ========================================
-     BOOKINGS PAGE
+     MAIN
 ======================================== -->
 
 <main class="inner-page">
 
     <div class="container form-page">
 
-
-        <p class="section-kicker">
-            ADMIN PANEL
-        </p>
+        <div class="admin-bookings-wrapper">
 
 
-        <h1 class="page-title">
-            <span>BOOKINGS</span>
-        </h1>
+            <!-- ========================================
+                 PAGE HEADER
+            ======================================== -->
+
+            <p class="section-kicker">
+                ADMIN PANEL
+            </p>
 
 
-        <!-- MESSAGE -->
+            <h1 class="page-title">
 
-        <?php if ($message !== ""): ?>
+                CUSTOMER
+                <span>BOOKINGS</span>
 
-            <div
-                class="form-message <?= htmlspecialchars(
-                    $messageType,
-                    ENT_QUOTES,
-                    "UTF-8"
-                ) ?>"
-            >
+            </h1>
 
-                <?= htmlspecialchars(
-                    $message,
-                    ENT_QUOTES,
-                    "UTF-8"
-                ) ?>
+
+
+            <!-- ========================================
+                 TOP ACTIONS
+            ======================================== -->
+
+            <div class="admin-top-actions">
+
+
+                <div>
+
+                    <a
+                        href="dashboard.php"
+                        class="admin-button"
+                    >
+                        ← DASHBOARD
+                    </a>
+
+
+                    <a
+                        href="reviews.php"
+                        class="admin-button"
+                        style="margin-left:8px;"
+                    >
+                        CUSTOMER REVIEWS
+                    </a>
+
+                </div>
+
+
+                <a
+                    href="../index.php"
+                    class="admin-button dark"
+                >
+                    VIEW WEBSITE
+                </a>
 
             </div>
 
-        <?php endif; ?>
 
 
-        <!-- ACTION LINKS -->
+            <!-- ========================================
+                 SUCCESS MESSAGE
+            ======================================== -->
 
-        <div class="admin-actions">
+            <?php if ($message !== ""): ?>
 
-            <a
-                href="dashboard.php"
-                class="admin-button dark"
-            >
-                DASHBOARD
-            </a>
+                <div class="admin-message">
 
-            <a
-                href="../index.php"
-                class="admin-button dark"
-            >
-                VIEW WEBSITE
-            </a>
+                    <?= htmlspecialchars(
+                        $message,
+                        ENT_QUOTES,
+                        "UTF-8"
+                    ) ?>
 
-        </div>
+                </div>
+
+            <?php endif; ?>
 
 
-        <!-- ========================================
-             BOOKINGS TABLE
-        ======================================== -->
 
-        <div class="admin-table-wrap">
+            <!-- ========================================
+                 ERROR MESSAGE
+            ======================================== -->
 
-            <table class="admin-table">
+            <?php if ($error !== ""): ?>
 
-                <thead>
+                <div class="admin-error">
 
-                    <tr>
+                    <?= htmlspecialchars(
+                        $error,
+                        ENT_QUOTES,
+                        "UTF-8"
+                    ) ?>
 
-                        <th>ID</th>
+                </div>
 
-                        <th>CUSTOMER</th>
-
-                        <th>SETUP</th>
-
-                        <th>DATE</th>
-
-                        <th>TIME</th>
-
-                        <th>HOURS</th>
-
-                        <th>MESSAGE</th>
-
-                        <th>STATUS</th>
-
-                        <th>ACTION</th>
-
-                    </tr>
-
-                </thead>
+            <?php endif; ?>
 
 
-                <tbody>
 
-                <?php if (!$bookings): ?>
+            <!-- ========================================
+                 BOOKINGS TABLE
+            ======================================== -->
 
-                    <tr>
+            <?php if (!$bookings): ?>
 
-                        <td
-                            colspan="9"
-                            class="no-bookings"
-                        >
-                            No bookings found.
-                        </td>
+                <div class="no-bookings">
+                    No customer bookings found.
+                </div>
 
-                    </tr>
+            <?php else: ?>
 
-                <?php else: ?>
+                <div class="admin-table-wrap">
 
-                    <?php foreach ($bookings as $booking): ?>
-
-                        <?php
-                        $status = (string) $booking["status"];
-                        ?>
-
-                        <tr>
+                    <table class="admin-table">
 
 
-                            <!-- ID -->
+                        <thead>
 
-                            <td>
-                                #<?= (int) $booking["id"] ?>
-                            </td>
+                            <tr>
+
+                                <th>ID</th>
+
+                                <th>CUSTOMER</th>
+
+                                <th>SETUP</th>
+
+                                <th>DATE</th>
+
+                                <th>TIME</th>
+
+                                <th>HOURS</th>
+
+                                <th>MESSAGE</th>
+
+                                <th>STATUS</th>
+
+                                <th>ACTION</th>
+
+                            </tr>
+
+                        </thead>
 
 
-                            <!-- CUSTOMER -->
+                        <tbody>
 
-                            <td>
 
-                                <div class="customer-info">
+                        <?php foreach ($bookings as $booking): ?>
+
+                            <?php
+
+                            /*
+                             * Normalize status.
+                             */
+                            $status = strtolower(
+                                trim(
+                                    (string)
+                                    ($booking["status"] ?? "")
+                                )
+                            );
+
+                            /*
+                             * Safety fallback.
+                             */
+                            if ($status === "") {
+                                $status = "pending";
+                            }
+
+                            /*
+                             * Only allow known CSS/action statuses.
+                             */
+                            if (
+                                !in_array(
+                                    $status,
+                                    [
+                                        "pending",
+                                        "accepted",
+                                        "rejected"
+                                    ],
+                                    true
+                                )
+                            ) {
+                                $statusClass = "pending";
+                                $statusLabel = strtoupper($status);
+                            } else {
+                                $statusClass = $status;
+                                $statusLabel = strtoupper($status);
+                            }
+
+                            ?>
+
+                            <tr>
+
+
+                                <!-- ID -->
+
+                                <td>
+
+                                    #<?= (int)
+                                        $booking["id"] ?>
+
+                                </td>
+
+
+
+                                <!-- CUSTOMER -->
+
+                                <td>
 
                                     <strong>
+
                                         <?= htmlspecialchars(
-                                            (string) $booking["customer_name"],
+                                            (string)
+                                            $booking["customer_name"],
                                             ENT_QUOTES,
                                             "UTF-8"
                                         ) ?>
+
                                     </strong>
 
-                                    <small>
+                                    <br>
+
+                                    <small
+                                        style="
+                                            color:
+                                            rgba(255,255,255,.5);
+                                        "
+                                    >
+
                                         <?= htmlspecialchars(
-                                            (string) ($booking["email"] ?? ""),
+                                            (string)
+                                            ($booking["email"] ?? ""),
                                             ENT_QUOTES,
                                             "UTF-8"
                                         ) ?>
+
                                     </small>
 
-                                    <small>
-                                        <?= htmlspecialchars(
-                                            (string) ($booking["phone"] ?? ""),
-                                            ENT_QUOTES,
-                                            "UTF-8"
-                                        ) ?>
-                                    </small>
 
-                                </div>
+                                    <?php if (
+                                        !empty($booking["phone"])
+                                    ): ?>
 
-                            </td>
+                                        <br>
 
+                                        <small
+                                            style="
+                                                color:
+                                                rgba(
+                                                    255,
+                                                    255,
+                                                    255,
+                                                    .5
+                                                );
+                                            "
+                                        >
 
-                            <!-- SETUP -->
+                                            <?= htmlspecialchars(
+                                                (string)
+                                                $booking["phone"],
+                                                ENT_QUOTES,
+                                                "UTF-8"
+                                            ) ?>
 
-                            <td>
+                                        </small>
 
-                                <?= htmlspecialchars(
-                                    (string) (
-                                        $booking["setup_name"]
-                                        ?? "Unknown setup"
-                                    ),
-                                    ENT_QUOTES,
-                                    "UTF-8"
-                                ) ?>
+                                    <?php endif; ?>
 
-                            </td>
-
-
-                            <!-- DATE -->
-
-                            <td>
-
-                                <?= htmlspecialchars(
-                                    (string) $booking["booking_date"],
-                                    ENT_QUOTES,
-                                    "UTF-8"
-                                ) ?>
-
-                            </td>
+                                </td>
 
 
-                            <!-- TIME -->
 
-                            <td>
+                                <!-- SETUP -->
 
-                                <?= htmlspecialchars(
-                                    (string) $booking["start_time"],
-                                    ENT_QUOTES,
-                                    "UTF-8"
-                                ) ?>
-
-                            </td>
-
-
-                            <!-- HOURS -->
-
-                            <td>
-
-                                <?= (int) $booking["hours"] ?>
-
-                            </td>
-
-
-                            <!-- MESSAGE -->
-
-                            <td>
-
-                                <div class="booking-message">
+                                <td>
 
                                     <?= htmlspecialchars(
-                                        (string) (
-                                            $booking["message"]
-                                            ?? ""
+                                        (string)
+                                        (
+                                            $booking["setup_name"]
+                                            ?? "Unknown"
                                         ),
                                         ENT_QUOTES,
                                         "UTF-8"
                                     ) ?>
 
-                                </div>
-
-                            </td>
+                                </td>
 
 
-                            <!-- STATUS -->
 
-                            <td>
+                                <!-- DATE -->
 
-                                <span
-                                    class="status <?= htmlspecialchars(
-                                        $status,
-                                        ENT_QUOTES,
-                                        "UTF-8"
-                                    ) ?>"
-                                >
+                                <td>
 
                                     <?= htmlspecialchars(
-                                        strtoupper($status),
+                                        (string)
+                                        $booking["booking_date"],
                                         ENT_QUOTES,
                                         "UTF-8"
                                     ) ?>
 
-                                </span>
-
-                            </td>
+                                </td>
 
 
-                            <!-- ACTION -->
 
-                            <td>
+                                <!-- TIME -->
 
-                                <?php if ($status === "pending"): ?>
+                                <td>
 
-                                    <div class="booking-actions">
+                                    <?= htmlspecialchars(
+                                        (string)
+                                        $booking["start_time"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>
+
+                                </td>
 
 
-                                        <!-- ACCEPT -->
 
-                                        <form
-                                            method="POST"
-                                            action="bookings.php"
-                                            class="action-form"
+                                <!-- HOURS -->
+
+                                <td>
+
+                                    <?= (int)
+                                        $booking["hours"] ?>
+
+                                </td>
+
+
+
+                                <!-- MESSAGE -->
+
+                                <td>
+
+                                    <?php
+
+                                    $bookingMessage =
+                                        trim(
+                                            (string)
+                                            (
+                                                $booking["message"]
+                                                ?? ""
+                                            )
+                                        );
+
+                                    ?>
+
+                                    <?php if (
+                                        $bookingMessage !== ""
+                                    ): ?>
+
+                                        <?= htmlspecialchars(
+                                            $bookingMessage,
+                                            ENT_QUOTES,
+                                            "UTF-8"
+                                        ) ?>
+
+                                    <?php else: ?>
+
+                                        <span
+                                            style="
+                                                color:
+                                                rgba(
+                                                    255,
+                                                    255,
+                                                    255,
+                                                    .35
+                                                );
+                                            "
                                         >
+                                            —
+                                        </span>
 
-                                            <input
-                                                type="hidden"
-                                                name="csrf_token"
-                                                value="<?= htmlspecialchars(
-                                                    csrfToken(),
-                                                    ENT_QUOTES,
-                                                    "UTF-8"
-                                                ) ?>"
-                                            >
+                                    <?php endif; ?>
 
-                                            <input
-                                                type="hidden"
-                                                name="booking_id"
-                                                value="<?= (int) $booking["id"] ?>"
-                                            >
-
-                                            <input
-                                                type="hidden"
-                                                name="action"
-                                                value="accept"
-                                            >
-
-                                            <button
-                                                type="submit"
-                                                class="action-button accept"
-                                                onclick="return confirm('Accept this booking?');"
-                                            >
-                                                ACCEPT
-                                            </button>
-
-                                        </form>
+                                </td>
 
 
-                                        <!-- REJECT -->
 
-                                        <form
-                                            method="POST"
-                                            action="bookings.php"
-                                            class="action-form"
-                                        >
+                                <!-- STATUS -->
 
-                                            <input
-                                                type="hidden"
-                                                name="csrf_token"
-                                                value="<?= htmlspecialchars(
-                                                    csrfToken(),
-                                                    ENT_QUOTES,
-                                                    "UTF-8"
-                                                ) ?>"
-                                            >
+                                <td>
 
-                                            <input
-                                                type="hidden"
-                                                name="booking_id"
-                                                value="<?= (int) $booking["id"] ?>"
-                                            >
+                                    <span
+                                        class="
+                                            status
+                                            <?= htmlspecialchars(
+                                                $statusClass,
+                                                ENT_QUOTES,
+                                                "UTF-8"
+                                            )
+                                            ?>
+                                        "
+                                    >
 
-                                            <input
-                                                type="hidden"
-                                                name="action"
-                                                value="reject"
-                                            >
+                                        <?= htmlspecialchars(
+                                            $statusLabel,
+                                            ENT_QUOTES,
+                                            "UTF-8"
+                                        ) ?>
 
-                                            <button
-                                                type="submit"
-                                                class="action-button reject"
-                                                onclick="return confirm('Reject this booking?');"
-                                            >
-                                                REJECT
-                                            </button>
-
-                                        </form>
-
-                                    </div>
-
-                                <?php else: ?>
-
-                                    <span>
-                                        —
                                     </span>
 
-                                <?php endif; ?>
+                                </td>
 
-                            </td>
 
-                        </tr>
 
-                    <?php endforeach; ?>
+                                <!-- ACTION -->
 
-                <?php endif; ?>
+                                <td>
 
-                </tbody>
 
-            </table>
+                                    <?php if (
+                                        $status === "pending"
+                                    ): ?>
+
+
+                                        <div
+                                            class="booking-actions"
+                                        >
+
+
+                                            <!-- ACCEPT -->
+
+                                            <form
+                                                method="POST"
+                                                action="bookings.php"
+                                            >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="<?= htmlspecialchars(
+                                                        $csrfToken,
+                                                        ENT_QUOTES,
+                                                        "UTF-8"
+                                                    ) ?>"
+                                                >
+
+
+                                                <input
+                                                    type="hidden"
+                                                    name="booking_id"
+                                                    value="<?= (int)
+                                                        $booking["id"] ?>"
+                                                >
+
+
+                                                <input
+                                                    type="hidden"
+                                                    name="action"
+                                                    value="accept"
+                                                >
+
+
+                                                <button
+                                                    type="submit"
+                                                    class="
+                                                        booking-action
+                                                        accept-button
+                                                    "
+                                                >
+                                                    ACCEPT
+                                                </button>
+
+                                            </form>
+
+
+
+                                            <!-- REJECT -->
+
+                                            <form
+                                                method="POST"
+                                                action="bookings.php"
+                                            >
+
+                                                <input
+                                                    type="hidden"
+                                                    name="csrf_token"
+                                                    value="<?= htmlspecialchars(
+                                                        $csrfToken,
+                                                        ENT_QUOTES,
+                                                        "UTF-8"
+                                                    ) ?>"
+                                                >
+
+
+                                                <input
+                                                    type="hidden"
+                                                    name="booking_id"
+                                                    value="<?= (int)
+                                                        $booking["id"] ?>"
+                                                >
+
+
+                                                <input
+                                                    type="hidden"
+                                                    name="action"
+                                                    value="reject"
+                                                >
+
+
+                                                <button
+                                                    type="submit"
+                                                    class="
+                                                        booking-action
+                                                        reject-button
+                                                    "
+                                                >
+                                                    REJECT
+                                                </button>
+
+                                            </form>
+
+                                        </div>
+
+
+                                    <?php elseif (
+                                        $status === "accepted"
+                                    ): ?>
+
+
+                                        <span
+                                            class="
+                                                action-complete
+                                                accepted
+                                            "
+                                        >
+                                            ACCEPTED
+                                        </span>
+
+
+                                    <?php elseif (
+                                        $status === "rejected"
+                                    ): ?>
+
+
+                                        <span
+                                            class="
+                                                action-complete
+                                                rejected
+                                            "
+                                        >
+                                            REJECTED
+                                        </span>
+
+
+                                    <?php else: ?>
+
+
+                                        <span
+                                            style="
+                                                color:
+                                                rgba(
+                                                    255,
+                                                    255,
+                                                    255,
+                                                    .5
+                                                );
+                                            "
+                                        >
+                                            —
+                                        </span>
+
+
+                                    <?php endif; ?>
+
+
+                                </td>
+
+
+                            </tr>
+
+                        <?php endforeach; ?>
+
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            <?php endif; ?>
+
 
         </div>
 
@@ -772,8 +1279,9 @@ $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </main>
 
 
+
 <!-- ========================================
-     MOBILE MENU SCRIPT
+     MOBILE MENU
 ======================================== -->
 
 <script>
@@ -783,6 +1291,7 @@ const menuToggle =
 
 const mainNav =
     document.querySelector(".main-nav");
+
 
 if (menuToggle && mainNav) {
 
@@ -797,7 +1306,9 @@ if (menuToggle && mainNav) {
 
             menuToggle.setAttribute(
                 "aria-expanded",
-                isOpen ? "true" : "false"
+                isOpen
+                    ? "true"
+                    : "false"
             );
 
         }
@@ -809,4 +1320,5 @@ if (menuToggle && mainNav) {
 
 
 </body>
+
 </html>
