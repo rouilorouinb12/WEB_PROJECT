@@ -3,54 +3,47 @@
 declare(strict_types=1);
 
 require_once "database.php";
-
 require_once "auth.php";
-
 
 /* ========================================
    IF ALREADY LOGGED IN
 ======================================== */
-
 if (isLoggedIn()) {
 
-    header("Location: index.php");
+    $role = $_SESSION["user_role"] ?? "customer";
 
+    if ($role === "admin") {
+        header("Location: admin/dashboard.php");
+        exit;
+    }
+
+    header("Location: index.php");
     exit;
 }
 
-
 $message = "";
-
 $messageType = "";
-
 $email = "";
-
 
 /* ========================================
    LOGIN RATE LIMIT
 ======================================== */
-
 if (!isset($_SESSION["login_attempts"])) {
-
     $_SESSION["login_attempts"] = 0;
 }
 
 if (!isset($_SESSION["login_lock_until"])) {
-
     $_SESSION["login_lock_until"] = 0;
 }
-
 
 /* ========================================
    HANDLE LOGIN
 ======================================== */
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     /* ========================================
        CHECK LOGIN LOCK
     ======================================== */
-
     if (
         isset($_SESSION["login_lock_until"]) &&
         time() < (int) $_SESSION["login_lock_until"]
@@ -66,12 +59,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         /* ========================================
            CSRF CHECK
         ======================================== */
-
         $csrfToken = $_POST["csrf_token"] ?? null;
 
-        if (!verifyCsrfToken(
-            is_string($csrfToken) ? $csrfToken : null
-        )) {
+        if (
+            !verifyCsrfToken(
+                is_string($csrfToken) ? $csrfToken : null
+            )
+        ) {
 
             $message =
                 "Invalid form request. Please try again.";
@@ -83,18 +77,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             /* ========================================
                GET LOGIN VALUES
             ======================================== */
+            $email = trim(
+                (string) ($_POST["email"] ?? "")
+            );
 
-            $email =
-                trim((string) ($_POST["email"] ?? ""));
-
-            $password =
-                (string) ($_POST["password"] ?? "");
-
+            $password = (string) (
+                $_POST["password"] ?? ""
+            );
 
             /* ========================================
                VALIDATION
             ======================================== */
-
             if (
                 $email === "" ||
                 $password === ""
@@ -104,7 +97,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     "Please enter your email and password.";
 
                 $messageType = "error";
-
 
             } elseif (
                 !filter_var(
@@ -118,20 +110,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $messageType = "error";
 
-
             } else {
 
                 /* ========================================
                    FIND USER
                 ======================================== */
-
                 $stmt = $conn->prepare("
                     SELECT
                         id,
                         name,
                         email,
                         phone,
-                        password
+                        password,
+                        role
                     FROM users
                     WHERE email = ?
                     LIMIT 1
@@ -139,14 +130,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $stmt->execute([$email]);
 
-                $user =
-                    $stmt->fetch(PDO::FETCH_ASSOC);
-
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 /* ========================================
                    CHECK PASSWORD
                 ======================================== */
-
                 if (
                     $user &&
                     isset($user["password"]) &&
@@ -159,7 +147,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     /* ========================================
                        REHASH IF NEEDED
                     ======================================== */
-
                     if (
                         password_needs_rehash(
                             $user["password"],
@@ -167,18 +154,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         )
                     ) {
 
-                        $newHash =
-                            password_hash(
-                                $password,
-                                PASSWORD_DEFAULT
-                            );
+                        $newHash = password_hash(
+                            $password,
+                            PASSWORD_DEFAULT
+                        );
 
-                        $update =
-                            $conn->prepare("
-                                UPDATE users
-                                SET password = ?
-                                WHERE id = ?
-                            ");
+                        $update = $conn->prepare("
+                            UPDATE users
+                            SET password = ?
+                            WHERE id = ?
+                        ");
 
                         $update->execute([
                             $newHash,
@@ -186,27 +171,38 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         ]);
                     }
 
-
                     /* ========================================
                        RESET LOGIN ATTEMPTS
                     ======================================== */
-
                     $_SESSION["login_attempts"] = 0;
-
                     $_SESSION["login_lock_until"] = 0;
-
 
                     /* ========================================
                        REGENERATE SESSION ID
                     ======================================== */
-
                     session_regenerate_id(true);
 
+                    /* ========================================
+                       GET USER ROLE
+                    ======================================== */
+                    $role = (string) (
+                        $user["role"] ?? "customer"
+                    );
+
+                    /*
+                     * Only these two roles are allowed.
+                     * Anything else is treated as customer.
+                     */
+                    if (
+                        $role !== "admin" &&
+                        $role !== "customer"
+                    ) {
+                        $role = "customer";
+                    }
 
                     /* ========================================
                        SAVE SESSION
                     ======================================== */
-
                     $_SESSION["user_id"] =
                         (int) $user["id"];
 
@@ -219,38 +215,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $_SESSION["user_phone"] =
                         (string) ($user["phone"] ?? "");
 
+                    $_SESSION["user_role"] =
+                        $role;
 
                     /* ========================================
                        NEW CSRF TOKEN
                     ======================================== */
-
                     $_SESSION["csrf_token"] =
                         bin2hex(random_bytes(32));
 
-
                     /* ========================================
-                       GO TO HOME / DASHBOARD
+                       ROLE-BASED REDIRECT
                     ======================================== */
 
+                    if ($role === "admin") {
+
+                        header(
+                            "Location: admin/dashboard.php"
+                        );
+
+                        exit;
+                    }
+
                     header("Location: index.php");
-
                     exit;
-
 
                 } else {
 
                     /* ========================================
                        FAILED LOGIN
                     ======================================== */
-
                     $_SESSION["login_attempts"]++;
 
-
-                    /**
+                    /*
                      * After 5 failed attempts,
                      * temporarily lock login.
                      */
-
                     if (
                         $_SESSION["login_attempts"] >= 5
                     ) {
@@ -265,13 +265,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     } else {
 
-                        /**
+                        /*
                          * Generic message.
                          *
                          * This avoids telling attackers
                          * whether the email exists.
                          */
-
                         $message =
                             "Incorrect email or password.";
                     }
@@ -286,7 +285,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -374,9 +372,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         >
 
             <span></span>
-
             <span></span>
-
             <span></span>
 
         </button>
@@ -390,39 +386,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         >
 
             <a href="index.php#home">
-
                 HOME
-
             </a>
 
             <a href="index.php#pcs">
-
                 PCS
-
             </a>
 
             <a href="index.php#rates">
-
                 RATES
-
             </a>
 
             <a href="index.php#tournaments">
-
                 TOURNAMENTS
-
             </a>
 
             <a href="index.php#gallery">
-
                 GALLERY
-
             </a>
 
             <a href="contact.php">
-
                 CONTACT
-
             </a>
 
         </nav>
@@ -442,16 +426,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
         <p class="section-kicker">
-
             CUSTOMER ACCOUNT
-
         </p>
 
 
         <h1 class="page-title">
-
             <span>LOGIN</span>
-
         </h1>
 
 
@@ -552,9 +532,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 type="submit"
                 class="green-button"
             >
-
                 LOGIN
-
             </button>
 
         </form>
@@ -576,9 +554,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 href="register.php"
                 style="color:#39FF14;"
             >
-
                 CREATE ACCOUNT
-
             </a>
 
         </p>
@@ -626,5 +602,4 @@ if (menuToggle && mainNav) {
 
 
 </body>
-
 </html>
