@@ -189,6 +189,7 @@ $testimonials = [
 
 
                         <a
+                            href="book.php"
                             class="outline-button"
                         >
                             BOOK A PC
@@ -196,6 +197,7 @@ $testimonials = [
 
 
                         <a
+                            href="#rates"
                             class="outline-button nav-home-section"
                         >
 
@@ -720,6 +722,7 @@ $testimonials = [
 
 
                     <a
+                        href="book.php"
                         class="green-button cta-button"
                     >
                         BOOK NOW
