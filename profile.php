@@ -8,145 +8,247 @@ require_once "auth.php";
 /* ========================================
    REQUIRE LOGIN
 ======================================== */
+
 requireLogin();
+
 
 /* ========================================
    GET CURRENT USER
 ======================================== */
-$userId = currentUserId();
 
-$stmt = $conn->prepare("
-    SELECT
-        id,
-        name,
-        email,
-        phone,
-        role,
-        created_at
-    FROM users
-    WHERE id = ?
-    LIMIT 1
-");
+$userId =
+    currentUserId();
 
-$stmt->execute([$userId]);
 
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$stmt =
+    $conn->prepare("
+        SELECT
+            id,
+            name,
+            email,
+            phone,
+            role,
+            created_at
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+    ");
+
+
+$stmt->execute([
+    $userId
+]);
+
+
+$user =
+    $stmt->fetch(
+        PDO::FETCH_ASSOC
+    );
+
 
 /* ========================================
    SAFETY CHECK
 ======================================== */
+
 if (!$user) {
-    header("Location: logout.php");
+
+    header(
+        "Location: logout.php"
+    );
+
     exit;
+
 }
+
 
 /* ========================================
    DETERMINE USER ROLE
 ======================================== */
-$userRole = (string)($user["role"] ?? "customer");
 
-$isAdmin = ($userRole === "admin");
-$isCustomer = ($userRole === "customer");
+$userRole =
+    (string)(
+        $user["role"]
+        ?? "customer"
+    );
+
+
+$isAdmin =
+    ($userRole === "admin");
+
+
+$isCustomer =
+    ($userRole === "customer");
+
 
 /* ========================================
    GET CUSTOMER BOOKINGS
    ONLY FOR CUSTOMER
 ======================================== */
+
 $bookings = [];
+
 
 if ($isCustomer) {
 
-    $bookingStmt = $conn->prepare("
-        SELECT
-            b.id,
-            b.customer_name,
-            b.email,
-            b.phone,
-            b.setup_id,
-            b.booking_date,
-            b.start_time,
-            b.hours,
-            b.message,
-            b.status,
-            b.payment_method,
-            b.payment_reference,
-            b.payment_status,
-            b.created_at,
-            gs.name AS setup_name,
-            gs.price_per_hour
-        FROM bookings b
-        LEFT JOIN gaming_setups gs
-            ON gs.id = b.setup_id
-        WHERE b.email = ?
-        ORDER BY
-            b.booking_date DESC,
-            b.start_time DESC
-    ");
+    $bookingStmt =
+        $conn->prepare("
+            SELECT
+                b.id,
+                b.customer_name,
+                b.email,
+                b.phone,
+                b.setup_id,
+                b.booking_date,
+                b.start_time,
+                b.hours,
+                b.message,
+                b.status,
+                b.payment_method,
+                b.payment_reference,
+                b.payment_status,
+                b.created_at,
+                gs.name AS setup_name,
+                gs.price_per_hour
+            FROM bookings b
+            LEFT JOIN gaming_setups gs
+                ON gs.id = b.setup_id
+            WHERE LOWER(TRIM(b.email)) =
+                  LOWER(TRIM(?))
+            ORDER BY
+                b.booking_date DESC,
+                b.start_time DESC
+        ");
+
 
     $bookingStmt->execute([
         $user["email"]
     ]);
 
-    $bookings = $bookingStmt->fetchAll(
-        PDO::FETCH_ASSOC
-    );
+
+    $bookings =
+        $bookingStmt->fetchAll(
+            PDO::FETCH_ASSOC
+        );
+
 }
+
 
 /* ========================================
    GET CUSTOMER NOTIFICATIONS
    ONLY FOR CUSTOMER
 ======================================== */
+
 $notifications = [];
+
 $unreadCount = 0;
+
 
 if ($isCustomer) {
 
-    $notificationStmt = $conn->prepare("
-        SELECT
-            id,
-            type,
-            title,
-            message,
-            is_read,
-            created_at
-        FROM notifications
-        WHERE user_id = ?
-        ORDER BY
-            is_read ASC,
-            created_at DESC
-    ");
+    $notificationStmt =
+        $conn->prepare("
+            SELECT
+                id,
+                type,
+                title,
+                message,
+                is_read,
+                created_at
+            FROM notifications
+            WHERE user_id = ?
+            ORDER BY
+                is_read ASC,
+                created_at DESC
+        ");
+
 
     $notificationStmt->execute([
         $userId
     ]);
+
 
     $notifications =
         $notificationStmt->fetchAll(
             PDO::FETCH_ASSOC
         );
 
-    foreach ($notifications as $notification) {
+
+    foreach (
+        $notifications
+        as $notification
+    ) {
 
         if (
             (int)$notification["is_read"] === 0
         ) {
+
             $unreadCount++;
+
         }
+
     }
+
 }
+
+
+/* ========================================
+   GET ACCEPTED TOURNAMENT REGISTRATIONS
+   FOR TOURNAMENT RECEIPT LINKS
+======================================== */
+
+$acceptedTournamentRegistrations = [];
+
+
+if ($isCustomer) {
+
+    $tournamentRegistrationStmt =
+        $conn->prepare("
+            SELECT
+                tr.id,
+                tr.tournament_id,
+                tr.status,
+                tr.created_at,
+                t.title AS tournament_title
+            FROM tournament_registrations tr
+            INNER JOIN tournaments t
+                ON t.id = tr.tournament_id
+            WHERE tr.user_id = ?
+              AND tr.status = 'accepted'
+            ORDER BY tr.created_at DESC
+        ");
+
+
+    $tournamentRegistrationStmt->execute([
+        $userId
+    ]);
+
+
+    $acceptedTournamentRegistrations =
+        $tournamentRegistrationStmt->fetchAll(
+            PDO::FETCH_ASSOC
+        );
+
+}
+
 
 /* ========================================
    HANDLE NOTIFICATION ACTION
 ======================================== */
+
 if (
     $isCustomer &&
     $_SERVER["REQUEST_METHOD"] === "POST"
 ) {
 
     $notificationAction =
-        $_POST["notification_action"] ?? "";
+        $_POST["notification_action"]
+        ?? "";
 
-    $csrf = $_POST["csrf_token"] ?? "";
+
+    $csrf =
+        $_POST["csrf_token"]
+        ?? "";
+
 
     if (
         !is_string($csrf) ||
@@ -156,105 +258,150 @@ if (
         $_SESSION["profile_error"] =
             "Invalid request. Please try again.";
 
-        header("Location: profile.php#history");
+
+        header(
+            "Location: profile.php#history"
+        );
+
+
         exit;
+
     }
+
 
     try {
 
         /* ========================================
            MARK ONE NOTIFICATION AS READ
         ======================================== */
+
         if (
-            $notificationAction === "mark_read"
+            $notificationAction ===
+            "mark_read"
         ) {
 
             $notificationId =
                 filter_var(
-                    $_POST["notification_id"] ?? null,
+                    $_POST["notification_id"]
+                    ?? null,
                     FILTER_VALIDATE_INT
                 );
+
 
             if (
                 !$notificationId ||
                 $notificationId <= 0
             ) {
+
                 throw new RuntimeException(
                     "Invalid notification."
                 );
+
             }
 
-            $readStmt = $conn->prepare("
-                UPDATE notifications
-                SET is_read = 1
-                WHERE id = ?
-                  AND user_id = ?
-            ");
+
+            $readStmt =
+                $conn->prepare("
+                    UPDATE notifications
+                    SET is_read = 1
+                    WHERE id = ?
+                      AND user_id = ?
+                ");
+
 
             $readStmt->execute([
+
                 $notificationId,
+
                 $userId
+
             ]);
 
         }
+
 
         /* ========================================
            MARK ALL AS READ
         ======================================== */
+
         elseif (
-            $notificationAction === "mark_all_read"
+            $notificationAction ===
+            "mark_all_read"
         ) {
 
-            $readAllStmt = $conn->prepare("
-                UPDATE notifications
-                SET is_read = 1
-                WHERE user_id = ?
-                  AND is_read = 0
-            ");
+            $readAllStmt =
+                $conn->prepare("
+                    UPDATE notifications
+                    SET is_read = 1
+                    WHERE user_id = ?
+                      AND is_read = 0
+                ");
+
 
             $readAllStmt->execute([
                 $userId
             ]);
+
         }
+
 
         $_SESSION["profile_success"] =
             "Notification updated successfully.";
+
 
     } catch (Throwable $e) {
 
         $_SESSION["profile_error"] =
             "Unable to update notification.";
+
     }
 
-    header("Location: profile.php#history");
+
+    header(
+        "Location: profile.php#history"
+    );
+
+
     exit;
+
 }
+
 
 /* ========================================
    SESSION ALERTS
 ======================================== */
+
 $success =
-    $_SESSION["profile_success"] ?? "";
+    $_SESSION["profile_success"]
+    ?? "";
+
 
 $error =
-    $_SESSION["profile_error"] ?? "";
+    $_SESSION["profile_error"]
+    ?? "";
+
 
 unset(
     $_SESSION["profile_success"],
     $_SESSION["profile_error"]
 );
 
+
 /* ========================================
-   DIGITAL RECEIPT
+   DIGITAL BOOKING RECEIPT
    SAME PROFILE.PHP
 ======================================== */
+
 $receipt = null;
+
 
 $receiptId =
     filter_var(
-        $_GET["receipt"] ?? null,
+        $_GET["receipt"]
+        ?? null,
         FILTER_VALIDATE_INT
     );
+
 
 if (
     $isCustomer &&
@@ -263,44 +410,45 @@ if (
     $receiptId > 0
 ) {
 
-    $receiptStmt = $conn->prepare("
-        SELECT
-            b.id,
-            b.customer_name,
-            b.email,
-            b.phone,
-            b.booking_date,
-            b.start_time,
-            b.hours,
-            b.message,
-            b.status,
-            b.payment_method,
-            b.payment_reference,
-            b.payment_status,
-            b.created_at,
-            gs.name AS setup_name,
-            gs.price_per_hour
-        FROM bookings b
+    $receiptStmt =
+        $conn->prepare("
+            SELECT
+                b.id,
+                b.customer_name,
+                b.email,
+                b.phone,
+                b.booking_date,
+                b.start_time,
+                b.hours,
+                b.message,
+                b.status,
+                b.payment_method,
+                b.payment_reference,
+                b.payment_status,
+                b.created_at,
+                gs.name AS setup_name,
+                gs.price_per_hour
+            FROM bookings b
+            LEFT JOIN gaming_setups gs
+                ON gs.id = b.setup_id
+            WHERE b.id = ?
+              AND LOWER(TRIM(b.email)) =
+                  LOWER(TRIM(?))
+            LIMIT 1
+        ");
 
-        LEFT JOIN gaming_setups gs
-            ON gs.id = b.setup_id
-
-        WHERE b.id = ?
-          AND LOWER(TRIM(b.email)) =
-              LOWER(TRIM(?))
-
-        LIMIT 1
-    ");
 
     $receiptStmt->execute([
         $receiptId,
         $user["email"]
     ]);
 
+
     $receipt =
         $receiptStmt->fetch(
             PDO::FETCH_ASSOC
         );
+
 
     if (!$receipt) {
 
@@ -312,53 +460,79 @@ if (
         /* ========================================
            MARK BOOKING NOTIFICATION AS READ
         ======================================== */
-        $readReceiptStmt = $conn->prepare("
-            UPDATE notifications
-            SET is_read = 1
-            WHERE user_id = ?
-              AND type = 'booking'
-              AND message LIKE ?
-        ");
+
+        $readReceiptStmt =
+            $conn->prepare("
+                UPDATE notifications
+                SET is_read = 1
+                WHERE user_id = ?
+                  AND type = 'booking'
+                  AND message LIKE ?
+            ");
+
 
         $readReceiptStmt->execute([
             $userId,
             "%#" . $receiptId . "%"
         ]);
+
     }
+
 }
+
 
 /* ========================================
    RECEIPT DATA
 ======================================== */
+
 $receiptTotal = 0;
+
 $receiptHours = 0;
+
 $receiptRate = 0;
+
 $receiptDate = "";
+
 $receiptTime = "";
+
 $receiptPaymentMethod = "Cash";
+
 $receiptPaymentReference = "";
+
 $receiptIsGcash = false;
+
 
 if ($receipt) {
 
     $receiptHours =
         (int)$receipt["hours"];
 
+
     $receiptRate =
-        (float)($receipt["price_per_hour"] ?? 0);
+        (float)(
+            $receipt["price_per_hour"]
+            ?? 0
+        );
+
 
     $receiptTotal =
-        $receiptHours * $receiptRate;
+        $receiptHours *
+        $receiptRate;
+
 
     $receiptDateTimestamp =
         strtotime(
-            (string)$receipt["booking_date"]
+            (string)
+            $receipt["booking_date"]
         );
+
 
     $receiptTimeTimestamp =
         strtotime(
-            (string)$receipt["start_time"]
+            (string)
+            $receipt["start_time"]
         );
+
 
     $receiptDate =
         $receiptDateTimestamp !== false
@@ -366,7 +540,9 @@ if ($receipt) {
                 "F d, Y",
                 $receiptDateTimestamp
             )
-            : (string)$receipt["booking_date"];
+            : (string)
+                $receipt["booking_date"];
+
 
     $receiptTime =
         $receiptTimeTimestamp !== false
@@ -374,57 +550,81 @@ if ($receipt) {
                 "h:i A",
                 $receiptTimeTimestamp
             )
-            : (string)$receipt["start_time"];
+            : (string)
+                $receipt["start_time"];
+
 
     $receiptPaymentMethod =
         trim(
             (string)(
-                $receipt["payment_method"] ?? ""
+                $receipt[
+                    "payment_method"
+                ] ?? ""
             )
         );
+
 
     $receiptPaymentReference =
         trim(
             (string)(
-                $receipt["payment_reference"] ?? ""
+                $receipt[
+                    "payment_reference"
+                ] ?? ""
             )
         );
 
-    if ($receiptPaymentMethod === "") {
-        $receiptPaymentMethod = "Cash";
+
+    if (
+        $receiptPaymentMethod === ""
+    ) {
+
+        $receiptPaymentMethod =
+            "Cash";
+
     }
+
 
     $receiptIsGcash =
         strcasecmp(
             $receiptPaymentMethod,
             "GCash"
         ) === 0;
+
 }
 
-$csrfToken = csrfToken();
+
+$csrfToken =
+    csrfToken();
 
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
     <meta charset="UTF-8">
 
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
+
 
     <meta
         name="description"
         content="User profile - Bais Rouilo Gaming Cafe."
     >
 
+
     <title>
+
         MY PROFILE | Bais Rouilo Gaming Cafe
+
     </title>
+
 
     <!-- GOOGLE FONTS -->
 
@@ -433,16 +633,19 @@ $csrfToken = csrfToken();
         href="https://fonts.googleapis.com"
     >
 
+
     <link
         rel="preconnect"
-        href="https://fonts.googleapis.com"
+        href="https://fonts.gstatic.com"
         crossorigin
     >
+
 
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Orbitron:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet"
     >
+
 
     <!-- MAIN CSS -->
 
@@ -451,7 +654,9 @@ $csrfToken = csrfToken();
         href="assets/css/style.css"
     >
 
+
     <style>
+
 
         /* ========================================
            KEEP LOGOUT TEXT VISIBLE
@@ -467,6 +672,7 @@ $csrfToken = csrfToken();
 
             -webkit-text-fill-color:
                 #000 !important;
+
         }
 
 
@@ -475,11 +681,15 @@ $csrfToken = csrfToken();
         ======================================== */
 
         .profile-notifications {
+
             margin-bottom:
                 35px;
+
         }
 
+
         .notification-header {
+
             display:
                 flex;
 
@@ -494,9 +704,12 @@ $csrfToken = csrfToken();
 
             margin-bottom:
                 18px;
+
         }
 
+
         .notification-heading {
+
             margin:
                 0;
 
@@ -507,9 +720,12 @@ $csrfToken = csrfToken();
                 700 18px
                 "Orbitron",
                 sans-serif;
+
         }
 
+
         .notification-count {
+
             min-width:
                 24px;
 
@@ -541,9 +757,12 @@ $csrfToken = csrfToken();
                 800 9px
                 "Orbitron",
                 sans-serif;
+
         }
 
+
         .notification-item {
+
             margin-bottom:
                 12px;
 
@@ -562,7 +781,9 @@ $csrfToken = csrfToken();
 
             transition:
                 .2s ease;
+
         }
+
 
         .notification-item.unread {
 
@@ -571,14 +792,20 @@ $csrfToken = csrfToken();
 
             background:
                 rgba(57,255,20,.025);
+
         }
+
 
         .notification-item:last-child {
+
             margin-bottom:
                 0;
+
         }
 
+
         .notification-top {
+
             display:
                 flex;
 
@@ -593,7 +820,9 @@ $csrfToken = csrfToken();
 
             margin-bottom:
                 7px;
+
         }
+
 
         .notification-title {
 
@@ -604,7 +833,9 @@ $csrfToken = csrfToken();
                 800 10px
                 "Orbitron",
                 sans-serif;
+
         }
+
 
         .notification-unread-dot {
 
@@ -626,7 +857,9 @@ $csrfToken = csrfToken();
             box-shadow:
                 0 0 8px
                 rgba(57,255,20,.55);
+
         }
+
 
         .notification-message {
 
@@ -641,7 +874,9 @@ $csrfToken = csrfToken();
 
             line-height:
                 1.45;
+
         }
+
 
         .notification-date {
 
@@ -656,7 +891,9 @@ $csrfToken = csrfToken();
 
             margin-bottom:
                 12px;
+
         }
+
 
         .notification-actions {
 
@@ -671,7 +908,9 @@ $csrfToken = csrfToken();
 
             flex-wrap:
                 wrap;
+
         }
+
 
         .notification-button {
 
@@ -694,7 +933,9 @@ $csrfToken = csrfToken();
 
             transition:
                 .2s ease;
+
         }
+
 
         .receipt-button {
 
@@ -719,7 +960,9 @@ $csrfToken = csrfToken();
 
             text-decoration:
                 none;
+
         }
+
 
         .receipt-button:hover {
 
@@ -728,7 +971,9 @@ $csrfToken = csrfToken();
 
             color:
                 #39FF14;
+
         }
+
 
         .read-button {
 
@@ -741,7 +986,9 @@ $csrfToken = csrfToken();
 
             color:
                 #aaa;
+
         }
+
 
         .read-button:hover {
 
@@ -750,7 +997,9 @@ $csrfToken = csrfToken();
 
             color:
                 #39FF14;
+
         }
+
 
         .mark-all-button {
 
@@ -770,12 +1019,17 @@ $csrfToken = csrfToken();
 
             cursor:
                 pointer;
+
         }
 
+
         .mark-all-button:hover {
+
             text-decoration:
                 underline;
+
         }
+
 
         .notification-empty {
 
@@ -797,6 +1051,7 @@ $csrfToken = csrfToken();
 
             font-size:
                 12px;
+
         }
 
 
@@ -835,7 +1090,9 @@ $csrfToken = csrfToken();
 
             visibility:
                 visible;
+
         }
+
 
         .receipt-card {
 
@@ -864,7 +1121,9 @@ $csrfToken = csrfToken();
             box-shadow:
                 0 0 35px
                 rgba(57,255,20,.12);
+
         }
+
 
         .receipt-close {
 
@@ -904,7 +1163,9 @@ $csrfToken = csrfToken();
 
             z-index:
                 2;
+
         }
+
 
         .receipt-close:hover {
 
@@ -913,7 +1174,9 @@ $csrfToken = csrfToken();
 
             color:
                 #39FF14;
+
         }
+
 
         .receipt-header {
 
@@ -926,7 +1189,9 @@ $csrfToken = csrfToken();
             border-bottom:
                 1px solid
                 rgba(57,255,20,.25);
+
         }
+
 
         .receipt-logo {
 
@@ -938,7 +1203,9 @@ $csrfToken = csrfToken();
 
             margin:
                 0 auto 12px;
+
         }
+
 
         .receipt-business {
 
@@ -952,7 +1219,9 @@ $csrfToken = csrfToken();
                 700 20px
                 "Orbitron",
                 sans-serif;
+
         }
+
 
         .receipt-subtitle {
 
@@ -966,13 +1235,17 @@ $csrfToken = csrfToken();
                 600 9px
                 "Orbitron",
                 sans-serif;
+
         }
+
 
         .receipt-body {
 
             padding:
                 25px 30px 30px;
+
         }
+
 
         .receipt-row {
 
@@ -991,7 +1264,9 @@ $csrfToken = csrfToken();
             border-bottom:
                 1px solid
                 rgba(255,255,255,.08);
+
         }
+
 
         .receipt-label {
 
@@ -1006,7 +1281,9 @@ $csrfToken = csrfToken();
 
             text-transform:
                 uppercase;
+
         }
+
 
         .receipt-value {
 
@@ -1024,7 +1301,9 @@ $csrfToken = csrfToken();
 
             overflow-wrap:
                 anywhere;
+
         }
+
 
         .receipt-total {
 
@@ -1049,7 +1328,9 @@ $csrfToken = csrfToken();
 
             background:
                 rgba(57,255,20,.05);
+
         }
+
 
         .receipt-total span {
 
@@ -1060,7 +1341,9 @@ $csrfToken = csrfToken();
                 700 12px
                 "Orbitron",
                 sans-serif;
+
         }
+
 
         .receipt-total strong {
 
@@ -1071,7 +1354,9 @@ $csrfToken = csrfToken();
                 700 25px
                 "Orbitron",
                 sans-serif;
+
         }
+
 
         .receipt-print-button {
 
@@ -1113,7 +1398,9 @@ $csrfToken = csrfToken();
 
             cursor:
                 pointer;
+
         }
+
 
         .receipt-print-button:hover {
 
@@ -1122,6 +1409,7 @@ $csrfToken = csrfToken();
 
             color:
                 #39FF14;
+
         }
 
 
@@ -1138,25 +1426,33 @@ $csrfToken = csrfToken();
 
                 flex-direction:
                     column;
+
             }
+
 
             .receipt-overlay {
 
                 padding:
                     12px;
+
             }
+
 
             .receipt-header {
 
                 padding:
                     25px 18px;
+
             }
+
 
             .receipt-body {
 
                 padding:
                     20px;
+
             }
+
 
             .receipt-row {
 
@@ -1165,25 +1461,33 @@ $csrfToken = csrfToken();
 
                 gap:
                     5px;
+
             }
+
 
             .receipt-value {
 
                 text-align:
                     left;
+
             }
+
 
             .receipt-total {
 
                 padding:
                     15px;
+
             }
+
 
             .receipt-total strong {
 
                 font-size:
                     20px;
+
             }
+
         }
 
 
@@ -1194,9 +1498,12 @@ $csrfToken = csrfToken();
         @media print {
 
             @page {
+
                 margin:
                     0;
+
             }
+
 
             * {
 
@@ -1205,7 +1512,9 @@ $csrfToken = csrfToken();
 
                 print-color-adjust:
                     exact !important;
+
             }
+
 
             html,
             body {
@@ -1221,12 +1530,17 @@ $csrfToken = csrfToken();
 
                 color:
                     #fff !important;
+
             }
 
+
             body > * {
+
                 display:
                     none !important;
+
             }
+
 
             .receipt-overlay {
 
@@ -1247,7 +1561,9 @@ $csrfToken = csrfToken();
 
                 background:
                     #000 !important;
+
             }
+
 
             .receipt-card {
 
@@ -1281,14 +1597,18 @@ $csrfToken = csrfToken();
 
                 box-shadow:
                     none !important;
+
             }
+
 
             .receipt-close,
             .receipt-print-button {
 
                 display:
                     none !important;
+
             }
+
 
             .receipt-header,
             .receipt-body {
@@ -1298,7 +1618,9 @@ $csrfToken = csrfToken();
 
                 color:
                     #fff !important;
+
             }
+
 
             .receipt-business,
             .receipt-value,
@@ -1306,29 +1628,38 @@ $csrfToken = csrfToken();
 
                 color:
                     #fff !important;
+
             }
+
 
             .receipt-label {
 
                 color:
                     rgba(255,255,255,.65) !important;
+
             }
+
 
             .receipt-total {
 
                 background:
                     #000 !important;
+
             }
+
 
             .receipt-total strong {
 
                 color:
                     #39FF14 !important;
+
             }
 
         }
 
+
     </style>
+
 
 </head>
 
@@ -1366,7 +1697,9 @@ $csrfToken = csrfToken();
         >
 
             <span></span>
+
             <span></span>
+
             <span></span>
 
         </button>
@@ -1377,36 +1710,58 @@ $csrfToken = csrfToken();
             id="mainNav"
         >
 
+
             <a href="index.php#home">
+
                 HOME
+
             </a>
+
 
             <a href="index.php#pcs">
+
                 PCS
+
             </a>
+
 
             <a href="index.php#rates">
+
                 RATES
+
             </a>
+
 
             <a href="index.php#tournaments">
+
                 TOURNAMENTS
+
             </a>
+
 
             <a href="index.php#gallery">
+
                 GALLERY
+
             </a>
 
+
             <a href="contact.php">
+
                 CONTACT
+
             </a>
+
 
             <a
                 href="profile.php"
                 class="nav-button"
             >
+
                 PROFILE
+
             </a>
+
 
         </nav>
 
@@ -1446,8 +1801,11 @@ $csrfToken = csrfToken();
         <h1 class="page-title">
 
             MY
+
             <span>
+
                 PROFILE
+
             </span>
 
         </h1>
@@ -1475,7 +1833,9 @@ $csrfToken = csrfToken();
                     style="padding:13px 22px;"
                     data-profile-tab="account"
                 >
+
                     ACCOUNT
+
                 </a>
 
 
@@ -1488,7 +1848,9 @@ $csrfToken = csrfToken();
                     "
                     data-profile-tab="history"
                 >
+
                     HISTORY
+
                 </a>
 
             </div>
@@ -1505,6 +1867,7 @@ $csrfToken = csrfToken();
             id="account"
             data-profile-section="account"
         >
+
 
             <h2
                 style="
@@ -1531,6 +1894,7 @@ $csrfToken = csrfToken();
             <!-- NAME + EMAIL -->
 
             <div class="form-row">
+
 
                 <label>
 
@@ -1565,12 +1929,14 @@ $csrfToken = csrfToken();
 
                 </label>
 
+
             </div>
 
 
             <!-- PHONE + MEMBER SINCE -->
 
             <div class="form-row">
+
 
                 <label>
 
@@ -1598,7 +1964,8 @@ $csrfToken = csrfToken();
                         value="<?= date(
                             "F d, Y",
                             strtotime(
-                                $user["created_at"] ?? "now"
+                                $user["created_at"]
+                                ?? "now"
                             )
                         ) ?>"
                         readonly
@@ -1606,12 +1973,14 @@ $csrfToken = csrfToken();
 
                 </label>
 
+
             </div>
 
 
             <!-- ROLE -->
 
             <div class="form-row">
+
 
                 <label>
 
@@ -1627,6 +1996,7 @@ $csrfToken = csrfToken();
                     >
 
                 </label>
+
 
             </div>
 
@@ -1646,25 +2016,34 @@ $csrfToken = csrfToken();
                     "
                 >
 
+
                     <a
                         href="admin/dashboard.php"
                         class="green-button"
                         style="padding:13px 22px;"
                     >
+
                         ADMIN DASHBOARD
+
                     </a>
 
 
                     <a
                         href="logout.php"
-                        class="outline-button profile-logout-button"
+                        class="
+                            outline-button
+                            profile-logout-button
+                        "
                         style="
                             color:#39FF14;
                             padding:13px 22px;
                         "
                     >
+
                         LOGOUT
+
                     </a>
+
 
                 </div>
 
@@ -1686,12 +2065,15 @@ $csrfToken = csrfToken();
                     "
                 >
 
+
                     <a
                         href="book.php"
                         class="green-button"
                         style="padding:13px 22px;"
                     >
+
                         BOOK NOW
+
                     </a>
 
 
@@ -1700,20 +2082,28 @@ $csrfToken = csrfToken();
                         class="green-button"
                         style="padding:13px 22px;"
                     >
+
                         SEND FEEDBACK / REVIEW
+
                     </a>
 
 
                     <a
                         href="logout.php"
-                        class="outline-button profile-logout-button"
+                        class="
+                            outline-button
+                            profile-logout-button
+                        "
                         style="
                             color:#39FF14;
                             padding:13px 22px;
                         "
                     >
+
                         LOGOUT
+
                     </a>
+
 
                 </div>
 
@@ -1743,16 +2133,30 @@ $csrfToken = csrfToken();
                      NOTIFICATION HEADER
                 ======================================== -->
 
-                <div class="profile-notifications">
+                <div
+                    class="profile-notifications"
+                >
 
-                    <div class="notification-header">
 
-                        <h2 class="notification-heading">
+                    <div
+                        class="notification-header"
+                    >
+
+
+                        <h2
+                            class="
+                                notification-heading
+                            "
+                        >
+
                             NOTIFICATIONS
+
                         </h2>
 
 
-                        <?php if ($unreadCount > 0): ?>
+                        <?php if (
+                            $unreadCount > 0
+                        ): ?>
 
                             <div
                                 style="
@@ -1762,10 +2166,15 @@ $csrfToken = csrfToken();
                                 "
                             >
 
+
                                 <span
-                                    class="notification-count"
+                                    class="
+                                        notification-count
+                                    "
                                 >
+
                                     <?= $unreadCount ?>
+
                                 </span>
 
 
@@ -1773,6 +2182,7 @@ $csrfToken = csrfToken();
                                     method="POST"
                                     style="margin:0;"
                                 >
+
 
                                     <input
                                         type="hidden"
@@ -1784,73 +2194,115 @@ $csrfToken = csrfToken();
                                         ) ?>"
                                     >
 
+
                                     <input
                                         type="hidden"
                                         name="notification_action"
                                         value="mark_all_read"
                                     >
 
+
                                     <button
                                         type="submit"
-                                        class="mark-all-button"
+                                        class="
+                                            mark-all-button
+                                        "
                                     >
+
                                         MARK ALL READ
+
                                     </button>
 
+
                                 </form>
+
 
                             </div>
 
                         <?php endif; ?>
 
+
                     </div>
 
 
-                    <?php if (!$notifications): ?>
+                    <?php if (
+                        !$notifications
+                    ): ?>
 
-                        <div class="notification-empty">
+
+                        <div
+                            class="
+                                notification-empty
+                            "
+                        >
 
                             No notifications yet.
 
                         </div>
 
+
                     <?php else: ?>
+
 
                         <?php foreach (
                             $notifications
                             as $notification
                         ): ?>
 
+
                             <?php
 
                             $notificationId =
-                                (int)$notification["id"];
+                                (int)
+                                $notification["id"];
+
 
                             $notificationType =
-                                (string)$notification["type"];
+                                (string)
+                                $notification["type"];
+
 
                             $notificationTitle =
-                                (string)$notification["title"];
+                                (string)
+                                $notification["title"];
+
 
                             $notificationMessage =
-                                (string)$notification["message"];
+                                (string)
+                                $notification["message"];
+
 
                             $isUnread =
-                                (int)$notification["is_read"] === 0;
+                                (
+                                    (int)
+                                    $notification[
+                                        "is_read"
+                                    ] === 0
+                                );
+
 
                             $notificationDate =
                                 strtotime(
-                                    (string)$notification["created_at"]
+                                    (string)
+                                    $notification[
+                                        "created_at"
+                                    ]
                                 );
 
+
                             /*
-                             * Booking ID is taken from the
-                             * notification message.
-                             */
-                            $notificationBookingId = null;
+                            ========================================
+                            BOOKING ID
+                            ========================================
+                            */
+
+                            $notificationBookingId =
+                                null;
+
 
                             if (
-                                $notificationType === "booking"
+                                $notificationType ===
+                                "booking"
                             ) {
 
                                 if (
@@ -1862,25 +2314,102 @@ $csrfToken = csrfToken();
                                 ) {
 
                                     $notificationBookingId =
-                                        (int)$matches[1];
+                                        (int)
+                                        $matches[1];
+
                                 }
+
+                            }
+
+
+                            /*
+                            ========================================
+                            TOURNAMENT ID
+                            ========================================
+                            */
+
+                            $notificationTournamentId =
+                                null;
+
+
+                            if (
+                                $notificationType ===
+                                "tournament"
+                            ) {
+
+                                if (
+                                    preg_match(
+                                        '/^Your registration for (.+) has been approved successfully\.$/i',
+                                        $notificationMessage,
+                                        $tournamentMatches
+                                    )
+                                ) {
+
+                                    $notificationTournamentTitle =
+                                        trim(
+                                            $tournamentMatches[1]
+                                        );
+
+
+                                    foreach (
+                                        $acceptedTournamentRegistrations
+                                        as $acceptedTournament
+                                    ) {
+
+
+                                        if (
+                                            strcasecmp(
+                                                trim(
+                                                    (string)
+                                                    $acceptedTournament[
+                                                        "tournament_title"
+                                                    ]
+                                                ),
+                                                $notificationTournamentTitle
+                                            ) === 0
+                                        ) {
+
+                                            $notificationTournamentId =
+                                                (int)
+                                                $acceptedTournament[
+                                                    "tournament_id"
+                                                ];
+
+                                            break;
+
+                                        }
+
+                                    }
+
+                                }
+
                             }
 
                             ?>
 
+
                             <div
-                                class="notification-item <?= $isUnread
-                                    ? "unread"
-                                    : ""
-                                ?>"
+                                class="
+                                    notification-item
+                                    <?= $isUnread
+                                        ? "unread"
+                                        : ""
+                                    ?>
+                                "
                             >
 
+
                                 <div
-                                    class="notification-top"
+                                    class="
+                                        notification-top
+                                    "
                                 >
 
+
                                     <span
-                                        class="notification-title"
+                                        class="
+                                            notification-title
+                                        "
                                     >
 
                                         <?= htmlspecialchars(
@@ -1892,19 +2421,28 @@ $csrfToken = csrfToken();
                                     </span>
 
 
-                                    <?php if ($isUnread): ?>
+                                    <?php if (
+                                        $isUnread
+                                    ): ?>
+
 
                                         <span
-                                            class="notification-unread-dot"
+                                            class="
+                                                notification-unread-dot
+                                            "
                                         ></span>
 
+
                                     <?php endif; ?>
+
 
                                 </div>
 
 
                                 <p
-                                    class="notification-message"
+                                    class="
+                                        notification-message
+                                    "
                                 >
 
                                     <?= htmlspecialchars(
@@ -1920,8 +2458,11 @@ $csrfToken = csrfToken();
                                     $notificationDate !== false
                                 ): ?>
 
+
                                     <span
-                                        class="notification-date"
+                                        class="
+                                            notification-date
+                                        "
                                     >
 
                                         <?= date(
@@ -1931,35 +2472,85 @@ $csrfToken = csrfToken();
 
                                     </span>
 
+
                                 <?php endif; ?>
 
 
                                 <div
-                                    class="notification-actions"
+                                    class="
+                                        notification-actions
+                                    "
                                 >
 
 
+                                    <!-- ====================================
+                                         BOOKING RECEIPT
+                                    ===================================== -->
+
                                     <?php if (
-                                        $notificationType === "booking" &&
+                                        $notificationType ===
+                                            "booking" &&
                                         $notificationBookingId
                                     ): ?>
 
+
                                         <a
                                             href="profile.php?receipt=<?= $notificationBookingId ?>#history"
-                                            class="notification-button receipt-button"
+                                            class="
+                                                notification-button
+                                                receipt-button
+                                            "
                                         >
+
                                             VIEW DIGITAL RECEIPT
+
                                         </a>
+
 
                                     <?php endif; ?>
 
 
-                                    <?php if ($isUnread): ?>
+                                    <!-- ====================================
+                                         TOURNAMENT RECEIPT
+                                    ===================================== -->
+
+                                    <?php if (
+                                        $notificationType ===
+                                            "tournament" &&
+                                        $notificationTournamentId
+                                    ): ?>
+
+
+                                        <a
+                                            href="tournament.php?id=<?= $notificationTournamentId ?>&receipt=1"
+                                            class="
+                                                notification-button
+                                                receipt-button
+                                            "
+                                        >
+
+                                            VIEW TOURNAMENT RECEIPT
+
+                                        </a>
+
+
+                                    <?php endif; ?>
+
+
+                                    <!-- ====================================
+                                         MARK READ
+                                    ===================================== -->
+
+                                    <?php if (
+                                        $isUnread
+                                    ): ?>
+
 
                                         <form
                                             method="POST"
                                             style="margin:0;"
                                         >
+
 
                                             <input
                                                 type="hidden"
@@ -1971,11 +2562,13 @@ $csrfToken = csrfToken();
                                                 ) ?>"
                                             >
 
+
                                             <input
                                                 type="hidden"
                                                 name="notification_action"
                                                 value="mark_read"
                                             >
+
 
                                             <input
                                                 type="hidden"
@@ -1983,25 +2576,37 @@ $csrfToken = csrfToken();
                                                 value="<?= $notificationId ?>"
                                             >
 
+
                                             <button
                                                 type="submit"
-                                                class="notification-button read-button"
+                                                class="
+                                                    notification-button
+                                                    read-button
+                                                "
                                             >
+
                                                 MARK READ
+
                                             </button>
 
+
                                         </form>
+
 
                                     <?php endif; ?>
 
 
                                 </div>
 
+
                             </div>
+
 
                         <?php endforeach; ?>
 
+
                     <?php endif; ?>
+
 
                 </div>
 
@@ -2010,8 +2615,12 @@ $csrfToken = csrfToken();
                      BOOKING HISTORY
                 ======================================== -->
 
-                <p class="section-kicker">
+                <p
+                    class="section-kicker"
+                >
+
                     BOOKING HISTORY
+
                 </p>
 
 
@@ -2021,8 +2630,11 @@ $csrfToken = csrfToken();
                 >
 
                     MY
+
                     <span>
+
                         BOOKINGS
+
                     </span>
 
                 </h2>
@@ -2032,7 +2644,10 @@ $csrfToken = csrfToken();
                     count($bookings) === 0
                 ): ?>
 
-                    <div class="form-message">
+
+                    <div
+                        class="form-message"
+                    >
 
                         You don't have any bookings yet.
 
@@ -2051,7 +2666,9 @@ $csrfToken = csrfToken();
                             class="green-button"
                             style="padding:13px 22px;"
                         >
+
                             MAKE A BOOKING
+
                         </a>
 
                     </div>
@@ -2067,10 +2684,12 @@ $csrfToken = csrfToken();
                         "
                     >
 
+
                         <?php foreach (
                             $bookings
                             as $booking
                         ): ?>
+
 
                             <div
                                 class="booking-form"
@@ -2091,6 +2710,7 @@ $csrfToken = csrfToken();
                                     "
                                 >
 
+
                                     <h3
                                         style="
                                             margin:0;
@@ -2102,7 +2722,10 @@ $csrfToken = csrfToken();
 
                                         BOOKING
 
-                                        #<?= (int)$booking["id"] ?>
+                                        #<?= (int)
+                                            $booking["id"]
+                                        ?>
+
 
                                     </h3>
 
@@ -2117,19 +2740,25 @@ $csrfToken = csrfToken();
                                     >
 
                                         <?= htmlspecialchars(
-                                            (string)$booking["status"],
+                                            (string)
+                                            $booking["status"],
                                             ENT_QUOTES,
                                             "UTF-8"
                                         ) ?>
 
+
                                     </span>
+
 
                                 </div>
 
 
                                 <!-- STATION + DATE -->
 
-                                <div class="form-row">
+                                <div
+                                    class="form-row"
+                                >
+
 
                                     <label>
 
@@ -2138,7 +2767,12 @@ $csrfToken = csrfToken();
                                         <input
                                             type="text"
                                             value="<?= htmlspecialchars(
-                                                (string)($booking["setup_name"] ?? ""),
+                                                (string)(
+                                                    $booking[
+                                                        "setup_name"
+                                                    ]
+                                                    ?? ""
+                                                ),
                                                 ENT_QUOTES,
                                                 "UTF-8"
                                             ) ?>"
@@ -2157,7 +2791,10 @@ $csrfToken = csrfToken();
                                             value="<?= date(
                                                 "F d, Y",
                                                 strtotime(
-                                                    (string)$booking["booking_date"]
+                                                    (string)
+                                                    $booking[
+                                                        "booking_date"
+                                                    ]
                                                 )
                                             ) ?>"
                                             readonly
@@ -2165,12 +2802,16 @@ $csrfToken = csrfToken();
 
                                     </label>
 
+
                                 </div>
 
 
                                 <!-- TIME + DURATION -->
 
-                                <div class="form-row">
+                                <div
+                                    class="form-row"
+                                >
+
 
                                     <label>
 
@@ -2181,7 +2822,10 @@ $csrfToken = csrfToken();
                                             value="<?= date(
                                                 "h:i A",
                                                 strtotime(
-                                                    (string)$booking["start_time"]
+                                                    (string)
+                                                    $booking[
+                                                        "start_time"
+                                                    ]
                                                 )
                                             ) ?>"
                                             readonly
@@ -2196,23 +2840,34 @@ $csrfToken = csrfToken();
 
                                         <input
                                             type="text"
-                                            value="<?= (int)$booking["hours"] ?>
-                                            hour<?= (
-                                                (int)$booking["hours"] !== 1
+                                            value="<?= (int)
+                                                $booking[
+                                                    "hours"
+                                                ]
+                                                ?> hour<?= (
+                                                    (int)
+                                                    $booking[
+                                                        "hours"
+                                                    ] !== 1
+                                                )
                                                     ? "s"
                                                     : ""
-                                            ) ?>"
+                                                ?>"
                                             readonly
                                         >
 
                                     </label>
+
 
                                 </div>
 
 
                                 <!-- PAYMENT -->
 
-                                <div class="form-row">
+                                <div
+                                    class="form-row"
+                                >
+
 
                                     <label>
 
@@ -2224,10 +2879,13 @@ $csrfToken = csrfToken();
                                                 strtoupper(
                                                     trim(
                                                         (string)(
-                                                            $booking["payment_method"] ??
-                                                            "Cash"
+                                                            $booking[
+                                                                "payment_method"
+                                                            ]
+                                                            ?? "Cash"
                                                         )
-                                                    ) ?: "CASH"
+                                                    )
+                                                    ?: "CASH"
                                                 ),
                                                 ENT_QUOTES,
                                                 "UTF-8"
@@ -2239,29 +2897,35 @@ $csrfToken = csrfToken();
 
 
                                     <?php
+
                                     $bookingPaymentMethod =
                                         trim(
                                             (string)(
                                                 $booking[
                                                     "payment_method"
-                                                ] ?? ""
+                                                ]
+                                                ?? ""
                                             )
                                         );
+
 
                                     $bookingPaymentReference =
                                         trim(
                                             (string)(
                                                 $booking[
                                                     "payment_reference"
-                                                ] ?? ""
+                                                ]
+                                                ?? ""
                                             )
                                         );
+
 
                                     $bookingIsGcash =
                                         strcasecmp(
                                             $bookingPaymentMethod,
                                             "GCash"
                                         ) === 0;
+
                                     ?>
 
 
@@ -2269,6 +2933,7 @@ $csrfToken = csrfToken();
                                         $bookingIsGcash &&
                                         $bookingPaymentReference !== ""
                                     ): ?>
+
 
                                         <label>
 
@@ -2286,7 +2951,9 @@ $csrfToken = csrfToken();
 
                                         </label>
 
+
                                     <?php endif; ?>
+
 
                                 </div>
 
@@ -2299,6 +2966,7 @@ $csrfToken = csrfToken();
                                     )
                                 ): ?>
 
+
                                     <label>
 
                                         Notes
@@ -2308,21 +2976,26 @@ $csrfToken = csrfToken();
                                             rows="3"
                                             style="resize:none;"
                                         ><?= htmlspecialchars(
-                                            (string)$booking["message"],
+                                            (string)
+                                            $booking["message"],
                                             ENT_QUOTES,
                                             "UTF-8"
                                         ) ?></textarea>
 
                                     </label>
 
+
                                 <?php endif; ?>
 
 
                             </div>
 
+
                         <?php endforeach; ?>
 
+
                     </div>
+
 
                 <?php endif; ?>
 
@@ -2332,7 +3005,10 @@ $csrfToken = csrfToken();
         <?php endif; ?>
 
 
-        <?php if ($success !== ""): ?>
+        <?php if (
+            $success !== ""
+        ): ?>
+
 
             <div
                 style="
@@ -2354,10 +3030,14 @@ $csrfToken = csrfToken();
 
             </div>
 
+
         <?php endif; ?>
 
 
-        <?php if ($error !== ""): ?>
+        <?php if (
+            $error !== ""
+        ): ?>
+
 
             <div
                 style="
@@ -2379,6 +3059,7 @@ $csrfToken = csrfToken();
 
             </div>
 
+
         <?php endif; ?>
 
 
@@ -2388,17 +3069,21 @@ $csrfToken = csrfToken();
 
 
 <!-- ========================================
-     DIGITAL RECEIPT
+     DIGITAL BOOKING RECEIPT
 ======================================== -->
 
 <?php if ($receipt): ?>
+
 
     <div
         class="receipt-overlay"
         id="receiptOverlay"
     >
 
-        <div class="receipt-card">
+
+        <div
+            class="receipt-card"
+        >
 
 
             <button
@@ -2407,13 +3092,18 @@ $csrfToken = csrfToken();
                 id="receiptClose"
                 aria-label="Close receipt"
             >
+
                 ×
+
             </button>
 
 
             <!-- RECEIPT HEADER -->
 
-            <div class="receipt-header">
+            <div
+                class="receipt-header"
+            >
+
 
                 <img
                     src="assets/images/logo.png"
@@ -2422,7 +3112,9 @@ $csrfToken = csrfToken();
                 >
 
 
-                <h2 class="receipt-business">
+                <h2
+                    class="receipt-business"
+                >
 
                     BAIS ROUILO
                     GAMING CAFE
@@ -2430,45 +3122,62 @@ $csrfToken = csrfToken();
                 </h2>
 
 
-                <p class="receipt-subtitle">
+                <p
+                    class="receipt-subtitle"
+                >
 
                     DIGITAL BOOKING RECEIPT
 
                 </p>
+
 
             </div>
 
 
             <!-- RECEIPT BODY -->
 
-            <div class="receipt-body">
+            <div
+                class="receipt-body"
+            >
 
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Booking ID
+
                     </span>
+
 
                     <span class="receipt-value">
 
-                        #<?= (int)$receipt["id"] ?>
+                        #<?= (int)
+                            $receipt["id"]
+                        ?>
 
                     </span>
+
 
                 </div>
 
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Customer
+
                     </span>
+
 
                     <span class="receipt-value">
 
                         <?= htmlspecialchars(
-                            (string)$receipt[
+                            (string)
+                            $receipt[
                                 "customer_name"
                             ],
                             ENT_QUOTES,
@@ -2477,14 +3186,19 @@ $csrfToken = csrfToken();
 
                     </span>
 
+
                 </div>
 
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Email
+
                     </span>
+
 
                     <span class="receipt-value">
 
@@ -2500,6 +3214,7 @@ $csrfToken = csrfToken();
 
                     </span>
 
+
                 </div>
 
 
@@ -2509,16 +3224,22 @@ $csrfToken = csrfToken();
                     )
                 ): ?>
 
+
                     <div class="receipt-row">
 
+
                         <span class="receipt-label">
+
                             Phone
+
                         </span>
+
 
                         <span class="receipt-value">
 
                             <?= htmlspecialchars(
-                                (string)$receipt[
+                                (string)
+                                $receipt[
                                     "phone"
                                 ],
                                 ENT_QUOTES,
@@ -2527,16 +3248,22 @@ $csrfToken = csrfToken();
 
                         </span>
 
+
                     </div>
+
 
                 <?php endif; ?>
 
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Gaming Setup
+
                     </span>
+
 
                     <span class="receipt-value">
 
@@ -2552,14 +3279,19 @@ $csrfToken = csrfToken();
 
                     </span>
 
+
                 </div>
 
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Booking Date
+
                     </span>
+
 
                     <span class="receipt-value">
 
@@ -2571,14 +3303,19 @@ $csrfToken = csrfToken();
 
                     </span>
 
+
                 </div>
 
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Start Time
+
                     </span>
+
 
                     <span class="receipt-value">
 
@@ -2590,14 +3327,19 @@ $csrfToken = csrfToken();
 
                     </span>
 
+
                 </div>
 
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Duration
+
                     </span>
+
 
                     <span class="receipt-value">
 
@@ -2609,14 +3351,19 @@ $csrfToken = csrfToken();
 
                     </span>
 
+
                 </div>
 
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Rate / Hour
+
                     </span>
+
 
                     <span class="receipt-value">
 
@@ -2627,6 +3374,7 @@ $csrfToken = csrfToken();
 
                     </span>
 
+
                 </div>
 
 
@@ -2634,9 +3382,13 @@ $csrfToken = csrfToken();
 
                 <div class="receipt-row">
 
+
                     <span class="receipt-label">
+
                         Mode of Payment
+
                     </span>
+
 
                     <span class="receipt-value">
 
@@ -2650,6 +3402,7 @@ $csrfToken = csrfToken();
 
                     </span>
 
+
                 </div>
 
 
@@ -2660,11 +3413,16 @@ $csrfToken = csrfToken();
                     $receiptPaymentReference !== ""
                 ): ?>
 
+
                     <div class="receipt-row">
 
+
                         <span class="receipt-label">
+
                             GCash Reference Number
+
                         </span>
+
 
                         <span class="receipt-value">
 
@@ -2676,7 +3434,9 @@ $csrfToken = csrfToken();
 
                         </span>
 
+
                     </div>
+
 
                 <?php endif; ?>
 
@@ -2701,11 +3461,16 @@ $csrfToken = csrfToken();
                     $receiptMessage !== ""
                 ): ?>
 
+
                     <div class="receipt-row">
 
+
                         <span class="receipt-label">
+
                             Notes
+
                         </span>
+
 
                         <span class="receipt-value">
 
@@ -2717,18 +3482,26 @@ $csrfToken = csrfToken();
 
                         </span>
 
+
                     </div>
+
 
                 <?php endif; ?>
 
 
                 <!-- TOTAL -->
 
-                <div class="receipt-total">
+                <div
+                    class="receipt-total"
+                >
+
 
                     <span>
+
                         TOTAL
+
                     </span>
+
 
                     <strong>
 
@@ -2739,6 +3512,7 @@ $csrfToken = csrfToken();
 
                     </strong>
 
+
                 </div>
 
 
@@ -2747,15 +3521,20 @@ $csrfToken = csrfToken();
                     class="receipt-print-button"
                     onclick="window.print()"
                 >
+
                     PRINT RECEIPT
+
                 </button>
 
 
             </div>
 
+
         </div>
 
+
     </div>
+
 
 <?php endif; ?>
 
@@ -2766,12 +3545,14 @@ $csrfToken = csrfToken();
 
 <?php if ($isCustomer): ?>
 
+
 <script>
 
 const profileTabs =
     document.querySelectorAll(
         "[data-profile-tab]"
     );
+
 
 const profileSections =
     document.querySelectorAll(
@@ -2783,13 +3564,17 @@ function showProfileSection(
     sectionName
 ) {
 
+
     profileSections.forEach(
         function(section) {
 
+
             section.style.display =
-                section.dataset.profileSection === sectionName
+                section.dataset.profileSection ===
+                sectionName
                     ? "block"
                     : "none";
+
 
         }
     );
@@ -2798,41 +3583,54 @@ function showProfileSection(
     profileTabs.forEach(
         function(tab) {
 
+
             if (
                 tab.dataset.profileTab ===
                 sectionName
             ) {
 
+
                 tab.classList.add(
                     "green-button"
                 );
+
 
                 tab.classList.remove(
                     "outline-button"
                 );
 
-                tab.style.color = "";
+
+                tab.style.color =
+                    "";
+
 
                 tab.style.padding =
                     "13px 22px";
 
+
             } else {
+
 
                 tab.classList.add(
                     "outline-button"
                 );
 
+
                 tab.classList.remove(
                     "green-button"
                 );
+
 
                 tab.style.color =
                     "#39FF14";
 
+
                 tab.style.padding =
                     "13px 22px";
 
+
             }
+
 
         }
     );
@@ -2843,18 +3641,23 @@ function showProfileSection(
 profileTabs.forEach(
     function(tab) {
 
+
         tab.addEventListener(
             "click",
             function(event) {
 
+
                 event.preventDefault();
+
 
                 const sectionName =
                     tab.dataset.profileTab;
 
+
                 showProfileSection(
                     sectionName
                 );
+
 
                 history.replaceState(
                     null,
@@ -2862,12 +3665,20 @@ profileTabs.forEach(
                     "#" + sectionName
                 );
 
+
             }
         );
+
 
     }
 );
 
+
+/*
+========================================
+INITIAL PROFILE TAB
+========================================
+*/
 
 const initialSection =
     window.location.hash === "#history"
@@ -2881,14 +3692,16 @@ showProfileSection(
 
 </script>
 
+
 <?php endif; ?>
 
 
 <!-- ========================================
-     RECEIPT SCRIPT
+     BOOKING RECEIPT SCRIPT
 ======================================== -->
 
 <?php if ($receipt): ?>
+
 
 <script>
 
@@ -2896,6 +3709,7 @@ const receiptOverlay =
     document.getElementById(
         "receiptOverlay"
     );
+
 
 const receiptClose =
     document.getElementById(
@@ -2916,6 +3730,7 @@ if (
     receiptClose
 ) {
 
+
     receiptClose.addEventListener(
         "click",
         closeReceipt
@@ -2926,6 +3741,7 @@ if (
         "click",
         function(event) {
 
+
             if (
                 event.target ===
                 receiptOverlay
@@ -2935,6 +3751,7 @@ if (
 
             }
 
+
         }
     );
 
@@ -2942,6 +3759,7 @@ if (
     document.addEventListener(
         "keydown",
         function(event) {
+
 
             if (
                 event.key === "Escape"
@@ -2951,12 +3769,15 @@ if (
 
             }
 
+
         }
     );
+
 
 }
 
 </script>
+
 
 <?php endif; ?>
 
@@ -2972,6 +3793,7 @@ const menuToggle =
         ".menu-toggle"
     );
 
+
 const mainNav =
     document.querySelector(
         ".main-nav"
@@ -2983,18 +3805,22 @@ if (
     mainNav
 ) {
 
+
     menuToggle.addEventListener(
         "click",
         function() {
+
 
             mainNav.classList.toggle(
                 "open"
             );
 
+
             const isOpen =
                 mainNav.classList.contains(
                     "open"
                 );
+
 
             menuToggle.setAttribute(
                 "aria-expanded",
@@ -3003,8 +3829,10 @@ if (
                     : "false"
             );
 
+
         }
     );
+
 
 }
 

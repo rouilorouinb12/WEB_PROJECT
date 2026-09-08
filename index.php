@@ -7,25 +7,31 @@ require_once "auth.php";
 
 requireLogin();
 
-if (($_SESSION["user_role"] ?? "") === "admin") {
-    header("Location: admin/dashboard.php");
-    exit;
-}
+/*
+========================================
+CURRENT LOGGED-IN USER
+========================================
+*/
 
 $currentUserId = currentUserId();
 
 if (!$currentUserId) {
+
     header("Location: login.php");
+
     exit;
+
 }
 
 $error = "";
 $success = "";
 
 
-/* ========================================
-   HANDLE NOTIFICATION ACTIONS
-======================================== */
+/*
+========================================
+HANDLE NOTIFICATION ACTIONS
+========================================
+*/
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
@@ -61,16 +67,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         !$notificationId ||
                         $notificationId <= 0
                     ) {
+
                         throw new RuntimeException(
                             "Invalid notification."
                         );
+
                     }
 
                     $markStmt = $conn->prepare("
+
                         UPDATE notifications
+
                         SET is_read = 1
+
                         WHERE id = ?
+
                           AND user_id = ?
+
                     ");
 
                     $markStmt->execute([
@@ -81,44 +94,69 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 } else {
 
                     $markAllStmt = $conn->prepare("
+
                         UPDATE notifications
+
                         SET is_read = 1
+
                         WHERE user_id = ?
+
                           AND is_read = 0
+
                     ");
 
                     $markAllStmt->execute([
                         $currentUserId
                     ]);
+
                 }
 
             } catch (Throwable $e) {
 
                 $error =
                     "Unable to update notification.";
+
             }
+
         }
+
     }
+
 }
 
 
-/* ========================================
-   NOTIFICATIONS
-======================================== */
+/*
+========================================
+NOTIFICATIONS
+========================================
+*/
 
 $notificationStmt = $conn->prepare("
+
     SELECT
+
         id,
+
         type,
+
         title,
+
         message,
+
         is_read,
+
         created_at
+
     FROM notifications
+
     WHERE user_id = ?
+
     ORDER BY
+
         is_read ASC,
+
         created_at DESC
+
 ");
 
 $notificationStmt->execute([
@@ -132,16 +170,23 @@ $unreadCount = 0;
 
 foreach ($notifications as $notification) {
 
-    if ((int)$notification["is_read"] === 0) {
+    if (
+        (int)$notification["is_read"] === 0
+    ) {
+
         $unreadCount++;
+
     }
+
 }
 
 
-/* ========================================
-   DIGITAL RECEIPT
-   SAME INDEX.PHP
-======================================== */
+/*
+========================================
+DIGITAL RECEIPT
+SAME INDEX.PHP
+========================================
+*/
 
 $selectedReceipt = null;
 
@@ -157,34 +202,56 @@ if (
 ) {
 
     $receiptStmt = $conn->prepare("
+
         SELECT
+
             b.id,
+
             b.customer_name,
+
             b.email,
+
             b.phone,
+
             b.booking_date,
+
             b.start_time,
+
             b.hours,
+
             b.message,
+
             b.status,
+
             b.payment_method,
+
             b.payment_reference,
+
             b.payment_status,
+
             b.created_at,
+
             gs.name AS setup_name,
+
             gs.price_per_hour
+
         FROM bookings b
 
         LEFT JOIN gaming_setups gs
+
             ON gs.id = b.setup_id
 
         INNER JOIN users u
+
             ON LOWER(TRIM(u.email)) =
                LOWER(TRIM(b.email))
 
         WHERE b.id = ?
+
           AND u.id = ?
+
         LIMIT 1
+
     ");
 
     $receiptStmt->execute([
@@ -203,16 +270,26 @@ if (
     } else {
 
         /*
-         * Mark the matching booking notification
-         * as read when customer opens the receipt.
-         */
+        ========================================
+        Mark matching booking notification
+        as read when customer opens receipt.
+        ========================================
+        */
+
         $readReceiptNotification = $conn->prepare("
+
             SELECT id
+
             FROM notifications
+
             WHERE user_id = ?
+
               AND type = 'booking'
+
               AND message LIKE ?
+
             LIMIT 1
+
         ");
 
         $readReceiptNotification->execute([
@@ -227,156 +304,320 @@ if (
 
             $updateNotification =
                 $conn->prepare("
+
                     UPDATE notifications
+
                     SET is_read = 1
+
                     WHERE id = ?
+
                       AND user_id = ?
+
                 ");
 
             $updateNotification->execute([
                 $matchingNotification,
                 $currentUserId
             ]);
+
         }
 
     }
+
 }
 
 
-/* ========================================
-   GAMING SETUPS
-======================================== */
+/*
+========================================
+GAMING SETUPS
+LOAD DIRECTLY FROM DATABASE
+========================================
+*/
 
-$setups = [
+$setups = [];
 
-    [
-        "title" => "RTX GAMING PC",
-        "image" => "setup-1.png",
-        "specs" => [
-            "RTX 4060",
-            "Ryzen 5 5600",
-            "16GB RAM",
-            "24\" 165Hz Monitor"
-        ],
-        "price" => "45 PHP / HOUR"
-    ],
+try {
 
-    [
-        "title" => "PREMIUM GAMING PC",
-        "image" => "setup-2.png",
-        "specs" => [
-            "RTX 4070",
-            "Ryzen 7 5700X",
-            "16GB RAM",
-            "24\" 240Hz Monitor"
-        ],
-        "price" => "55 PHP / HOUR"
-    ],
+    $setupStmt = $conn->query("
 
-    [
-        "title" => "STREAMER SETUP",
-        "image" => "setup-3.png",
-        "specs" => [
-            "RTX 3060",
-            "Ryzen 5 5600G",
-            "16GB RAM",
-            "Dual Monitor",
-            "Webcam + Mic"
-        ],
-        "price" => "60 PHP / HOUR"
-    ],
+        SELECT
 
-    [
-        "title" => "VIP ROOM",
-        "image" => "setup-4.png",
-        "specs" => [
-            "Private Room",
-            "High-End PC",
-            "55\" 4K TV",
-            "Recliner Seat",
-            "Perfect for Groups"
-        ],
-        "price" => "120 PHP / HOUR"
-    ]
+            id,
 
-];
+            name,
+
+            price_per_hour,
+
+            specs,
+
+            image,
+
+            sort_order
+
+        FROM gaming_setups
+
+        ORDER BY
+
+            sort_order ASC,
+
+            id ASC
+
+    ");
+
+    $dbSetups =
+        $setupStmt->fetchAll(PDO::FETCH_ASSOC);
 
 
-/* ========================================
-   RATES
-======================================== */
+    foreach ($dbSetups as $setup) {
+
+        /*
+        ========================================
+        SETUP TITLE
+        ========================================
+        */
+
+        $setupTitle =
+            trim(
+                (string)(
+                    $setup["name"] ?? ""
+                )
+            );
+
+
+        /*
+        ========================================
+        SETUP SPECS
+        DATABASE STORES SPECS AS MULTIPLE LINES
+        ========================================
+        */
+
+        $setupSpecs = [];
+
+        $rawSpecs =
+            trim(
+                (string)(
+                    $setup["specs"] ?? ""
+                )
+            );
+
+
+        if ($rawSpecs !== "") {
+
+            $setupSpecs =
+                preg_split(
+                    '/\r\n|\r|\n/',
+                    $rawSpecs
+                );
+
+
+            $setupSpecs =
+                array_values(
+                    array_filter(
+                        array_map(
+                            "trim",
+                            $setupSpecs
+                        ),
+                        static function ($spec) {
+
+                            return $spec !== "";
+
+                        }
+                    )
+                );
+
+        }
+
+
+        /*
+        ========================================
+        SETUP IMAGE
+        GET ONLY THE FILE NAME
+        ========================================
+        */
+
+        $setupImage =
+            basename(
+                (string)(
+                    $setup["image"] ?? ""
+                )
+            );
+
+
+        /*
+        ========================================
+        PRICE
+        ========================================
+        */
+
+        $setupPrice =
+            number_format(
+                (float)(
+                    $setup["price_per_hour"] ?? 0
+                ),
+                0
+            )
+            .
+            " PHP / HOUR";
+
+
+        /*
+        ========================================
+        SAVE FINAL SETUP DATA
+        ========================================
+        */
+
+        $setups[] = [
+
+            "id" =>
+                (int)$setup["id"],
+
+            "title" =>
+                $setupTitle,
+
+            "image" =>
+                $setupImage,
+
+            "specs" =>
+                $setupSpecs,
+
+            "price" =>
+                $setupPrice
+
+        ];
+
+    }
+
+} catch (Throwable $e) {
+
+    $setups = [];
+
+}
+
+
+/*
+========================================
+RATES
+========================================
+*/
 
 $rates = [
 
     [
+
         "time" => "1 HOUR",
+
         "price" => "35 PHP",
+
         "label" => "PER HOUR"
+
     ],
 
     [
+
         "time" => "3 HOURS",
+
         "price" => "90 PHP",
+
         "label" => "PER SESSION"
+
     ],
 
     [
+
         "time" => "5 HOURS",
+
         "price" => "140 PHP",
+
         "label" => "PER SESSION"
+
     ],
 
     [
+
         "time" => "WHOLE DAY",
+
         "price" => "250 PHP",
+
         "label" => "ALL DAY PASS"
+
     ]
 
 ];
 
 
-/* ========================================
-   REVIEWS
-======================================== */
+/*
+========================================
+REVIEWS
+========================================
+*/
 
 $testimonials = [
 
     [
+
         "photo" => "review-1.jpg",
+
         "quote" => "Best gaming cafe in town!",
-        "text" => "Great PCs, affordable rates, and a chill environment.",
+
+        "text" =>
+            "Great PCs, affordable rates, and a chill environment.",
+
         "name" => "Mark V."
+
     ],
 
     [
+
         "photo" => "review-2.jpg",
+
         "quote" => "Smooth gaming, zero lag!",
-        "text" => "The internet speed here is really next level.",
+
+        "text" =>
+            "The internet speed here is really next level.",
+
         "name" => "Kyle C."
+
     ],
 
     [
+
         "photo" => "review-3.jpg",
-        "quote" => "My go-to place to play and relax.",
-        "text" => "Staff are friendly and the place is super nice!",
+
+        "quote" =>
+            "My go-to place to play and relax.",
+
+        "text" =>
+            "Staff are friendly and the place is super nice!",
+
         "name" => "John D."
+
     ]
 
 ];
 
 
-/* ========================================
-   DIGITAL RECEIPT DATA
-======================================== */
+/*
+========================================
+DIGITAL RECEIPT DATA
+========================================
+*/
 
 $receiptHours = 0;
+
 $receiptRate = 0;
+
 $receiptTotal = 0;
+
 $receiptDate = "";
+
 $receiptTime = "";
+
 $receiptPaymentMethod = "Cash";
+
 $receiptPaymentReference = "";
+
 $receiptIsGcash = false;
+
 
 if ($selectedReceipt) {
 
@@ -430,7 +671,10 @@ if ($selectedReceipt) {
         );
 
     if ($receiptPaymentMethod === "") {
-        $receiptPaymentMethod = "Cash";
+
+        $receiptPaymentMethod =
+            "Cash";
+
     }
 
     $receiptIsGcash =
@@ -438,6 +682,7 @@ if ($selectedReceipt) {
             $receiptPaymentMethod,
             "GCash"
         ) === 0;
+
 }
 
 $csrfToken = csrfToken();
@@ -445,6 +690,7 @@ $csrfToken = csrfToken();
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -460,29 +706,40 @@ $csrfToken = csrfToken();
         Bais Rouilo Gaming Cafe
     </title>
 
+
     <style>
+
 
         /* ========================================
            NOTIFICATION BUTTON
         ======================================== */
 
         .customer-notification-button {
+
             position: fixed;
+
             right: 28px;
+
             bottom: 28px;
+
             z-index: 900;
 
             width: 52px;
+
             height: 52px;
 
             border: 1px solid #39FF14;
+
             border-radius: 50%;
 
             background: #000;
+
             color: #fff;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             cursor: pointer;
@@ -493,37 +750,52 @@ $csrfToken = csrfToken();
                 0 0 18px rgba(57,255,20,.18);
 
             transition: .2s ease;
+
         }
+
 
         .customer-notification-button:hover {
+
             background: #39FF14;
+
             color: #000;
+
             transform: translateY(-2px);
+
         }
 
+
         .notification-badge {
+
             position: absolute;
+
             top: -4px;
+
             right: -4px;
 
             min-width: 19px;
+
             height: 19px;
 
             padding: 0 5px;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             border-radius: 20px;
 
             background: #39FF14;
+
             color: #000;
 
             font:
                 800 8px
                 "Orbitron",
                 sans-serif;
+
         }
 
 
@@ -532,8 +804,11 @@ $csrfToken = csrfToken();
         ======================================== */
 
         .notification-panel {
+
             position: fixed;
+
             right: 28px;
+
             bottom: 91px;
 
             z-index: 899;
@@ -555,6 +830,7 @@ $csrfToken = csrfToken();
             overflow: hidden;
 
             opacity: 0;
+
             visibility: hidden;
 
             transform:
@@ -564,17 +840,28 @@ $csrfToken = csrfToken();
                 opacity .2s ease,
                 visibility .2s ease,
                 transform .2s ease;
+
         }
+
 
         .notification-panel.open {
+
             opacity: 1;
+
             visibility: visible;
-            transform: translateY(0);
+
+            transform:
+                translateY(0);
+
         }
 
+
         .notification-panel-header {
+
             display: flex;
+
             align-items: center;
+
             justify-content: space-between;
 
             gap: 12px;
@@ -584,9 +871,12 @@ $csrfToken = csrfToken();
             border-bottom:
                 1px solid
                 rgba(57,255,20,.20);
+
         }
 
+
         .notification-panel-title {
+
             margin: 0;
 
             color: #fff;
@@ -595,11 +885,16 @@ $csrfToken = csrfToken();
                 800 11px
                 "Orbitron",
                 sans-serif;
+
         }
 
+
         .notification-mark-all {
+
             border: 0;
+
             background: transparent;
+
             color: #39FF14;
 
             font:
@@ -608,18 +903,28 @@ $csrfToken = csrfToken();
                 sans-serif;
 
             cursor: pointer;
+
         }
+
 
         .notification-mark-all:hover {
+
             text-decoration: underline;
+
         }
+
 
         .notification-list {
+
             max-height: 420px;
+
             overflow-y: auto;
+
         }
 
+
         .notification-item {
+
             padding: 16px 18px;
 
             border-bottom:
@@ -627,37 +932,56 @@ $csrfToken = csrfToken();
                 rgba(255,255,255,.07);
 
             background: #050505;
+
         }
+
 
         .notification-item:last-child {
+
             border-bottom: 0;
+
         }
+
 
         .notification-item.unread {
+
             background:
                 rgba(57,255,20,.035);
+
         }
 
+
         .notification-item-top {
+
             display: flex;
+
             align-items: flex-start;
+
             justify-content: space-between;
+
             gap: 12px;
 
             margin-bottom: 7px;
+
         }
 
+
         .notification-item-title {
+
             color: #39FF14;
 
             font:
                 800 9px
                 "Orbitron",
                 sans-serif;
+
         }
 
+
         .notification-item-dot {
+
             width: 6px;
+
             height: 6px;
 
             flex: 0 0 auto;
@@ -665,26 +989,36 @@ $csrfToken = csrfToken();
             border-radius: 50%;
 
             background: #39FF14;
+
         }
 
+
         .notification-item-message {
+
             margin: 0 0 10px;
 
             color: #fff;
 
             font-size: 12px;
+
             line-height: 1.45;
+
         }
 
+
         .notification-item-date {
+
             display: block;
 
             color: #777;
 
             font-size: 9px;
+
         }
 
+
         .notification-item-actions {
+
             display: flex;
 
             gap: 8px;
@@ -692,11 +1026,16 @@ $csrfToken = csrfToken();
             align-items: center;
 
             margin-top: 11px;
+
         }
 
+
         .notification-receipt-button {
+
             display: inline-flex;
+
             align-items: center;
+
             justify-content: center;
 
             min-height: 31px;
@@ -726,14 +1065,21 @@ $csrfToken = csrfToken();
 
             transition:
                 .2s ease;
+
         }
+
 
         .notification-receipt-button:hover {
+
             background: transparent;
+
             color: #39FF14;
+
         }
 
+
         .notification-read-button {
+
             min-height: 31px;
 
             padding: 0 12px;
@@ -758,14 +1104,21 @@ $csrfToken = csrfToken();
 
             cursor:
                 pointer;
+
         }
+
 
         .notification-read-button:hover {
+
             border-color: #39FF14;
+
             color: #39FF14;
+
         }
 
+
         .notification-empty {
+
             padding: 35px 20px;
 
             text-align: center;
@@ -773,6 +1126,7 @@ $csrfToken = csrfToken();
             color: #777;
 
             font-size: 12px;
+
         }
 
 
@@ -781,13 +1135,17 @@ $csrfToken = csrfToken();
         ======================================== */
 
         .digital-receipt-overlay {
+
             position: fixed;
+
             inset: 0;
 
             z-index: 1000;
 
             display: flex;
+
             align-items: center;
+
             justify-content: center;
 
             padding: 20px;
@@ -796,19 +1154,27 @@ $csrfToken = csrfToken();
                 rgba(0,0,0,.85);
 
             opacity: 0;
+
             visibility: hidden;
 
             transition:
                 opacity .2s ease,
                 visibility .2s ease;
+
         }
+
 
         .digital-receipt-overlay.open {
+
             opacity: 1;
+
             visibility: visible;
+
         }
 
+
         .digital-receipt-card {
+
             position: relative;
 
             width: min(650px, 100%);
@@ -828,15 +1194,20 @@ $csrfToken = csrfToken();
             box-shadow:
                 0 0 35px
                 rgba(57,255,20,.12);
+
         }
 
+
         .digital-receipt-close {
+
             position: absolute;
 
             top: 14px;
+
             right: 14px;
 
             width: 30px;
+
             height: 30px;
 
             border:
@@ -858,14 +1229,21 @@ $csrfToken = csrfToken();
                 15px;
 
             z-index: 2;
+
         }
+
 
         .digital-receipt-close:hover {
+
             border-color: #39FF14;
+
             color: #39FF14;
+
         }
 
+
         .digital-receipt-header {
+
             padding: 30px;
 
             text-align: center;
@@ -873,9 +1251,12 @@ $csrfToken = csrfToken();
             border-bottom:
                 1px solid
                 rgba(57,255,20,.22);
+
         }
 
+
         .digital-receipt-logo {
+
             width: 95px;
 
             display:
@@ -883,9 +1264,12 @@ $csrfToken = csrfToken();
 
             margin:
                 0 auto 12px;
+
         }
 
+
         .digital-receipt-business {
+
             margin: 0;
 
             color: #fff;
@@ -894,9 +1278,12 @@ $csrfToken = csrfToken();
                 700 20px
                 "Orbitron",
                 sans-serif;
+
         }
 
+
         .digital-receipt-subtitle {
+
             margin: 7px 0 0;
 
             color: #39FF14;
@@ -905,14 +1292,20 @@ $csrfToken = csrfToken();
                 600 9px
                 "Orbitron",
                 sans-serif;
+
         }
+
 
         .digital-receipt-body {
+
             padding:
                 24px 30px 30px;
+
         }
 
+
         .digital-receipt-row {
+
             display: grid;
 
             grid-template-columns:
@@ -927,9 +1320,12 @@ $csrfToken = csrfToken();
             border-bottom:
                 1px solid
                 rgba(255,255,255,.08);
+
         }
 
+
         .digital-receipt-label {
+
             color:
                 rgba(255,255,255,.52);
 
@@ -941,9 +1337,12 @@ $csrfToken = csrfToken();
 
             text-transform:
                 uppercase;
+
         }
 
+
         .digital-receipt-value {
+
             color:
                 #fff;
 
@@ -958,12 +1357,16 @@ $csrfToken = csrfToken();
 
             overflow-wrap:
                 anywhere;
+
         }
 
+
         .digital-receipt-total {
+
             display: flex;
 
             align-items: center;
+
             justify-content: space-between;
 
             margin-top: 22px;
@@ -976,28 +1379,38 @@ $csrfToken = csrfToken();
 
             background:
                 rgba(57,255,20,.04);
+
         }
 
+
         .digital-receipt-total span {
+
             color: #fff;
 
             font:
                 700 12px
                 "Orbitron",
                 sans-serif;
+
         }
 
+
         .digital-receipt-total strong {
+
             color: #39FF14;
 
             font:
                 700 25px
                 "Orbitron",
                 sans-serif;
+
         }
 
+
         .digital-receipt-payment {
+
             color: #fff;
+
         }
 
 
@@ -1008,42 +1421,71 @@ $csrfToken = csrfToken();
         @media (max-width: 600px) {
 
             .customer-notification-button {
+
                 right: 17px;
+
                 bottom: 17px;
+
             }
+
 
             .notification-panel {
+
                 right: 15px;
+
                 bottom: 82px;
+
             }
+
 
             .digital-receipt-overlay {
+
                 padding: 12px;
+
             }
+
 
             .digital-receipt-header {
+
                 padding: 25px 18px;
+
             }
+
 
             .digital-receipt-body {
+
                 padding: 20px;
+
             }
+
 
             .digital-receipt-row {
+
                 grid-template-columns: 1fr;
+
                 gap: 5px;
+
             }
+
 
             .digital-receipt-value {
+
                 text-align: left;
+
             }
+
 
             .digital-receipt-total {
+
                 padding: 15px;
+
             }
 
+
             .digital-receipt-total strong {
+
                 font-size: 20px;
+
             }
 
         }
@@ -1056,33 +1498,52 @@ $csrfToken = csrfToken();
         @media print {
 
             @page {
+
                 margin: 0;
+
             }
 
+
             * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
+
+                -webkit-print-color-adjust:
+                    exact !important;
+
+                print-color-adjust:
+                    exact !important;
+
             }
+
 
             html,
             body {
+
                 margin: 0 !important;
+
                 padding: 0 !important;
 
                 background: #000 !important;
+
                 color: #fff !important;
+
             }
+
 
             body > * {
+
                 display: none !important;
+
             }
 
+
             .digital-receipt-overlay {
+
                 display: flex !important;
 
                 position: static !important;
 
                 width: 100% !important;
+
                 height: auto !important;
 
                 padding: 0 !important;
@@ -1090,13 +1551,18 @@ $csrfToken = csrfToken();
                 background: #000 !important;
 
                 opacity: 1 !important;
+
                 visibility: visible !important;
+
             }
 
+
             .digital-receipt-card {
+
                 display: block !important;
 
                 width: 100% !important;
+
                 max-width: 850px !important;
 
                 max-height: none !important;
@@ -1104,6 +1570,7 @@ $csrfToken = csrfToken();
                 margin: 0 auto !important;
 
                 background: #000 !important;
+
                 color: #fff !important;
 
                 border:
@@ -1116,44 +1583,56 @@ $csrfToken = csrfToken();
                     none !important;
 
                 overflow: visible !important;
+
             }
 
+
             .digital-receipt-close {
+
                 display: none !important;
+
             }
+
 
             .digital-receipt-header,
             .digital-receipt-body {
+
                 background: #000 !important;
+
                 color: #fff !important;
+
             }
+
 
             .digital-receipt-business,
             .digital-receipt-value,
             .digital-receipt-label,
             .digital-receipt-payment,
             .digital-receipt-total span {
+
                 color: #fff !important;
+
             }
+
 
             .digital-receipt-total {
+
                 background: #000 !important;
+
                 border-color: #39FF14 !important;
+
             }
 
+
             .digital-receipt-total strong {
+
                 color: #39FF14 !important;
+
             }
 
         }
 
     </style>
-
-    <?php
-    /*
-     * YOUR EXISTING HEADER
-     */
-    ?>
 
 </head>
 
@@ -1174,15 +1653,18 @@ $csrfToken = csrfToken();
     aria-label="Open notifications"
     aria-expanded="false"
 >
+
     🔔
 
     <?php if ($unreadCount > 0): ?>
 
         <span class="notification-badge">
+
             <?= $unreadCount > 99
                 ? "99+"
                 : $unreadCount
             ?>
+
         </span>
 
     <?php endif; ?>
@@ -1202,7 +1684,9 @@ $csrfToken = csrfToken();
     <div class="notification-panel-header">
 
         <h3 class="notification-panel-title">
+
             NOTIFICATIONS
+
         </h3>
 
 
@@ -1223,17 +1707,21 @@ $csrfToken = csrfToken();
                     ) ?>"
                 >
 
+
                 <input
                     type="hidden"
                     name="notification_action"
                     value="mark_all_read"
                 >
 
+
                 <button
                     type="submit"
                     class="notification-mark-all"
                 >
+
                     MARK ALL READ
+
                 </button>
 
             </form>
@@ -1255,7 +1743,9 @@ $csrfToken = csrfToken();
 
         <?php else: ?>
 
+
             <?php foreach ($notifications as $notification): ?>
+
 
                 <?php
 
@@ -1279,11 +1769,14 @@ $csrfToken = csrfToken();
                         (string)$notification["created_at"]
                     );
 
+
                 /*
                  * Detect booking ID from message:
                  * "Your booking #15 ..."
                  */
+
                 $notificationBookingId = null;
+
 
                 if (
                     $notificationType === "booking"
@@ -1301,9 +1794,11 @@ $csrfToken = csrfToken();
                             (int)$matches[1];
 
                     }
+
                 }
 
                 ?>
+
 
                 <div
                     class="notification-item <?= $notificationIsUnread
@@ -1373,7 +1868,9 @@ $csrfToken = csrfToken();
                                 href="index.php?receipt=<?= $notificationBookingId ?>"
                                 class="notification-receipt-button"
                             >
+
                                 VIEW DIGITAL RECEIPT
+
                             </a>
 
                         <?php endif; ?>
@@ -1396,11 +1893,13 @@ $csrfToken = csrfToken();
                                     ) ?>"
                                 >
 
+
                                 <input
                                     type="hidden"
                                     name="notification_action"
                                     value="mark_read"
                                 >
+
 
                                 <input
                                     type="hidden"
@@ -1408,11 +1907,14 @@ $csrfToken = csrfToken();
                                     value="<?= $notificationId ?>"
                                 >
 
+
                                 <button
                                     type="submit"
                                     class="notification-read-button"
                                 >
+
                                     MARK READ
+
                                 </button>
 
                             </form>
@@ -1422,9 +1924,12 @@ $csrfToken = csrfToken();
 
                     </div>
 
+
                 </div>
 
+
             <?php endforeach; ?>
+
 
         <?php endif; ?>
 
@@ -1453,7 +1958,9 @@ $csrfToken = csrfToken();
             <div class="hero-copy reveal">
 
                 <p class="eyebrow">
+
                     PLAY. COMPETE. WIN
+
                 </p>
 
 
@@ -1488,7 +1995,9 @@ $csrfToken = csrfToken();
                         href="book.php"
                         class="outline-button"
                     >
+
                         BOOK A PC
+
                     </a>
 
 
@@ -1511,7 +2020,6 @@ $csrfToken = csrfToken();
             </div>
 
 
-
             <div class="hero-photo reveal">
 
                 <img
@@ -1523,7 +2031,6 @@ $csrfToken = csrfToken();
 
 
         </div>
-
 
 
         <!-- STATS -->
@@ -1561,17 +2068,20 @@ $csrfToken = csrfToken();
                 <div>
 
                     <strong>
+
                         15+
+
                     </strong>
 
                     <small>
+
                         GAMING PCS
+
                     </small>
 
                 </div>
 
             </div>
-
 
 
             <div class="stat-card">
@@ -1592,17 +2102,20 @@ $csrfToken = csrfToken();
                 <div>
 
                     <strong>
+
                         1 Gbps
+
                     </strong>
 
                     <small>
+
                         INTERNET SPEED
+
                     </small>
 
                 </div>
 
             </div>
-
 
 
             <div class="stat-card">
@@ -1629,17 +2142,20 @@ $csrfToken = csrfToken();
                 <div>
 
                     <strong>
+
                         200+
+
                     </strong>
 
                     <small>
+
                         HAPPY GAMERS
+
                     </small>
 
                 </div>
 
             </div>
-
 
 
             <div class="stat-card">
@@ -1674,11 +2190,15 @@ $csrfToken = csrfToken();
                 <div>
 
                     <strong>
+
                         30+
+
                     </strong>
 
                     <small>
+
                         GAMING EVENTS
+
                     </small>
 
                 </div>
@@ -1689,7 +2209,6 @@ $csrfToken = csrfToken();
         </div>
 
     </section>
-
 
 
     <!-- =====================================
@@ -1705,14 +2224,19 @@ $csrfToken = csrfToken();
 
 
             <p class="section-kicker setups-kicker">
+
                 OUR GAMING SETUPS
+
             </p>
 
 
             <div class="setup-grid">
 
 
-                <?php foreach ($setups as $setup): ?>
+                <?php foreach (
+                    $setups
+                    as $setup
+                ): ?>
 
                     <article
                         class="setup-card reveal"
@@ -1720,18 +2244,26 @@ $csrfToken = csrfToken();
 
                         <div class="setup-image">
 
-                            <img
-                                src="assets/images/<?= htmlspecialchars(
-                                    $setup["image"],
-                                    ENT_QUOTES,
-                                    "UTF-8"
-                                ) ?>"
-                                alt="<?= htmlspecialchars(
-                                    $setup["title"],
-                                    ENT_QUOTES,
-                                    "UTF-8"
-                                ) ?>"
-                            >
+                            <?php if (
+                                !empty(
+                                    $setup["image"]
+                                )
+                            ): ?>
+
+                                <img
+                                    src="assets/images/<?= htmlspecialchars(
+                                        $setup["image"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>"
+                                    alt="<?= htmlspecialchars(
+                                        $setup["title"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>"
+                                >
+
+                            <?php endif; ?>
 
                         </div>
 
@@ -1794,7 +2326,6 @@ $csrfToken = csrfToken();
     </section>
 
 
-
     <!-- =====================================
          RATES
     ====================================== -->
@@ -1808,7 +2339,9 @@ $csrfToken = csrfToken();
 
 
             <p class="section-kicker">
+
                 OUR RATES
+
             </p>
 
 
@@ -1867,7 +2400,6 @@ $csrfToken = csrfToken();
     </section>
 
 
-
     <!-- =====================================
          GALLERY
     ====================================== -->
@@ -1881,7 +2413,9 @@ $csrfToken = csrfToken();
 
 
             <p class="section-kicker">
+
                 GALLERY
+
             </p>
 
 
@@ -1926,7 +2460,6 @@ $csrfToken = csrfToken();
     </section>
 
 
-
     <!-- =====================================
          REVIEWS
     ====================================== -->
@@ -1939,7 +2472,9 @@ $csrfToken = csrfToken();
 
 
             <p class="section-kicker">
+
                 WHAT GAMERS SAY
+
             </p>
 
 
@@ -1957,12 +2492,16 @@ $csrfToken = csrfToken();
 
 
                         <div class="review-stars">
+
                             ★★★★★
+
                         </div>
 
 
                         <div class="quote">
+
                             “
+
                         </div>
 
 
@@ -2033,7 +2572,6 @@ $csrfToken = csrfToken();
     </section>
 
 
-
     <!-- =====================================
          CTA
     ====================================== -->
@@ -2069,7 +2607,9 @@ $csrfToken = csrfToken();
                             READY TO
 
                             <span>
+
                                 PLAY?
+
                             </span>
 
                         </h2>
@@ -2088,7 +2628,6 @@ $csrfToken = csrfToken();
 
 
                 </div>
-
 
 
                 <a
@@ -2111,7 +2650,6 @@ $csrfToken = csrfToken();
 </div>
 
 
-
 <!-- =====================================
      TOURNAMENT PAGE
 ====================================== -->
@@ -2126,7 +2664,9 @@ $csrfToken = csrfToken();
 
 
         <p class="section-kicker">
+
             TOURNAMENTS
+
         </p>
 
 
@@ -2135,7 +2675,9 @@ $csrfToken = csrfToken();
             COMPETE.
 
             <span>
+
                 WIN.
+
             </span>
 
         </h1>
@@ -2154,11 +2696,15 @@ $csrfToken = csrfToken();
                 <div class="tournament-date">
 
                     <span>
+
                         15
+
                     </span>
 
                     <small>
+
                         SEP
+
                     </small>
 
                 </div>
@@ -2167,7 +2713,9 @@ $csrfToken = csrfToken();
                 <div class="tournament-info">
 
                     <h3>
+
                         WEEKLY GAMING TOURNAMENT
+
                     </h3>
 
 
@@ -2180,7 +2728,9 @@ $csrfToken = csrfToken();
 
 
                     <span>
+
                         PRIZES AVAILABLE
+
                     </span>
 
                 </div>
@@ -2190,12 +2740,13 @@ $csrfToken = csrfToken();
                     href="tournament.php?id=1"
                     class="outline-button"
                 >
+
                     JOIN NOW
+
                 </a>
 
 
             </article>
-
 
 
             <!-- TOURNAMENT 2 -->
@@ -2208,11 +2759,15 @@ $csrfToken = csrfToken();
                 <div class="tournament-date">
 
                     <span>
+
                         22
+
                     </span>
 
                     <small>
+
                         NOV
+
                     </small>
 
                 </div>
@@ -2221,7 +2776,9 @@ $csrfToken = csrfToken();
                 <div class="tournament-info">
 
                     <h3>
+
                         VALORANT TOURNAMENT
+
                     </h3>
 
 
@@ -2234,7 +2791,9 @@ $csrfToken = csrfToken();
 
 
                     <span>
+
                         TEAM REGISTRATION OPEN
+
                     </span>
 
                 </div>
@@ -2244,12 +2803,13 @@ $csrfToken = csrfToken();
                     href="tournament.php?id=2"
                     class="outline-button"
                 >
+
                     JOIN NOW
+
                 </a>
 
 
             </article>
-
 
 
             <!-- TOURNAMENT 3 -->
@@ -2262,11 +2822,15 @@ $csrfToken = csrfToken();
                 <div class="tournament-date">
 
                     <span>
+
                         29
+
                     </span>
 
                     <small>
+
                         DEC
+
                     </small>
 
                 </div>
@@ -2275,7 +2839,9 @@ $csrfToken = csrfToken();
                 <div class="tournament-info">
 
                     <h3>
+
                         MOBILE LEGENDS TOURNAMENT
+
                     </h3>
 
 
@@ -2288,7 +2854,9 @@ $csrfToken = csrfToken();
 
 
                     <span>
+
                         CASH PRIZES AVAILABLE
+
                     </span>
 
                 </div>
@@ -2298,7 +2866,9 @@ $csrfToken = csrfToken();
                     href="tournament.php?id=3"
                     class="outline-button"
                 >
+
                     JOIN NOW
+
                 </a>
 
 
@@ -2310,7 +2880,6 @@ $csrfToken = csrfToken();
     </div>
 
 </section>
-
 
 
 <!-- =====================================
@@ -2328,13 +2897,16 @@ $csrfToken = csrfToken();
             class="digital-receipt-card"
         >
 
+
             <button
                 type="button"
                 class="digital-receipt-close"
                 id="closeDigitalReceipt"
                 aria-label="Close digital receipt"
             >
+
                 ×
+
             </button>
 
 
@@ -2374,8 +2946,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Booking ID
+
                     </span>
+
 
                     <span class="digital-receipt-value">
 
@@ -2389,8 +2964,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Customer
+
                     </span>
+
 
                     <span class="digital-receipt-value">
 
@@ -2410,8 +2988,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Email
+
                     </span>
+
 
                     <span class="digital-receipt-value">
 
@@ -2439,8 +3020,11 @@ $csrfToken = csrfToken();
                     <div class="digital-receipt-row">
 
                         <span class="digital-receipt-label">
+
                             Phone
+
                         </span>
+
 
                         <span class="digital-receipt-value">
 
@@ -2462,8 +3046,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Gaming Setup
+
                     </span>
+
 
                     <span class="digital-receipt-value">
 
@@ -2485,8 +3072,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Booking Date
+
                     </span>
+
 
                     <span class="digital-receipt-value">
 
@@ -2504,8 +3094,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Start Time
+
                     </span>
+
 
                     <span class="digital-receipt-value">
 
@@ -2523,8 +3116,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Duration
+
                     </span>
+
 
                     <span class="digital-receipt-value">
 
@@ -2542,8 +3138,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Rate / Hour
+
                     </span>
+
 
                     <span class="digital-receipt-value">
 
@@ -2562,8 +3161,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-row">
 
                     <span class="digital-receipt-label">
+
                         Mode of Payment
+
                     </span>
+
 
                     <span
                         class="digital-receipt-value digital-receipt-payment"
@@ -2592,8 +3194,11 @@ $csrfToken = csrfToken();
                     <div class="digital-receipt-row">
 
                         <span class="digital-receipt-label">
+
                             GCash Reference Number
+
                         </span>
+
 
                         <span
                             class="digital-receipt-value digital-receipt-payment"
@@ -2633,8 +3238,11 @@ $csrfToken = csrfToken();
                     <div class="digital-receipt-row">
 
                         <span class="digital-receipt-label">
+
                             Message
+
                         </span>
+
 
                         <span class="digital-receipt-value">
 
@@ -2656,8 +3264,11 @@ $csrfToken = csrfToken();
                 <div class="digital-receipt-total">
 
                     <span>
+
                         TOTAL
+
                     </span>
+
 
                     <strong>
 
@@ -2686,7 +3297,9 @@ $csrfToken = csrfToken();
                         class="outline-button"
                         onclick="window.print()"
                     >
+
                         PRINT RECEIPT
+
                     </button>
 
                 </div>
@@ -2699,7 +3312,6 @@ $csrfToken = csrfToken();
     </div>
 
 <?php endif; ?>
-
 
 
 <!-- =====================================
@@ -2722,6 +3334,7 @@ document.addEventListener(
                 "notificationButton"
             );
 
+
         const notificationPanel =
             document.getElementById(
                 "notificationPanel"
@@ -2739,10 +3352,12 @@ document.addEventListener(
 
                     event.stopPropagation();
 
+
                     const isOpen =
                         notificationPanel.classList.toggle(
                             "open"
                         );
+
 
                     notificationButton.setAttribute(
                         "aria-expanded",
@@ -2773,6 +3388,7 @@ document.addEventListener(
                         "open"
                     );
 
+
                     notificationButton.setAttribute(
                         "aria-expanded",
                         "false"
@@ -2793,6 +3409,7 @@ document.addEventListener(
                 "digitalReceiptOverlay"
             );
 
+
         const closeReceipt =
             document.getElementById(
                 "closeDigitalReceipt"
@@ -2803,7 +3420,6 @@ document.addEventListener(
             receiptOverlay &&
             closeReceipt
         ) {
-
 
             function closeDigitalReceipt() {
 
@@ -2853,12 +3469,642 @@ document.addEventListener(
 
         }
 
+
+        /* ========================================
+           PAGE NAVIGATION
+        ======================================== */
+
+        const homeContent =
+            document.getElementById(
+                "homePageContent"
+            );
+
+
+        const tournamentContent =
+            document.getElementById(
+                "tournaments"
+            );
+
+
+        const mainNav =
+            document.getElementById(
+                "mainNav"
+            );
+
+
+        const menuToggle =
+            document.querySelector(
+                ".menu-toggle"
+            );
+
+
+        /* ========================================
+           GET NAV LINKS
+        ======================================== */
+
+        const navLinks = mainNav
+            ? mainNav.querySelectorAll("a")
+            : [];
+
+
+        /* ========================================
+           CLEAR ACTIVE NAV
+        ======================================== */
+
+        function clearActiveNav() {
+
+            navLinks.forEach(
+                function (link) {
+
+                    link.classList.remove(
+                        "active"
+                    );
+
+                }
+            );
+
+        }
+
+
+        /* ========================================
+           SET ACTIVE NAV
+        ======================================== */
+
+        function setActiveNav(target) {
+
+            clearActiveNav();
+
+
+            if (!mainNav) {
+                return;
+            }
+
+
+            let activeLink = null;
+
+
+            if (target === "home") {
+
+                activeLink =
+                    mainNav.querySelector(
+                        'a[href="index.php#home"], a[href="#home"]'
+                    );
+
+            }
+
+
+            else if (target === "pcs") {
+
+                activeLink =
+                    mainNav.querySelector(
+                        'a[href="index.php#pcs"], a[href="#pcs"]'
+                    );
+
+            }
+
+
+            else if (target === "rates") {
+
+                activeLink =
+                    mainNav.querySelector(
+                        'a[href="index.php#rates"], a[href="#rates"]'
+                    );
+
+            }
+
+
+            else if (target === "tournaments") {
+
+                activeLink =
+                    mainNav.querySelector(
+                        'a[href="index.php#tournaments"], a[href="#tournaments"]'
+                    );
+
+            }
+
+
+            else if (target === "gallery") {
+
+                activeLink =
+                    mainNav.querySelector(
+                        'a[href="index.php#gallery"], a[href="#gallery"]'
+                    );
+
+            }
+
+
+            if (activeLink) {
+
+                activeLink.classList.add(
+                    "active"
+                );
+
+            }
+
+        }
+
+
+        /* ========================================
+           SHOW HOME
+        ======================================== */
+
+        function showHome() {
+
+            if (homeContent) {
+
+                homeContent.style.display =
+                    "block";
+
+            }
+
+
+            if (tournamentContent) {
+
+                tournamentContent.style.display =
+                    "none";
+
+            }
+
+        }
+
+
+        /* ========================================
+           SHOW TOURNAMENTS
+        ======================================== */
+
+        function showTournaments() {
+
+            if (homeContent) {
+
+                homeContent.style.display =
+                    "none";
+
+            }
+
+
+            if (tournamentContent) {
+
+                tournamentContent.style.display =
+                    "block";
+
+            }
+
+
+            setActiveNav(
+                "tournaments"
+            );
+
+
+            window.scrollTo({
+
+                top: 0,
+
+                behavior: "smooth"
+
+            });
+
+        }
+
+
+        /* ========================================
+           SHOW HOME SECTION
+        ======================================== */
+
+        function showHomeSection(
+            targetId
+        ) {
+
+            showHome();
+
+
+            setActiveNav(
+                targetId
+            );
+
+
+            setTimeout(
+                function () {
+
+                    const target =
+                        document.getElementById(
+                            targetId
+                        );
+
+
+                    if (target) {
+
+                        target.scrollIntoView({
+
+                            behavior: "smooth",
+
+                            block: "start"
+
+                        });
+
+                    }
+
+                },
+                50
+            );
+
+        }
+
+
+        /* ========================================
+           CHECK URL HASH
+        ======================================== */
+
+        const currentHash =
+            window.location.hash;
+
+
+        if (
+            currentHash ===
+            "#tournaments"
+        ) {
+
+            showTournaments();
+
+        }
+
+
+        else if (
+            currentHash ===
+            "#pcs"
+        ) {
+
+            showHomeSection(
+                "pcs"
+            );
+
+        }
+
+
+        else if (
+            currentHash ===
+            "#rates"
+        ) {
+
+            showHomeSection(
+                "rates"
+            );
+
+        }
+
+
+        else if (
+            currentHash ===
+            "#gallery"
+        ) {
+
+            showHomeSection(
+                "gallery"
+            );
+
+        }
+
+
+        else {
+
+            showHome();
+
+            setActiveNav(
+                "home"
+            );
+
+        }
+
+
+        /* ========================================
+           TOURNAMENTS BUTTON
+        ======================================== */
+
+        const tournamentLinks =
+            document.querySelectorAll(
+                'a[href="index.php#tournaments"], a[href="#tournaments"]'
+            );
+
+
+        tournamentLinks.forEach(
+            function (link) {
+
+                link.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+
+                        showTournaments();
+
+
+                        history.pushState(
+                            null,
+                            "",
+                            "index.php#tournaments"
+                        );
+
+
+                        if (mainNav) {
+
+                            mainNav.classList.remove(
+                                "open"
+                            );
+
+                        }
+
+
+                        if (menuToggle) {
+
+                            menuToggle.setAttribute(
+                                "aria-expanded",
+                                "false"
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+
+        /* ========================================
+           HOME BUTTON
+        ======================================== */
+
+        const homeLinks =
+            document.querySelectorAll(
+                'a[href="index.php#home"], a[href="#home"]'
+            );
+
+
+        homeLinks.forEach(
+            function (link) {
+
+                link.addEventListener(
+                    "click",
+                    function (event) {
+
+                        event.preventDefault();
+
+
+                        showHome();
+
+
+                        setActiveNav(
+                            "home"
+                        );
+
+
+                        history.pushState(
+                            null,
+                            "",
+                            "index.php#home"
+                        );
+
+
+                        window.scrollTo({
+
+                            top: 0,
+
+                            behavior: "smooth"
+
+                        });
+
+
+                        if (mainNav) {
+
+                            mainNav.classList.remove(
+                                "open"
+                            );
+
+                        }
+
+
+                        if (menuToggle) {
+
+                            menuToggle.setAttribute(
+                                "aria-expanded",
+                                "false"
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+
+        /* ========================================
+           PCS / RATES / GALLERY
+        ======================================== */
+
+        const homeSectionLinks =
+            document.querySelectorAll(
+                'a[href="index.php#pcs"],' +
+                'a[href="#pcs"],' +
+                'a[href="index.php#rates"],' +
+                'a[href="#rates"],' +
+                'a[href="index.php#gallery"],' +
+                'a[href="#gallery"]'
+            );
+
+
+        homeSectionLinks.forEach(
+            function (link) {
+
+                link.addEventListener(
+                    "click",
+                    function (event) {
+
+                        const href =
+                            link.getAttribute(
+                                "href"
+                            );
+
+
+                        if (!href) {
+
+                            return;
+
+                        }
+
+
+                        const parts =
+                            href.split("#");
+
+
+                        if (
+                            parts.length < 2
+                        ) {
+
+                            return;
+
+                        }
+
+
+                        const targetId =
+                            parts[1];
+
+
+                        event.preventDefault();
+
+
+                        showHomeSection(
+                            targetId
+                        );
+
+
+                        history.pushState(
+                            null,
+                            "",
+                            "index.php#" +
+                            targetId
+                        );
+
+
+                        if (mainNav) {
+
+                            mainNav.classList.remove(
+                                "open"
+                            );
+
+                        }
+
+
+                        if (menuToggle) {
+
+                            menuToggle.setAttribute(
+                                "aria-expanded",
+                                "false"
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+        );
+
+
+        /* ========================================
+           BROWSER BACK / FORWARD
+        ======================================== */
+
+        window.addEventListener(
+            "popstate",
+            function () {
+
+                const hash =
+                    window.location.hash;
+
+
+                if (
+                    hash ===
+                    "#tournaments"
+                ) {
+
+                    showTournaments();
+
+                }
+
+
+                else if (
+                    hash ===
+                    "#pcs"
+                ) {
+
+                    showHomeSection(
+                        "pcs"
+                    );
+
+                }
+
+
+                else if (
+                    hash ===
+                    "#rates"
+                ) {
+
+                    showHomeSection(
+                        "rates"
+                    );
+
+                }
+
+
+                else if (
+                    hash ===
+                    "#gallery"
+                ) {
+
+                    showHomeSection(
+                        "gallery"
+                    );
+
+                }
+
+
+                else {
+
+                    showHome();
+
+                    setActiveNav(
+                        "home"
+                    );
+
+                }
+
+            }
+        );
+
+
+        /* ========================================
+           MOBILE MENU
+        ======================================== */
+
+        if (
+            menuToggle &&
+            mainNav
+        ) {
+
+            menuToggle.addEventListener(
+                "click",
+                function () {
+
+                    mainNav.classList.toggle(
+                        "open"
+                    );
+
+
+                    const isOpen =
+                        mainNav.classList.contains(
+                            "open"
+                        );
+
+
+                    menuToggle.setAttribute(
+                        "aria-expanded",
+                        isOpen
+                            ? "true"
+                            : "false"
+                    );
+
+                }
+            );
+
+        }
+
     }
 
 );
 
 </script>
-
 
 
 <?php

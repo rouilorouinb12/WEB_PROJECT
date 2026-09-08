@@ -16,25 +16,36 @@ $tournamentId = filter_input(
 );
 
 if (!$tournamentId) {
+
     header("Location: index.php#tournaments");
+
     exit;
+
 }
 
 
-/* ========================================
-   GET TOURNAMENT
-======================================== */
+/*
+========================================
+GET TOURNAMENT
+========================================
+*/
 
 $stmt = $conn->prepare("
+
     SELECT
+
         id,
         title,
         description,
         tournament_date,
         status_message
+
     FROM tournaments
+
     WHERE id = :id
+
     LIMIT 1
+
 ");
 
 $stmt->execute([
@@ -43,24 +54,36 @@ $stmt->execute([
 
 $tournament = $stmt->fetch();
 
+
 if (!$tournament) {
+
     header("Location: index.php#tournaments");
+
     exit;
+
 }
 
 
-/* ========================================
-   GET CURRENT CUSTOMER
-======================================== */
+/*
+========================================
+GET CURRENT CUSTOMER
+========================================
+*/
 
 $userStmt = $conn->prepare("
+
     SELECT
+
         name,
         email,
         phone
+
     FROM users
+
     WHERE id = :id
+
     LIMIT 1
+
 ");
 
 $userStmt->execute([
@@ -69,34 +92,106 @@ $userStmt->execute([
 
 $user = $userStmt->fetch();
 
+
 if (!$user) {
+
     header("Location: logout.php");
+
     exit;
+
 }
 
 
-/* ========================================
-   INITIAL VALUES
-======================================== */
+/*
+========================================
+INITIAL VALUES
+========================================
+*/
 
 $error = "";
+
 $success = "";
 
 $paymentMethod = "";
+
 $paymentReference = "";
 
+$registrationMessageValue = "";
 
-/* ========================================
-   HANDLE REGISTRATION
-======================================== */
+
+/*
+========================================
+RECEIPT MODE
+========================================
+*/
+
+$receiptMode =
+    isset($_GET["receipt"]) &&
+    $_GET["receipt"] === "1";
+
+
+/*
+========================================
+GET CURRENT USER REGISTRATION
+========================================
+*/
+
+$currentRegistrationStmt = $conn->prepare("
+
+    SELECT
+
+        tr.id,
+        tr.tournament_id,
+        tr.user_id,
+        tr.team_name,
+        tr.contact_number,
+        tr.message,
+        tr.status,
+        tr.payment_method,
+        tr.payment_reference,
+        tr.payment_status,
+        tr.created_at
+
+    FROM tournament_registrations tr
+
+    WHERE tr.tournament_id = :tournament_id
+
+      AND tr.user_id = :user_id
+
+    LIMIT 1
+
+");
+
+$currentRegistrationStmt->execute([
+
+    ":tournament_id" =>
+        $tournamentId,
+
+    ":user_id" =>
+        $userId
+
+]);
+
+$currentRegistration =
+    $currentRegistrationStmt->fetch();
+
+
+/*
+========================================
+HANDLE REGISTRATION
+========================================
+*/
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    /* ========================================
-       CSRF
-    ======================================== */
+    /*
+    ========================================
+    CSRF
+    ========================================
+    */
 
-    $csrfToken = $_POST["csrf_token"] ?? "";
+    $csrfToken =
+        $_POST["csrf_token"] ?? "";
 
     if (
         !is_string($csrfToken) ||
@@ -108,50 +203,65 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     } else {
 
-        /* ========================================
-           GET FORM VALUES
-        ======================================== */
+        /*
+        ========================================
+        GET FORM VALUES
+        ========================================
+        */
 
-        $teamName = trim(
-            (string)(
-                $_POST["team_name"] ?? ""
-            )
-        );
-
-        $teamMembers = trim(
-            (string)(
-                $_POST["team_members"] ?? ""
-            )
-        );
-
-        $contactNumber = trim(
-            (string)(
-                $_POST["contact_number"] ?? ""
-            )
-        );
-
-        $message = trim(
-            (string)(
-                $_POST["message"] ?? ""
-            )
-        );
-
-        $paymentMethod = trim(
-            (string)(
-                $_POST["payment_method"] ?? ""
-            )
-        );
-
-        $paymentReference = trim(
-            (string)(
-                $_POST["payment_reference"] ?? ""
-            )
-        );
+        $teamName =
+            trim(
+                (string)(
+                    $_POST["team_name"] ?? ""
+                )
+            );
 
 
-        /* ========================================
-           VALIDATION
-        ======================================== */
+        $teamMembers =
+            trim(
+                (string)(
+                    $_POST["team_members"] ?? ""
+                )
+            );
+
+
+        $contactNumber =
+            trim(
+                (string)(
+                    $_POST["contact_number"] ?? ""
+                )
+            );
+
+
+        $message =
+            trim(
+                (string)(
+                    $_POST["message"] ?? ""
+                )
+            );
+
+
+        $paymentMethod =
+            trim(
+                (string)(
+                    $_POST["payment_method"] ?? ""
+                )
+            );
+
+
+        $paymentReference =
+            trim(
+                (string)(
+                    $_POST["payment_reference"] ?? ""
+                )
+            );
+
+
+        /*
+        ========================================
+        VALIDATION
+        ========================================
+        */
 
         if ($teamName === "") {
 
@@ -165,7 +275,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $error =
                 "Team name is too long.";
 
-        } elseif ($teamMembers === "") {
+        } elseif (
+            $teamMembers === ""
+        ) {
 
             $error =
                 "Please enter your team members.";
@@ -177,7 +289,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $error =
                 "Team members information is too long.";
 
-        } elseif ($contactNumber === "") {
+        } elseif (
+            $contactNumber === ""
+        ) {
 
             $error =
                 "Please enter your contact number.";
@@ -225,50 +339,102 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } else {
 
-            /* ========================================
-               CHECK DUPLICATE REGISTRATION
-            ======================================== */
+            /*
+            ========================================
+            CHECK DUPLICATE REGISTRATION
+            ========================================
+            */
 
             $check = $conn->prepare("
+
                 SELECT
-                    id
+
+                    id,
+                    status
+
                 FROM tournament_registrations
+
                 WHERE tournament_id = :tournament_id
+
                   AND user_id = :user_id
+
                 LIMIT 1
+
             ");
 
             $check->execute([
-                ":tournament_id" => $tournamentId,
-                ":user_id" => $userId
+
+                ":tournament_id" =>
+                    $tournamentId,
+
+                ":user_id" =>
+                    $userId
+
             ]);
 
-            if ($check->fetch()) {
 
-                $error =
-                    "You have already registered for this tournament.";
+            $existingRegistration =
+                $check->fetch();
+
+
+            if ($existingRegistration) {
+
+                $existingStatus =
+                    (string)$existingRegistration["status"];
+
+
+                if (
+                    $existingStatus === "pending"
+                ) {
+
+                    $error =
+                        "You have already registered for this tournament.";
+
+                } elseif (
+                    $existingStatus === "accepted"
+                ) {
+
+                    $error =
+                        "You are already registered for this tournament.";
+
+                } else {
+
+                    $error =
+                        "Your registration for this tournament has already been processed.";
+
+                }
 
             } else {
 
-                /* ========================================
-                   STORE TEAM MEMBERS
-                ======================================== */
+                /*
+                ========================================
+                STORE TEAM MEMBERS
+                ========================================
+                */
 
                 $registrationMessage =
                     "Team Members:\n"
                     . $teamMembers;
+
 
                 if ($message !== "") {
 
                     $registrationMessage .=
                         "\n\nAdditional Message:\n"
                         . $message;
+
                 }
 
 
-                /* ========================================
-                   PAYMENT STATUS
-                ======================================== */
+                $registrationMessageValue =
+                    $registrationMessage;
+
+
+                /*
+                ========================================
+                PAYMENT STATUS
+                ========================================
+                */
 
                 $paymentStatus =
                     $paymentMethod === "GCash"
@@ -276,13 +442,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         : "unpaid";
 
 
-                /* ========================================
-                   INSERT REGISTRATION
-                ======================================== */
+                /*
+                ========================================
+                INSERT REGISTRATION
+                ========================================
+                */
 
                 $insert = $conn->prepare("
+
                     INSERT INTO tournament_registrations
+
                     (
+
                         tournament_id,
                         user_id,
                         team_name,
@@ -292,9 +463,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         payment_method,
                         payment_reference,
                         payment_status
+
                     )
+
                     VALUES
+
                     (
+
                         :tournament_id,
                         :user_id,
                         :team_name,
@@ -304,10 +479,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         :payment_method,
                         :payment_reference,
                         :payment_status
+
                     )
+
                 ");
 
+
                 $insert->execute([
+
                     ":tournament_id" =>
                         $tournamentId,
 
@@ -333,25 +512,301 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     ":payment_status" =>
                         $paymentStatus
+
                 ]);
 
 
-                /* ========================================
-                   SUCCESS
-                ======================================== */
+                /*
+                ========================================
+                SUCCESS
+                ========================================
+                */
 
                 $success =
                     "Tournament registration submitted successfully.";
 
                 $_POST = [];
+
+
+                /*
+                ========================================
+                REFRESH CURRENT REGISTRATION DATA
+                ========================================
+                */
+
+                $currentRegistrationStmt->execute([
+
+                    ":tournament_id" =>
+                        $tournamentId,
+
+                    ":user_id" =>
+                        $userId
+
+                ]);
+
+
+                $currentRegistration =
+                    $currentRegistrationStmt->fetch();
+
             }
+
         }
+
     }
+
 }
+
+
+/*
+========================================
+GET CURRENT REGISTRATION AGAIN
+========================================
+*/
+
+$currentRegistrationStmt->execute([
+
+    ":tournament_id" =>
+        $tournamentId,
+
+    ":user_id" =>
+        $userId
+
+]);
+
+$currentRegistration =
+    $currentRegistrationStmt->fetch();
+
+
+/*
+========================================
+DIGITAL TOURNAMENT RECEIPT
+========================================
+*/
+
+$selectedReceipt = null;
+
+
+if (
+    $receiptMode &&
+    $currentRegistration
+) {
+
+    if (
+        (string)$currentRegistration["status"]
+        === "accepted"
+    ) {
+
+        $selectedReceipt =
+            $currentRegistration;
+
+    } else {
+
+        $error =
+            "Your tournament registration must be accepted before the digital receipt can be viewed.";
+
+        $receiptMode =
+            false;
+
+    }
+
+}
+
+
+/*
+========================================
+DIGITAL RECEIPT DATA
+========================================
+*/
+
+$receiptId = 0;
+
+$receiptTeamName = "";
+
+$receiptContactNumber = "";
+
+$receiptTeamMembers = "";
+
+$receiptPaymentMethod = "";
+
+$receiptPaymentReference = "";
+
+$receiptPaymentStatus = "";
+
+$receiptStatus = "";
+
+$receiptDate = "";
+
+$receiptTournamentDate = "";
+
+$receiptTournamentTitle = "";
+
+
+if ($selectedReceipt) {
+
+    $receiptId =
+        (int)$selectedReceipt["id"];
+
+
+    $receiptTeamName =
+        (string)(
+            $selectedReceipt["team_name"]
+            ?? ""
+        );
+
+
+    $receiptContactNumber =
+        (string)(
+            $selectedReceipt["contact_number"]
+            ?? ""
+        );
+
+
+    $receiptPaymentMethod =
+        trim(
+            (string)(
+                $selectedReceipt[
+                    "payment_method"
+                ] ?? ""
+            )
+        );
+
+
+    $receiptPaymentReference =
+        trim(
+            (string)(
+                $selectedReceipt[
+                    "payment_reference"
+                ] ?? ""
+            )
+        );
+
+
+    $receiptPaymentStatus =
+        trim(
+            (string)(
+                $selectedReceipt[
+                    "payment_status"
+                ] ?? ""
+            )
+        );
+
+
+    $receiptStatus =
+        strtoupper(
+            (string)(
+                $selectedReceipt["status"]
+            )
+        );
+
+
+    $receiptTournamentTitle =
+        (string)$tournament["title"];
+
+
+    /*
+    ========================================
+    TOURNAMENT DATE
+    ========================================
+    */
+
+    $receiptTournamentTimestamp =
+        strtotime(
+            (string)
+            $tournament["tournament_date"]
+        );
+
+
+    $receiptTournamentDate =
+        $receiptTournamentTimestamp !== false
+            ? date(
+                "F d, Y",
+                $receiptTournamentTimestamp
+            )
+            : (string)
+            $tournament["tournament_date"];
+
+
+    /*
+    ========================================
+    DATE REGISTERED
+    ========================================
+    */
+
+    $receiptCreatedTimestamp =
+        strtotime(
+            (string)
+            $selectedReceipt["created_at"]
+        );
+
+
+    $receiptDate =
+        $receiptCreatedTimestamp !== false
+            ? date(
+                "F d, Y h:i A",
+                $receiptCreatedTimestamp
+            )
+            : (string)
+            $selectedReceipt["created_at"];
+
+
+    /*
+    ========================================
+    GET TEAM MEMBERS
+    ========================================
+    */
+
+    $savedMessage =
+        (string)(
+            $selectedReceipt["message"]
+            ?? ""
+        );
+
+
+    $receiptTeamMembers =
+        $savedMessage;
+
+
+    if (
+        preg_match(
+            '/Team Members:\s*(.*?)(?:\n\nAdditional Message:|\z)/s',
+            $savedMessage,
+            $matches
+        )
+    ) {
+
+        $receiptTeamMembers =
+            trim(
+                $matches[1]
+            );
+
+    }
+
+
+    if (
+        $receiptPaymentMethod === ""
+    ) {
+
+        $receiptPaymentMethod =
+            "Cash";
+
+    }
+
+}
+
+
+/*
+========================================
+CSRF TOKEN
+========================================
+*/
+
+$csrfToken = csrfToken();
+
 
 include "includes/header.php";
 
 ?>
+
 
 <style>
 
@@ -366,6 +821,7 @@ include "includes/header.php";
     max-width: 1120px;
 
     margin: 0 auto;
+
 }
 
 
@@ -386,6 +842,7 @@ include "includes/header.php";
 
     box-sizing:
         border-box;
+
 }
 
 
@@ -395,16 +852,21 @@ include "includes/header.php";
         grid;
 
     grid-template-columns:
-        repeat(2, minmax(0, 1fr));
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
 
     gap:
         20px 24px;
+
 }
 
 
 .tournament-field {
 
     width: 100%;
+
 }
 
 
@@ -412,6 +874,7 @@ include "includes/header.php";
 
     grid-column:
         1 / -1;
+
 }
 
 
@@ -433,6 +896,7 @@ include "includes/header.php";
 
     letter-spacing:
         .3px;
+
 }
 
 
@@ -440,7 +904,8 @@ include "includes/header.php";
 .tournament-field textarea,
 .tournament-field select {
 
-    width: 100%;
+    width:
+        100%;
 
     min-height:
         46px;
@@ -470,6 +935,7 @@ include "includes/header.php";
         600 14px
         "Rajdhani",
         sans-serif;
+
 }
 
 
@@ -486,6 +952,7 @@ include "includes/header.php";
 
         0 0 12px
         rgba(57,255,20,.08);
+
 }
 
 
@@ -496,6 +963,7 @@ include "includes/header.php";
 
     background:
         #0b0b0b;
+
 }
 
 
@@ -506,6 +974,7 @@ include "includes/header.php";
 
     resize:
         vertical;
+
 }
 
 
@@ -513,6 +982,7 @@ include "includes/header.php";
 
     min-height:
         135px;
+
 }
 
 
@@ -536,6 +1006,7 @@ include "includes/header.php";
 
     margin-top:
         26px;
+
 }
 
 
@@ -547,6 +1018,7 @@ include "includes/header.php";
 
     box-sizing:
         border-box;
+
 }
 
 
@@ -575,6 +1047,7 @@ include "includes/header.php";
         600 14px
         "Rajdhani",
         sans-serif;
+
 }
 
 
@@ -589,6 +1062,7 @@ include "includes/header.php";
 
     background:
         rgba(255,0,0,.04);
+
 }
 
 
@@ -603,6 +1077,7 @@ include "includes/header.php";
 
     background:
         rgba(57,255,20,.04);
+
 }
 
 
@@ -624,6 +1099,7 @@ include "includes/header.php";
     border-top:
         1px solid
         rgba(57,255,20,.25);
+
 }
 
 
@@ -639,6 +1115,7 @@ include "includes/header.php";
         700 18px
         "Orbitron",
         sans-serif;
+
 }
 
 
@@ -665,6 +1142,7 @@ include "includes/header.php";
 
     line-height:
         1.5;
+
 }
 
 
@@ -672,6 +1150,7 @@ include "includes/header.php";
 
     color:
         var(--green);
+
 }
 
 
@@ -679,6 +1158,449 @@ include "includes/header.php";
 
     margin-bottom:
         24px;
+
+}
+
+
+/* ========================================
+   REGISTRATION STATUS
+======================================== */
+
+.tournament-status-box {
+
+    margin:
+        0 auto 24px;
+
+    max-width:
+        1120px;
+
+    padding:
+        16px 18px;
+
+    border:
+        1px solid
+        rgba(57,255,20,.35);
+
+    background:
+        rgba(57,255,20,.03);
+
+}
+
+
+.tournament-status-title {
+
+    margin:
+        0 0 6px;
+
+    color:
+        var(--green);
+
+    font:
+        800 10px
+        "Orbitron",
+        sans-serif;
+
+}
+
+
+.tournament-status-text {
+
+    margin:
+        0;
+
+    color:
+        #fff;
+
+    font-size:
+        14px;
+
+    line-height:
+        1.5;
+
+}
+
+
+.tournament-receipt-link {
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    min-height:
+        42px;
+
+    padding:
+        0 18px;
+
+    margin-top:
+        14px;
+
+    background:
+        var(--green);
+
+    color:
+        #000;
+
+    border:
+        1px solid
+        var(--green);
+
+    border-radius:
+        4px;
+
+    font:
+        800 9px
+        "Orbitron",
+        sans-serif;
+
+    text-decoration:
+        none;
+
+    transition:
+        .2s ease;
+
+}
+
+
+.tournament-receipt-link:hover {
+
+    background:
+        transparent;
+
+    color:
+        var(--green);
+
+    transform:
+        translateY(-2px);
+
+}
+
+
+/* ========================================
+   DIGITAL TOURNAMENT RECEIPT
+======================================== */
+
+.tournament-receipt-overlay {
+
+    position:
+        fixed;
+
+    inset:
+        0;
+
+    z-index:
+        9999;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    padding:
+        20px;
+
+    background:
+        rgba(0,0,0,.88);
+
+}
+
+
+.tournament-receipt-card {
+
+    width:
+        min(650px, 100%);
+
+    max-height:
+        90vh;
+
+    overflow-y:
+        auto;
+
+    background:
+        #000;
+
+    border:
+        1px solid
+        #39FF14;
+
+    border-radius:
+        8px;
+
+    box-shadow:
+        0 0 35px
+        rgba(57,255,20,.12);
+
+}
+
+
+.tournament-receipt-close {
+
+    display:
+        flex;
+
+    justify-content:
+        flex-end;
+
+    padding:
+        14px 14px 0;
+
+}
+
+
+.tournament-receipt-close a {
+
+    width:
+        30px;
+
+    height:
+        30px;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    border:
+        1px solid
+        #555;
+
+    border-radius:
+        50%;
+
+    background:
+        transparent;
+
+    color:
+        #fff;
+
+    text-decoration:
+        none;
+
+    font-size:
+        15px;
+
+}
+
+
+.tournament-receipt-close a:hover {
+
+    border-color:
+        #39FF14;
+
+    color:
+        #39FF14;
+
+}
+
+
+.tournament-receipt-header {
+
+    padding:
+        12px 30px 30px;
+
+    text-align:
+        center;
+
+    border-bottom:
+        1px solid
+        rgba(57,255,20,.22);
+
+}
+
+
+.tournament-receipt-logo {
+
+    width:
+        95px;
+
+    display:
+        block;
+
+    margin:
+        0 auto 12px;
+
+}
+
+
+.tournament-receipt-business {
+
+    margin:
+        0;
+
+    color:
+        #fff;
+
+    font:
+        700 20px
+        "Orbitron",
+        sans-serif;
+
+}
+
+
+.tournament-receipt-subtitle {
+
+    margin:
+        7px 0 0;
+
+    color:
+        #39FF14;
+
+    font:
+        600 9px
+        "Orbitron",
+        sans-serif;
+
+}
+
+
+.tournament-receipt-body {
+
+    padding:
+        24px 30px 30px;
+
+}
+
+
+.tournament-receipt-row {
+
+    display:
+        grid;
+
+    grid-template-columns:
+        1fr 1.2fr;
+
+    gap:
+        25px;
+
+    padding:
+        12px 0;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,.08);
+
+}
+
+
+.tournament-receipt-label {
+
+    color:
+        rgba(255,255,255,.52);
+
+    font-size:
+        10px;
+
+    font-weight:
+        700;
+
+    text-transform:
+        uppercase;
+
+}
+
+
+.tournament-receipt-value {
+
+    color:
+        #fff;
+
+    font-size:
+        12px;
+
+    font-weight:
+        600;
+
+    text-align:
+        right;
+
+    overflow-wrap:
+        anywhere;
+
+    white-space:
+        pre-line;
+
+}
+
+
+.tournament-receipt-status {
+
+    color:
+        #39FF14;
+
+}
+
+
+.tournament-receipt-actions {
+
+    display:
+        flex;
+
+    justify-content:
+        center;
+
+    margin-top:
+        20px;
+
+}
+
+
+.tournament-receipt-print {
+
+    min-height:
+        42px;
+
+    padding:
+        0 18px;
+
+    border:
+        1px solid
+        #39FF14;
+
+    background:
+        #39FF14;
+
+    color:
+        #000;
+
+    border-radius:
+        4px;
+
+    font:
+        800 9px
+        "Orbitron",
+        sans-serif;
+
+    cursor:
+        pointer;
+
+    transition:
+        .2s ease;
+
+}
+
+
+.tournament-receipt-print:hover {
+
+    background:
+        transparent;
+
+    color:
+        #39FF14;
+
 }
 
 
@@ -692,25 +1614,33 @@ include "includes/header.php";
 
         padding:
             22px 18px 24px;
+
     }
+
 
     .tournament-register-grid {
 
         grid-template-columns:
             1fr;
+
     }
+
 
     .tournament-field.full-width {
 
         grid-column:
             auto;
+
     }
+
 
     .tournament-payment {
 
         grid-column:
             auto;
+
     }
+
 
     .tournament-buttons {
 
@@ -719,18 +1649,203 @@ include "includes/header.php";
 
         flex-direction:
             column;
+
     }
+
 
     .tournament-buttons a,
     .tournament-buttons button {
 
         width:
             100%;
+
     }
+
+
+    .tournament-receipt-card {
+
+        max-height:
+            94vh;
+
+    }
+
+
+    .tournament-receipt-header {
+
+        padding:
+            10px 18px 25px;
+
+    }
+
+
+    .tournament-receipt-body {
+
+        padding:
+            20px;
+
+    }
+
+
+    .tournament-receipt-row {
+
+        grid-template-columns:
+            1fr;
+
+        gap:
+            5px;
+
+    }
+
+
+    .tournament-receipt-value {
+
+        text-align:
+            left;
+
+    }
+
+}
+
+
+/* ========================================
+   PRINT RECEIPT
+======================================== */
+
+@media print {
+
+    @page {
+
+        margin:
+            0;
+
+    }
+
+
+    * {
+
+        -webkit-print-color-adjust:
+            exact !important;
+
+        print-color-adjust:
+            exact !important;
+
+    }
+
+
+    html,
+    body {
+
+        margin:
+            0 !important;
+
+        padding:
+            0 !important;
+
+        background:
+            #000 !important;
+
+        color:
+            #fff !important;
+
+    }
+
+
+    body > * {
+
+        display:
+            none !important;
+
+    }
+
+
+    .tournament-receipt-overlay {
+
+        display:
+            flex !important;
+
+        position:
+            static !important;
+
+        width:
+            100% !important;
+
+        height:
+            auto !important;
+
+        padding:
+            0 !important;
+
+        background:
+            #000 !important;
+
+    }
+
+
+    .tournament-receipt-card {
+
+        display:
+            block !important;
+
+        width:
+            100% !important;
+
+        max-width:
+            850px !important;
+
+        max-height:
+            none !important;
+
+        margin:
+            0 auto !important;
+
+        border:
+            1px solid
+            #39FF14 !important;
+
+        border-radius:
+            0 !important;
+
+        box-shadow:
+            none !important;
+
+        overflow:
+            visible !important;
+
+    }
+
+
+    .tournament-receipt-close,
+    .tournament-receipt-actions {
+
+        display:
+            none !important;
+
+    }
+
+
+    .tournament-receipt-business,
+    .tournament-receipt-label,
+    .tournament-receipt-value {
+
+        color:
+            #fff !important;
+
+    }
+
+
+    .tournament-receipt-status {
+
+        color:
+            #39FF14 !important;
+
+    }
+
 }
 
 </style>
 
+
+<?php if (!$receiptMode): ?>
 
 <main>
 
@@ -744,7 +1859,9 @@ include "includes/header.php";
             ========================================= -->
 
             <p class="section-kicker">
+
                 TOURNAMENT REGISTRATION
+
             </p>
 
 
@@ -753,7 +1870,9 @@ include "includes/header.php";
                 JOIN
 
                 <span>
+
                     THE BATTLE.
+
                 </span>
 
             </h1>
@@ -764,8 +1883,10 @@ include "includes/header.php";
             ========================================= -->
 
             <div
-                class="tournament-card
-                       tournament-details-card"
+                class="
+                    tournament-card
+                    tournament-details-card
+                "
             >
 
                 <div class="tournament-date">
@@ -775,11 +1896,15 @@ include "includes/header.php";
                         <?= date(
                             "d",
                             strtotime(
-                                $tournament["tournament_date"]
+                                (string)
+                                $tournament[
+                                    "tournament_date"
+                                ]
                             )
                         ) ?>
 
                     </span>
+
 
                     <small>
 
@@ -787,7 +1912,10 @@ include "includes/header.php";
                             date(
                                 "M",
                                 strtotime(
-                                    $tournament["tournament_date"]
+                                    (string)
+                                    $tournament[
+                                        "tournament_date"
+                                    ]
                                 )
                             )
                         ) ?>
@@ -840,6 +1968,88 @@ include "includes/header.php";
 
 
             <!-- ========================================
+                 REGISTRATION STATUS
+            ========================================= -->
+
+            <?php if ($currentRegistration): ?>
+
+                <div
+                    class="
+                        tournament-status-box
+                    "
+                >
+
+                    <p
+                        class="
+                            tournament-status-title
+                        "
+                    >
+
+                        YOUR REGISTRATION STATUS
+
+                    </p>
+
+
+                    <p
+                        class="
+                            tournament-status-text
+                        "
+                    >
+
+                        <?php if (
+                            $currentRegistration[
+                                "status"
+                            ] === "pending"
+                        ): ?>
+
+                            Your tournament registration is
+                            currently pending admin approval.
+
+                        <?php elseif (
+                            $currentRegistration[
+                                "status"
+                            ] === "accepted"
+                        ): ?>
+
+                            Your tournament registration has
+                            been approved successfully.
+
+                        <?php else: ?>
+
+                            Your tournament registration has
+                            been rejected.
+
+                        <?php endif; ?>
+
+                    </p>
+
+
+                    <?php if (
+                        $currentRegistration[
+                            "status"
+                        ] === "accepted"
+                    ): ?>
+
+                        <a
+                            href="tournament.php?id=<?= (int)$tournamentId ?>&receipt=1"
+                            class="
+                                tournament-receipt-link
+                            "
+                        >
+
+                            VIEW DIGITAL RECEIPT
+
+                        </a>
+
+                    <?php endif; ?>
+
+
+                </div>
+
+            <?php endif; ?>
+
+
+            <!-- ========================================
                  MESSAGES
             ========================================= -->
 
@@ -877,395 +2087,1104 @@ include "includes/header.php";
                  REGISTRATION FORM
             ========================================= -->
 
-            <form
-                method="POST"
-                class="tournament-register-card"
-                autocomplete="off"
-            >
+            <?php if (
+                !$currentRegistration
+            ): ?>
 
-                <!-- CSRF -->
-
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?= htmlspecialchars(
-                        csrfToken(),
-                        ENT_QUOTES,
-                        "UTF-8"
-                    ) ?>"
+                <form
+                    method="POST"
+                    class="tournament-register-card"
+                    autocomplete="off"
                 >
 
 
-                <div
-                    class="tournament-register-grid"
-                >
+                    <!-- CSRF -->
 
-
-                    <!-- TOURNAMENT -->
-
-                    <div
-                        class="tournament-field full-width"
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="<?= htmlspecialchars(
+                            csrfToken(),
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>"
                     >
 
-                        <label
-                            for="tournament"
-                        >
-                            TOURNAMENT
-                        </label>
-
-                        <input
-                            type="text"
-                            id="tournament"
-                            value="<?= htmlspecialchars(
-                                (string)
-                                $tournament["title"],
-                                ENT_QUOTES,
-                                "UTF-8"
-                            ) ?>"
-                            readonly
-                        >
-
-                    </div>
-
-
-                    <!-- FULL NAME -->
 
                     <div
-                        class="tournament-field"
+                        class="
+                            tournament-register-grid
+                        "
                     >
 
-                        <label
-                            for="full_name"
-                        >
-                            FULL NAME
-                        </label>
 
-                        <input
-                            type="text"
-                            id="full_name"
-                            value="<?= htmlspecialchars(
-                                (string)
-                                $user["name"],
-                                ENT_QUOTES,
-                                "UTF-8"
-                            ) ?>"
-                            readonly
+                        <!-- TOURNAMENT -->
+
+                        <div
+                            class="
+                                tournament-field
+                                full-width
+                            "
                         >
 
-                    </div>
+                            <label
+                                for="tournament"
+                            >
+
+                                TOURNAMENT
+
+                            </label>
 
 
-                    <!-- EMAIL -->
+                            <input
+                                type="text"
+                                id="tournament"
+                                value="<?= htmlspecialchars(
+                                    (string)
+                                    $tournament[
+                                        "title"
+                                    ],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>"
+                                readonly
+                            >
 
-                    <div
-                        class="tournament-field"
-                    >
+                        </div>
 
-                        <label
-                            for="email"
+
+                        <!-- FULL NAME -->
+
+                        <div
+                            class="
+                                tournament-field
+                            "
                         >
-                            EMAIL ADDRESS
-                        </label>
 
-                        <input
-                            type="email"
-                            id="email"
-                            value="<?= htmlspecialchars(
-                                (string)
-                                $user["email"],
-                                ENT_QUOTES,
-                                "UTF-8"
-                            ) ?>"
-                            readonly
+                            <label
+                                for="full_name"
+                            >
+
+                                FULL NAME
+
+                            </label>
+
+
+                            <input
+                                type="text"
+                                id="full_name"
+                                value="<?= htmlspecialchars(
+                                    (string)
+                                    $user["name"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>"
+                                readonly
+                            >
+
+                        </div>
+
+
+                        <!-- EMAIL -->
+
+                        <div
+                            class="
+                                tournament-field
+                            "
                         >
 
-                    </div>
+                            <label
+                                for="email"
+                            >
+
+                                EMAIL ADDRESS
+
+                            </label>
 
 
-                    <!-- CONTACT -->
+                            <input
+                                type="email"
+                                id="email"
+                                value="<?= htmlspecialchars(
+                                    (string)
+                                    $user["email"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>"
+                                readonly
+                            >
 
-                    <div
-                        class="tournament-field"
-                    >
+                        </div>
 
-                        <label
-                            for="contact_number"
+
+                        <!-- CONTACT -->
+
+                        <div
+                            class="
+                                tournament-field
+                            "
                         >
-                            CONTACT NUMBER
-                        </label>
 
-                        <input
-                            type="text"
-                            id="contact_number"
-                            name="contact_number"
-                            maxlength="40"
-                            placeholder="ENTER CONTACT NUMBER"
-                            value="<?= htmlspecialchars(
+                            <label
+                                for="contact_number"
+                            >
+
+                                CONTACT NUMBER
+
+                            </label>
+
+
+                            <input
+                                type="text"
+                                id="contact_number"
+                                name="contact_number"
+                                maxlength="40"
+                                placeholder="ENTER CONTACT NUMBER"
+                                value="<?= htmlspecialchars(
+                                    (string)(
+                                        $_POST[
+                                            "contact_number"
+                                        ]
+                                        ??
+                                        (
+                                            $user["phone"]
+                                            ?? ""
+                                        )
+                                    ),
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- TEAM NAME -->
+
+                        <div
+                            class="
+                                tournament-field
+                            "
+                        >
+
+                            <label
+                                for="team_name"
+                            >
+
+                                TEAM NAME
+
+                            </label>
+
+
+                            <input
+                                type="text"
+                                id="team_name"
+                                name="team_name"
+                                maxlength="120"
+                                placeholder="ENTER TEAM NAME"
+                                value="<?= htmlspecialchars(
+                                    (string)(
+                                        $_POST[
+                                            "team_name"
+                                        ]
+                                        ?? ""
+                                    ),
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- TEAM MEMBERS -->
+
+                        <div
+                            class="
+                                tournament-field
+                                full-width
+                            "
+                        >
+
+                            <label
+                                for="team_members"
+                            >
+
+                                TEAM MEMBERS
+
+                            </label>
+
+
+                            <textarea
+                                id="team_members"
+                                name="team_members"
+                                class="team-members"
+                                maxlength="500"
+                                placeholder="ENTER TEAM MEMBERS&#10;Example:&#10;Player 1 - Juan Dela Cruz&#10;Player 2 - Pedro Santos&#10;Player 3 - Mark Reyes"
+                                required
+                            ><?= htmlspecialchars(
                                 (string)(
                                     $_POST[
-                                        "contact_number"
-                                    ]
-                                    ??
-                                    ($user["phone"] ?? "")
-                                ),
-                                ENT_QUOTES,
-                                "UTF-8"
-                            ) ?>"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- TEAM NAME -->
-
-                    <div
-                        class="tournament-field"
-                    >
-
-                        <label
-                            for="team_name"
-                        >
-                            TEAM NAME
-                        </label>
-
-                        <input
-                            type="text"
-                            id="team_name"
-                            name="team_name"
-                            maxlength="120"
-                            placeholder="ENTER TEAM NAME"
-                            value="<?= htmlspecialchars(
-                                (string)(
-                                    $_POST[
-                                        "team_name"
+                                        "team_members"
                                     ] ?? ""
                                 ),
                                 ENT_QUOTES,
                                 "UTF-8"
-                            ) ?>"
-                            required
+                            ) ?></textarea>
+
+                        </div>
+
+
+                        <!-- MESSAGE -->
+
+                        <div
+                            class="
+                                tournament-field
+                                full-width
+                            "
                         >
 
-                    </div>
+                            <label
+                                for="message"
+                            >
+
+                                MESSAGE
+
+                            </label>
 
 
-                    <!-- TEAM MEMBERS -->
+                            <textarea
+                                id="message"
+                                name="message"
+                                maxlength="500"
+                                placeholder="OPTIONAL MESSAGE OR SPECIAL REQUEST"
+                            ><?= htmlspecialchars(
+                                (string)(
+                                    $_POST[
+                                        "message"
+                                    ] ?? ""
+                                ),
+                                ENT_QUOTES,
+                                "UTF-8"
+                            ) ?></textarea>
 
-                    <div
-                        class="tournament-field full-width"
-                    >
+                        </div>
 
-                        <label
-                            for="team_members"
+
+                        <!-- ========================================
+                             PAYMENT
+                        ========================================= -->
+
+                        <div
+                            class="tournament-payment"
                         >
-                            TEAM MEMBERS
-                        </label>
 
-                        <textarea
-                            id="team_members"
-                            name="team_members"
-                            class="team-members"
-                            maxlength="500"
-                            placeholder="ENTER TEAM MEMBERS&#10;Example:&#10;Player 1 - Juan Dela Cruz&#10;Player 2 - Pedro Santos&#10;Player 3 - Mark Reyes"
-                            required
-                        ><?= htmlspecialchars(
-                            (string)(
-                                $_POST[
-                                    "team_members"
-                                ] ?? ""
-                            ),
-                            ENT_QUOTES,
-                            "UTF-8"
-                        ) ?></textarea>
+                            <h2>
 
-                    </div>
+                                PAYMENT
+
+                            </h2>
 
 
-                    <!-- MESSAGE -->
+                            <p
+                                class="
+                                    tournament-payment-note
+                                "
+                            >
 
-                    <div
-                        class="tournament-field full-width"
-                    >
+                                <strong>
 
-                        <label
-                            for="message"
-                        >
-                            MESSAGE
-                        </label>
+                                    GCash:
 
-                        <textarea
-                            id="message"
-                            name="message"
-                            maxlength="500"
-                            placeholder="OPTIONAL MESSAGE OR SPECIAL REQUEST"
-                        ><?= htmlspecialchars(
-                            (string)(
-                                $_POST[
-                                    "message"
-                                ] ?? ""
-                            ),
-                            ENT_QUOTES,
-                            "UTF-8"
-                        ) ?></textarea>
+                                </strong>
+
+                                Send your tournament payment
+                                to the gaming cafe GCash account,
+                                then enter your
+
+                                <strong>
+
+                                    reference number
+
+                                </strong>.
+
+                                <br><br>
+
+                                <strong>
+
+                                    Cash:
+
+                                </strong>
+
+                                Select Cash if you will pay
+                                directly at the cafe.
+
+                            </p>
+
+
+                            <div
+                                class="
+                                    tournament-register-grid
+                                "
+                            >
+
+
+                                <!-- PAYMENT METHOD -->
+
+                                <div
+                                    class="
+                                        tournament-field
+                                    "
+                                >
+
+                                    <label
+                                        for="payment_method"
+                                    >
+
+                                        PAYMENT METHOD
+
+                                    </label>
+
+
+                                    <select
+                                        id="payment_method"
+                                        name="payment_method"
+                                        required
+                                    >
+
+                                        <option
+                                            value=""
+                                        >
+
+                                            SELECT PAYMENT METHOD
+
+                                        </option>
+
+
+                                        <option
+                                            value="GCash"
+                                            <?= $paymentMethod === "GCash"
+                                                ? "selected"
+                                                : "" ?>
+                                        >
+
+                                            GCash
+
+                                        </option>
+
+
+                                        <option
+                                            value="Cash"
+                                            <?= $paymentMethod === "Cash"
+                                                ? "selected"
+                                                : "" ?>
+                                        >
+
+                                            Cash
+
+                                        </option>
+
+                                    </select>
+
+                                </div>
+
+
+                                <!-- GCASH REFERENCE -->
+
+                                <div
+                                    class="
+                                        tournament-field
+                                    "
+                                    id="referenceField"
+                                >
+
+                                    <label
+                                        for="payment_reference"
+                                    >
+
+                                        GCASH REFERENCE NUMBER
+
+                                    </label>
+
+
+                                    <input
+                                        type="text"
+                                        id="payment_reference"
+                                        name="payment_reference"
+                                        maxlength="100"
+                                        placeholder="ENTER REFERENCE NUMBER"
+                                        value="<?= htmlspecialchars(
+                                            $paymentReference,
+                                            ENT_QUOTES,
+                                            "UTF-8"
+                                        ) ?>"
+                                    >
+
+                                </div>
+
+
+                            </div>
+
+                        </div>
+
 
                     </div>
 
 
                     <!-- ========================================
-                         PAYMENT
+                         BUTTONS
                     ========================================= -->
 
-                    <div class="tournament-payment">
+                    <div
+                        class="
+                            tournament-buttons
+                        "
+                    >
 
-                        <h2>
-                            PAYMENT
-                        </h2>
-
-
-                        <p
-                            class="tournament-payment-note"
+                        <button
+                            type="submit"
+                            class="green-button"
                         >
 
-                            <strong>
-                                GCash:
-                            </strong>
+                            REGISTER NOW
 
-                            Send your tournament payment
-                            to the gaming cafe GCash account,
-                            then enter your
-                            <strong>
-                                reference number
-                            </strong>.
-
-                            <br><br>
-
-                            <strong>
-                                Cash:
-                            </strong>
-
-                            Select Cash if you will pay
-                            directly at the cafe.
-
-                        </p>
+                        </button>
 
 
-                        <div
-                            class="tournament-register-grid"
+                        <a
+                            href="index.php#tournaments"
+                            class="outline-button"
                         >
 
+                            BACK TO TOURNAMENTS
 
-                            <!-- PAYMENT METHOD -->
-
-                            <div
-                                class="tournament-field"
-                            >
-
-                                <label
-                                    for="payment_method"
-                                >
-                                    PAYMENT METHOD
-                                </label>
-
-                                <select
-                                    id="payment_method"
-                                    name="payment_method"
-                                    required
-                                >
-
-                                    <option value="">
-                                        SELECT PAYMENT METHOD
-                                    </option>
-
-                                    <option
-                                        value="GCash"
-                                        <?= $paymentMethod === "GCash"
-                                            ? "selected"
-                                            : "" ?>
-                                    >
-                                        GCash
-                                    </option>
-
-                                    <option
-                                        value="Cash"
-                                        <?= $paymentMethod === "Cash"
-                                            ? "selected"
-                                            : "" ?>
-                                    >
-                                        Cash
-                                    </option>
-
-                                </select>
-
-                            </div>
-
-
-                            <!-- GCASH REFERENCE -->
-
-                            <div
-                                class="tournament-field"
-                                id="referenceField"
-                            >
-
-                                <label
-                                    for="payment_reference"
-                                >
-                                    GCASH REFERENCE NUMBER
-                                </label>
-
-                                <input
-                                    type="text"
-                                    id="payment_reference"
-                                    name="payment_reference"
-                                    maxlength="100"
-                                    placeholder="ENTER REFERENCE NUMBER"
-                                    value="<?= htmlspecialchars(
-                                        $paymentReference,
-                                        ENT_QUOTES,
-                                        "UTF-8"
-                                    ) ?>"
-                                >
-
-                            </div>
-
-
-                        </div>
+                        </a>
 
                     </div>
 
-                </div>
 
+                </form>
 
-                <!-- ========================================
-                     BUTTONS
-                ========================================= -->
+            <?php endif; ?>
 
-                <div class="tournament-buttons">
-
-                    <button
-                        type="submit"
-                        class="green-button"
-                    >
-                        REGISTER NOW
-                    </button>
-
-
-                    <a
-                        href="index.php#tournaments"
-                        class="outline-button"
-                    >
-                        BACK TO TOURNAMENTS
-                    </a>
-
-                </div>
-
-            </form>
 
         </div>
 
     </section>
 
 </main>
+
+<?php endif; ?>
+
+
+<!-- ========================================
+     DIGITAL TOURNAMENT RECEIPT
+======================================== -->
+
+<?php if ($selectedReceipt): ?>
+
+    <div
+        class="
+            tournament-receipt-overlay
+        "
+        id="tournamentReceiptOverlay"
+    >
+
+        <div
+            class="
+                tournament-receipt-card
+            "
+        >
+
+
+            <!-- CLOSE -->
+
+            <div
+                class="
+                    tournament-receipt-close
+                "
+            >
+
+                <a
+                    href="profile.php#history"
+                    aria-label="Close tournament receipt"
+                >
+
+                    ×
+
+                </a>
+
+            </div>
+
+
+            <!-- RECEIPT HEADER -->
+
+            <div
+                class="
+                    tournament-receipt-header
+                "
+            >
+
+                <img
+                    src="assets/images/logo.png"
+                    alt="Bais Rouilo Gaming Cafe"
+                    class="
+                        tournament-receipt-logo
+                    "
+                >
+
+
+                <h2
+                    class="
+                        tournament-receipt-business
+                    "
+                >
+
+                    BAIS ROUILO
+                    GAMING CAFE
+
+                </h2>
+
+
+                <p
+                    class="
+                        tournament-receipt-subtitle
+                    "
+                >
+
+                    TOURNAMENT REGISTRATION RECEIPT
+
+                </p>
+
+            </div>
+
+
+            <!-- RECEIPT BODY -->
+
+            <div
+                class="
+                    tournament-receipt-body
+                "
+            >
+
+
+                <!-- REGISTRATION ID -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Registration ID
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        #<?= $receiptId ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- TOURNAMENT -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Tournament
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            $receiptTournamentTitle,
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- TOURNAMENT DATE -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Tournament Date
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            $receiptTournamentDate,
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- CUSTOMER -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Customer
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            (string)$user["name"],
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- EMAIL -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Email
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            (string)$user["email"],
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- TEAM NAME -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Team Name
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            $receiptTeamName,
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- TEAM MEMBERS -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Team Members
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            $receiptTeamMembers,
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- CONTACT NUMBER -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Contact Number
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            $receiptContactNumber,
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- MODE OF PAYMENT -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Mode of Payment
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            strtoupper(
+                                $receiptPaymentMethod
+                            ),
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- GCASH REFERENCE -->
+
+                <?php if (
+                    strcasecmp(
+                        $receiptPaymentMethod,
+                        "GCash"
+                    ) === 0 &&
+                    $receiptPaymentReference !== ""
+                ): ?>
+
+                    <div
+                        class="
+                            tournament-receipt-row
+                        "
+                    >
+
+                        <span
+                            class="
+                                tournament-receipt-label
+                            "
+                        >
+
+                            GCash Reference Number
+
+                        </span>
+
+
+                        <span
+                            class="
+                                tournament-receipt-value
+                            "
+                        >
+
+                            <?= htmlspecialchars(
+                                $receiptPaymentReference,
+                                ENT_QUOTES,
+                                "UTF-8"
+                            ) ?>
+
+                        </span>
+
+                    </div>
+
+                <?php endif; ?>
+
+
+                <!-- PAYMENT STATUS -->
+
+                <?php if (
+                    $receiptPaymentStatus !== ""
+                ): ?>
+
+                    <div
+                        class="
+                            tournament-receipt-row
+                        "
+                    >
+
+                        <span
+                            class="
+                                tournament-receipt-label
+                            "
+                        >
+
+                            Payment Status
+
+                        </span>
+
+
+                        <span
+                            class="
+                                tournament-receipt-value
+                            "
+                        >
+
+                            <?= htmlspecialchars(
+                                strtoupper(
+                                    $receiptPaymentStatus
+                                ),
+                                ENT_QUOTES,
+                                "UTF-8"
+                            ) ?>
+
+                        </span>
+
+                    </div>
+
+                <?php endif; ?>
+
+
+                <!-- REGISTRATION STATUS -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Registration Status
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                            tournament-receipt-status
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            $receiptStatus,
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- DATE REGISTERED -->
+
+                <div
+                    class="
+                        tournament-receipt-row
+                    "
+                >
+
+                    <span
+                        class="
+                            tournament-receipt-label
+                        "
+                    >
+
+                        Date Registered
+
+                    </span>
+
+
+                    <span
+                        class="
+                            tournament-receipt-value
+                        "
+                    >
+
+                        <?= htmlspecialchars(
+                            $receiptDate,
+                            ENT_QUOTES,
+                            "UTF-8"
+                        ) ?>
+
+                    </span>
+
+                </div>
+
+
+                <!-- PRINT -->
+
+                <div
+                    class="
+                        tournament-receipt-actions
+                    "
+                >
+
+                    <button
+                        type="button"
+                        class="
+                            tournament-receipt-print
+                        "
+                        onclick="window.print()"
+                    >
+
+                        PRINT RECEIPT
+
+                    </button>
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+<?php endif; ?>
 
 
 <script>
@@ -1279,10 +3198,12 @@ const paymentMethod =
         "payment_method"
     );
 
+
 const referenceField =
     document.getElementById(
         "referenceField"
     );
+
 
 const paymentReference =
     document.getElementById(
@@ -1293,7 +3214,9 @@ const paymentReference =
 function updatePaymentFields() {
 
     if (!paymentMethod) {
+
         return;
+
     }
 
 
@@ -1307,6 +3230,7 @@ function updatePaymentFields() {
             isGCash
                 ? ""
                 : "none";
+
     }
 
 
@@ -1315,11 +3239,16 @@ function updatePaymentFields() {
         paymentReference.required =
             isGCash;
 
+
         if (!isGCash) {
 
-            paymentReference.value = "";
+            paymentReference.value =
+                "";
+
         }
+
     }
+
 }
 
 
@@ -1330,7 +3259,9 @@ if (paymentMethod) {
         updatePaymentFields
     );
 
+
     updatePaymentFields();
+
 }
 
 
@@ -1342,6 +3273,7 @@ const menuToggle =
     document.querySelector(
         ".menu-toggle"
     );
+
 
 const mainNav =
     document.querySelector(
@@ -1362,10 +3294,12 @@ if (
                 "open"
             );
 
+
             const isOpen =
                 mainNav.classList.contains(
                     "open"
                 );
+
 
             menuToggle.setAttribute(
                 "aria-expanded",
@@ -1376,7 +3310,37 @@ if (
 
         }
     );
+
 }
+
+
+/* ========================================
+   ESCAPE KEY
+   RECEIPT -> CUSTOMER HISTORY
+======================================== */
+
+const tournamentReceiptOverlay =
+    document.getElementById(
+        "tournamentReceiptOverlay"
+    );
+
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key === "Escape" &&
+            tournamentReceiptOverlay
+        ) {
+
+            window.location.href =
+                "profile.php#history";
+
+        }
+
+    }
+);
 
 </script>
 
