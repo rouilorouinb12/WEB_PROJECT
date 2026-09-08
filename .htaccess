@@ -1,0 +1,26 @@
+# =========================================================
+# BAIS ROUILO GAMING CAFE
+# MAIN PROJECT HTACCESS
+# =========================================================
+
+RewriteEngine On
+
+# =========================================================
+# UNIFIED LOGIN
+# ---------------------------------------------------------
+# There is only ONE real login form:
+# /WEB_PROJECT/login.php
+#
+# /WEB_PROJECT/admin/login.php
+# will redirect to the same login form.
+# =========================================================
+
+RewriteRule ^admin/login\.php$ /WEB_PROJECT/login.php [R=302,L]
+
+# Disable directory listing
+Options -Indexes
+
+# Protect this file
+<Files ".htaccess">
+    Require all denied
+</Files>
