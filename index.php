@@ -1,8 +1,10 @@
 <?php
+
 require_once "database.php";
 require_once "auth.php";
 
 if (!isLoggedIn()) {
+
     header("Location: login.php");
     exit;
 }
@@ -133,7 +135,6 @@ $testimonials = [
 
 ?>
 
-
 <main>
 
 
@@ -200,7 +201,6 @@ $testimonials = [
                             href="#rates"
                             class="outline-button nav-home-section"
                         >
-
                             VIEW RATES
 
                             <span>
@@ -211,7 +211,6 @@ $testimonials = [
 
 
                     </div>
-
 
                 </div>
 
@@ -250,9 +249,13 @@ $testimonials = [
                                 rx="2"
                             ></rect>
 
-                            <path d="M32 40v10"></path>
+                            <path
+                                d="M32 40v10"
+                            ></path>
 
-                            <path d="M20 54h24"></path>
+                            <path
+                                d="M20 54h24"
+                            ></path>
 
                         </svg>
 
@@ -350,21 +353,13 @@ $testimonials = [
                         <svg viewBox="0 0 64 64">
 
                             <path d="M20 6h24"></path>
-
                             <path d="M22 6v8"></path>
-
                             <path d="M42 6v8"></path>
-
                             <path d="M18 14h28"></path>
-
                             <path d="M22 14c0 15 3 22 10 26"></path>
-
                             <path d="M42 14c0 15-3 22-10 26"></path>
-
                             <path d="M24 40h16"></path>
-
                             <path d="M32 40v10"></path>
-
                             <path d="M22 55h20"></path>
 
                         </svg>
@@ -388,7 +383,6 @@ $testimonials = [
 
 
             </div>
-
 
         </section>
 
@@ -416,15 +410,22 @@ $testimonials = [
 
                     <?php foreach ($setups as $setup): ?>
 
-
                         <article class="setup-card reveal">
 
 
                             <div class="setup-image">
 
                                 <img
-                                    src="assets/images/<?= htmlspecialchars($setup["image"]) ?>"
-                                    alt="<?= htmlspecialchars($setup["title"]) ?>"
+                                    src="assets/images/<?= htmlspecialchars(
+                                        $setup["image"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>"
+                                    alt="<?= htmlspecialchars(
+                                        $setup["title"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>"
                                 >
 
                             </div>
@@ -434,23 +435,40 @@ $testimonials = [
 
 
                                 <h3>
-                                    <?= htmlspecialchars($setup["title"]) ?>
+
+                                    <?= htmlspecialchars(
+                                        $setup["title"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>
+
                                 </h3>
 
 
                                 <?php foreach ($setup["specs"] as $spec): ?>
 
-
                                     <p>
-                                        - <?= htmlspecialchars($spec) ?>
-                                    </p>
 
+                                        -
+                                        <?= htmlspecialchars(
+                                            $spec,
+                                            ENT_QUOTES,
+                                            "UTF-8"
+                                        ) ?>
+
+                                    </p>
 
                                 <?php endforeach; ?>
 
 
                                 <strong>
-                                    <?= htmlspecialchars($setup["price"]) ?>
+
+                                    <?= htmlspecialchars(
+                                        $setup["price"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>
+
                                 </strong>
 
 
@@ -459,12 +477,10 @@ $testimonials = [
 
                         </article>
 
-
                     <?php endforeach; ?>
 
 
                 </div>
-
 
             </div>
 
@@ -494,33 +510,48 @@ $testimonials = [
 
                     <?php foreach ($rates as $rate): ?>
 
-
                         <article class="rate-card reveal">
 
 
                             <h3>
-                                <?= htmlspecialchars($rate["time"]) ?>
+
+                                <?= htmlspecialchars(
+                                    $rate["time"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>
+
                             </h3>
 
 
                             <strong>
-                                <?= htmlspecialchars($rate["price"]) ?>
+
+                                <?= htmlspecialchars(
+                                    $rate["price"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>
+
                             </strong>
 
 
                             <span>
-                                <?= htmlspecialchars($rate["label"]) ?>
+
+                                <?= htmlspecialchars(
+                                    $rate["label"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>
+
                             </span>
 
 
                         </article>
 
-
                     <?php endforeach; ?>
 
 
                 </div>
-
 
             </div>
 
@@ -547,10 +578,7 @@ $testimonials = [
 
                 <h2 class="section-heading">
 
-                    
-
                     <span>
-                        
                     </span>
 
                 </h2>
@@ -561,7 +589,6 @@ $testimonials = [
 
                     <?php for ($i = 1; $i <= 4; $i++): ?>
 
-
                         <button
                             type="button"
                             class="gallery-item reveal"
@@ -569,21 +596,17 @@ $testimonials = [
                             aria-label="View gaming cafe gallery <?= $i ?>"
                         >
 
-
                             <img
                                 src="assets/images/gallery-<?= $i ?>.png"
                                 alt="Gaming cafe gallery <?= $i ?>"
                             >
 
-
                         </button>
-
 
                     <?php endfor; ?>
 
 
                 </div>
-
 
             </div>
 
@@ -595,7 +618,9 @@ $testimonials = [
              REVIEWS
         ====================================== -->
 
-        <section class="section reviews-section">
+        <section
+            class="section reviews-section"
+        >
 
             <div class="container">
 
@@ -609,7 +634,6 @@ $testimonials = [
 
 
                     <?php foreach ($testimonials as $review): ?>
-
 
                         <article class="review-card reveal">
 
@@ -625,12 +649,24 @@ $testimonials = [
 
 
                             <h3>
-                                "<?= htmlspecialchars($review["quote"]) ?>"
+
+                                "<?= htmlspecialchars(
+                                    $review["quote"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>"
+
                             </h3>
 
 
                             <p>
-                                <?= htmlspecialchars($review["text"]) ?>
+
+                                <?= htmlspecialchars(
+                                    $review["text"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>
+
                             </p>
 
 
@@ -638,13 +674,28 @@ $testimonials = [
 
 
                                 <img
-                                    src="assets/images/<?= htmlspecialchars($review["photo"]) ?>"
-                                    alt="<?= htmlspecialchars($review["name"]) ?>"
+                                    src="assets/images/<?= htmlspecialchars(
+                                        $review["photo"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>"
+                                    alt="<?= htmlspecialchars(
+                                        $review["name"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>"
                                 >
 
 
                                 <span>
-                                    — <?= htmlspecialchars($review["name"]) ?>
+
+                                    —
+                                    <?= htmlspecialchars(
+                                        $review["name"],
+                                        ENT_QUOTES,
+                                        "UTF-8"
+                                    ) ?>
+
                                 </span>
 
 
@@ -653,12 +704,10 @@ $testimonials = [
 
                         </article>
 
-
                     <?php endforeach; ?>
 
 
                 </div>
-
 
             </div>
 
@@ -670,7 +719,9 @@ $testimonials = [
              CTA
         ====================================== -->
 
-        <section class="cta-section">
+        <section
+            class="cta-section"
+        >
 
             <div class="container">
 
@@ -708,7 +759,6 @@ $testimonials = [
                             <p>
 
                                 Book your gaming station now<br>
-
                                 and dominate the game
 
                             </p>
@@ -725,12 +775,13 @@ $testimonials = [
                         href="book.php"
                         class="green-button cta-button"
                     >
+
                         BOOK NOW
+
                     </a>
 
 
                 </div>
-
 
             </div>
 
@@ -738,6 +789,8 @@ $testimonials = [
 
 
     </div>
+
+
     <!-- END HOME PAGE CONTENT -->
 
 
@@ -752,7 +805,6 @@ $testimonials = [
         id="tournaments"
         style="display: none;"
     >
-
 
         <div class="container">
 
@@ -773,7 +825,6 @@ $testimonials = [
             </h1>
 
 
-
             <div class="tournament-grid">
 
 
@@ -789,11 +840,10 @@ $testimonials = [
                         </span>
 
                         <small>
-                            AUG
+                            SEP
                         </small>
 
                     </div>
-
 
 
                     <div class="tournament-info">
@@ -805,8 +855,10 @@ $testimonials = [
 
 
                         <p>
+
                             Join our exciting weekly tournament
                             and compete with other gamers.
+
                         </p>
 
 
@@ -818,9 +870,8 @@ $testimonials = [
                     </div>
 
 
-
                     <a
-                        href="book.php"
+                        href="tournament.php?id=1"
                         class="outline-button"
                     >
                         JOIN NOW
@@ -843,11 +894,10 @@ $testimonials = [
                         </span>
 
                         <small>
-                            AUG
+                            NOV
                         </small>
 
                     </div>
-
 
 
                     <div class="tournament-info">
@@ -859,8 +909,10 @@ $testimonials = [
 
 
                         <p>
+
                             Form your team and battle
                             against the best players.
+
                         </p>
 
 
@@ -872,9 +924,8 @@ $testimonials = [
                     </div>
 
 
-
                     <a
-                        href="book.php"
+                        href="tournament.php?id=2"
                         class="outline-button"
                     >
                         JOIN NOW
@@ -897,11 +948,10 @@ $testimonials = [
                         </span>
 
                         <small>
-                            AUG
+                            DEC
                         </small>
 
                     </div>
-
 
 
                     <div class="tournament-info">
@@ -913,8 +963,10 @@ $testimonials = [
 
 
                         <p>
+
                             Gather your squad and compete
                             for exciting prizes.
+
                         </p>
 
 
@@ -926,9 +978,8 @@ $testimonials = [
                     </div>
 
 
-
                     <a
-                        href="book.php"
+                        href="tournament.php?id=3"
                         class="outline-button"
                     >
                         JOIN NOW
@@ -940,15 +991,12 @@ $testimonials = [
 
             </div>
 
-
         </div>
-
 
     </section>
 
 
 </main>
-
 
 
 <!-- =====================================
@@ -959,282 +1007,500 @@ $testimonials = [
 
 document.addEventListener("DOMContentLoaded", function () {
 
+    const homeContent =
+        document.getElementById("homePageContent");
 
-    const homeContent = document.getElementById("homePageContent");
+    const tournamentContent =
+        document.getElementById("tournaments");
 
-    const tournamentContent = document.getElementById("tournaments");
+    const mainNav =
+        document.getElementById("mainNav");
 
-    const mainNav = document.getElementById("mainNav");
-
-    const menuToggle = document.querySelector(".menu-toggle");
-
-
-    /*
-    ========================================
-    SHOW HOME
-    ========================================
-    */
-
-    function showHome() {
-
-        homeContent.style.display = "block";
-
-        tournamentContent.style.display = "none";
-
-    }
+    const menuToggle =
+        document.querySelector(".menu-toggle");
 
 
-    /*
-    ========================================
-    SHOW TOURNAMENTS
-    ========================================
-    */
+    /* ========================================
+       GET NAVIGATION LINKS
+    ======================================== */
 
-    function showTournaments() {
+    const navLinks = mainNav
+        ? mainNav.querySelectorAll("a")
+        : [];
 
-        homeContent.style.display = "none";
 
-        tournamentContent.style.display = "block";
+    /* ========================================
+       REMOVE ACTIVE FROM ALL NAV LINKS
+    ======================================== */
 
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
+    function clearActiveNav() {
+
+        navLinks.forEach(function (link) {
+
+            link.classList.remove("active");
+
         });
 
     }
 
 
-    /*
-    ========================================
-    CHECK URL HASH ON PAGE LOAD
-    ========================================
-    */
+    /* ========================================
+       SET ACTIVE NAV
+    ======================================== */
 
-    if (window.location.hash === "#tournaments") {
+    function setActiveNav(target) {
 
-        showTournaments();
+        clearActiveNav();
+
+
+        if (!mainNav) {
+            return;
+        }
+
+
+        let activeLink = null;
+
+
+        if (target === "home") {
+
+            activeLink =
+                mainNav.querySelector(
+                    'a[href="index.php#home"]'
+                );
+
+        } else if (target === "pcs") {
+
+            activeLink =
+                mainNav.querySelector(
+                    'a[href="index.php#pcs"]'
+                );
+
+        } else if (target === "rates") {
+
+            activeLink =
+                mainNav.querySelector(
+                    'a[href="index.php#rates"]'
+                );
+
+        } else if (target === "tournaments") {
+
+            activeLink =
+                mainNav.querySelector(
+                    'a[href="index.php#tournaments"]'
+                );
+
+        } else if (target === "gallery") {
+
+            activeLink =
+                mainNav.querySelector(
+                    'a[href="index.php#gallery"]'
+                );
+
+        }
+
+
+        if (activeLink) {
+
+            activeLink.classList.add("active");
+
+        }
 
     }
 
 
-    /*
-    ========================================
-    TOURNAMENT BUTTON
-    ========================================
-    */
+    /* ========================================
+       SHOW HOME
+    ======================================== */
 
-    const tournamentLinks = document.querySelectorAll(
-        'a[href="index.php#tournaments"], a[href="#tournaments"]'
-    );
+    function showHome(targetSection = "home") {
+
+        if (homeContent) {
+
+            homeContent.style.display = "block";
+
+        }
+
+
+        if (tournamentContent) {
+
+            tournamentContent.style.display = "none";
+
+        }
+
+
+        setActiveNav(targetSection);
+
+    }
+
+
+    /* ========================================
+       SHOW TOURNAMENTS
+    ======================================== */
+
+    function showTournaments() {
+
+        if (homeContent) {
+
+            homeContent.style.display = "none";
+
+        }
+
+
+        if (tournamentContent) {
+
+            tournamentContent.style.display = "block";
+
+        }
+
+
+        setActiveNav("tournaments");
+
+
+        window.scrollTo({
+
+            top: 0,
+
+            behavior: "smooth"
+
+        });
+
+    }
+
+
+    /* ========================================
+       SCROLL TO HOME SECTION
+    ======================================== */
+
+    function goToSection(targetId) {
+
+        showHome(targetId);
+
+
+        history.pushState(
+            null,
+            "",
+            "index.php#" + targetId
+        );
+
+
+        setTimeout(function () {
+
+            const target =
+                document.getElementById(targetId);
+
+
+            if (target) {
+
+                target.scrollIntoView({
+
+                    behavior: "smooth",
+
+                    block: "start"
+
+                });
+
+            }
+
+        }, 50);
+
+
+        if (mainNav) {
+
+            mainNav.classList.remove("open");
+
+        }
+
+
+        if (menuToggle) {
+
+            menuToggle.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+        }
+
+    }
+
+
+    /* ========================================
+       CHECK URL HASH ON PAGE LOAD
+    ======================================== */
+
+    const currentHash =
+        window.location.hash;
+
+
+    if (currentHash === "#tournaments") {
+
+        showTournaments();
+
+    } else if (currentHash === "#pcs") {
+
+        showHome("pcs");
+
+    } else if (currentHash === "#rates") {
+
+        showHome("rates");
+
+    } else if (currentHash === "#gallery") {
+
+        showHome("gallery");
+
+    } else {
+
+        showHome("home");
+
+    }
+
+
+    /* ========================================
+       TOURNAMENT NAVIGATION
+    ======================================== */
+
+    const tournamentLinks =
+        document.querySelectorAll(
+            'a[href="index.php#tournaments"], a[href="#tournaments"]'
+        );
 
 
     tournamentLinks.forEach(function (link) {
 
-        link.addEventListener("click", function (event) {
+        link.addEventListener(
+            "click",
+            function (event) {
 
-            event.preventDefault();
-
-            showTournaments();
-
-            history.pushState(
-                null,
-                "",
-                "index.php#tournaments"
-            );
+                event.preventDefault();
 
 
-            if (mainNav) {
-
-                mainNav.classList.remove("open");
-
-            }
+                showTournaments();
 
 
-            if (menuToggle) {
-
-                menuToggle.setAttribute(
-                    "aria-expanded",
-                    "false"
+                history.pushState(
+                    null,
+                    "",
+                    "index.php#tournaments"
                 );
 
-            }
 
-        });
+                if (mainNav) {
+
+                    mainNav.classList.remove("open");
+
+                }
+
+
+                if (menuToggle) {
+
+                    menuToggle.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
+
+                }
+
+            }
+        );
 
     });
 
 
+    /* ========================================
+       HOME NAVIGATION
+    ======================================== */
 
-    /*
-    ========================================
-    HOME BUTTON
-    ========================================
-    */
-
-    const homeLinks = document.querySelectorAll(
-        'a[href="index.php#home"], a[href="#home"]'
-    );
+    const homeLinks =
+        document.querySelectorAll(
+            'a[href="index.php#home"], a[href="#home"]'
+        );
 
 
     homeLinks.forEach(function (link) {
 
-        link.addEventListener("click", function (event) {
+        link.addEventListener(
+            "click",
+            function (event) {
 
-            event.preventDefault();
-
-            showHome();
-
-            history.pushState(
-                null,
-                "",
-                "index.php#home"
-            );
+                event.preventDefault();
 
 
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            });
+                showHome("home");
 
 
-            if (mainNav) {
-
-                mainNav.classList.remove("open");
-
-            }
-
-
-            if (menuToggle) {
-
-                menuToggle.setAttribute(
-                    "aria-expanded",
-                    "false"
+                history.pushState(
+                    null,
+                    "",
+                    "index.php#home"
                 );
 
-            }
 
-        });
+                window.scrollTo({
 
-    });
+                    top: 0,
 
+                    behavior: "smooth"
 
-
-    /*
-    ========================================
-    PCS / RATES / GALLERY
-    ========================================
-    */
-
-    const homeSectionLinks = document.querySelectorAll(
-        ".nav-home-section"
-    );
+                });
 
 
-    homeSectionLinks.forEach(function (link) {
+                if (mainNav) {
 
-        link.addEventListener("click", function (event) {
-
-            const href = link.getAttribute("href");
-
-            if (!href) {
-                return;
-            }
-
-
-            let targetId = "";
-
-
-            if (href.includes("#")) {
-
-                targetId = href.split("#")[1];
-
-            }
-
-
-            if (!targetId) {
-                return;
-            }
-
-
-            event.preventDefault();
-
-
-            showHome();
-
-
-            history.pushState(
-                null,
-                "",
-                "index.php#" + targetId
-            );
-
-
-            setTimeout(function () {
-
-                const target = document.getElementById(targetId);
-
-
-                if (target) {
-
-                    target.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start"
-                    });
+                    mainNav.classList.remove("open");
 
                 }
 
-            }, 50);
 
+                if (menuToggle) {
 
-            if (mainNav) {
+                    menuToggle.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
 
-                mainNav.classList.remove("open");
-
-            }
-
-
-            if (menuToggle) {
-
-                menuToggle.setAttribute(
-                    "aria-expanded",
-                    "false"
-                );
+                }
 
             }
-
-        });
+        );
 
     });
 
 
+    /* ========================================
+       PCS / RATES / GALLERY NAVIGATION
+    ======================================== */
 
-    /*
-    ========================================
-    BROWSER BACK / FORWARD
-    ========================================
-    */
+    const sectionLinks = document.querySelectorAll(
+        'a[href="index.php#pcs"],' +
+        'a[href="index.php#rates"],' +
+        'a[href="index.php#gallery"],' +
+        'a[href="#pcs"],' +
+        'a[href="#rates"],' +
+        'a[href="#gallery"],' +
+        '.nav-home-section'
+    );
 
-    window.addEventListener("popstate", function () {
 
-        if (window.location.hash === "#tournaments") {
+    sectionLinks.forEach(function (link) {
 
-            showTournaments();
+        const href =
+            link.getAttribute("href");
 
-        } else {
 
-            showHome();
+        if (!href || !href.includes("#")) {
+
+            return;
 
         }
 
+
+        const targetId =
+            href.split("#")[1];
+
+
+        if (
+            targetId !== "pcs" &&
+            targetId !== "rates" &&
+            targetId !== "gallery"
+        ) {
+
+            return;
+
+        }
+
+
+        link.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+                goToSection(targetId);
+
+            }
+        );
+
     });
 
 
+    /* ========================================
+       BROWSER BACK / FORWARD
+    ======================================== */
 
-    /*
-    ========================================
-    MOBILE MENU
-    ========================================
-    */
+    window.addEventListener(
+        "popstate",
+        function () {
+
+            const hash =
+                window.location.hash;
+
+
+            if (hash === "#tournaments") {
+
+                showTournaments();
+
+            } else if (hash === "#pcs") {
+
+                showHome("pcs");
+
+            } else if (hash === "#rates") {
+
+                showHome("rates");
+
+            } else if (hash === "#gallery") {
+
+                showHome("gallery");
+
+            } else {
+
+                showHome("home");
+
+            }
+
+        }
+    );
+
+
+    /* ========================================
+       HASH CHANGE
+    ======================================== */
+
+    window.addEventListener(
+        "hashchange",
+        function () {
+
+            const hash =
+                window.location.hash;
+
+
+            if (hash === "#tournaments") {
+
+                showTournaments();
+
+            } else if (hash === "#pcs") {
+
+                showHome("pcs");
+
+            } else if (hash === "#rates") {
+
+                showHome("rates");
+
+            } else if (hash === "#gallery") {
+
+                showHome("gallery");
+
+            } else {
+
+                showHome("home");
+
+            }
+
+        }
+    );
+
+
+    /* ========================================
+       MOBILE MENU
+    ======================================== */
 
     if (menuToggle && mainNav) {
 
@@ -1251,7 +1517,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 menuToggle.setAttribute(
                     "aria-expanded",
-                    isOpen
+                    isOpen ? "true" : "false"
                 );
 
             }
@@ -1259,11 +1525,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     }
 
-
 });
 
 </script>
-
 
 
 <?php include "includes/footer.php"; ?>

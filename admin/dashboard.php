@@ -13,10 +13,8 @@ requireLogin();
 ======================================== */
 
 if (($_SESSION["user_role"] ?? "customer") !== "admin") {
-
     http_response_code(403);
     die("Access denied.");
-
 }
 
 
@@ -150,99 +148,201 @@ $rejectedBookings =
         .admin-stat {
 
             border:
-                1px solid rgba(57,255,20,.35);
+                1px solid
+                rgba(57,255,20,.35);
 
             background:
                 rgba(0,0,0,.65);
 
-            padding: 25px;
+            padding:
+                25px;
 
-            text-align: center;
+            text-align:
+                center;
 
         }
 
 
         .admin-stat h3 {
 
-            margin: 0;
+            margin:
+                0;
 
-            color: #39FF14;
+            color:
+                #39FF14;
 
             font-family:
                 Orbitron,
                 sans-serif;
 
-            font-size: 30px;
+            font-size:
+                30px;
 
         }
 
 
         .admin-stat p {
 
-            margin: 8px 0 0;
+            margin:
+                8px 0 0;
 
-            font-size: 12px;
+            font-size:
+                12px;
 
-            font-weight: 700;
+            font-weight:
+                700;
 
         }
 
 
         /* ========================================
            ADMIN ACTION BUTTONS
+           SIX BUTTONS - ONE LINE
         ======================================== */
 
         .admin-actions {
 
-            display: flex;
+            display:
+                grid !important;
 
-            gap: 12px;
+            grid-template-columns:
+                repeat(6, minmax(0, 1fr)) !important;
 
-            margin-bottom: 25px;
+            gap:
+                12px !important;
 
-            flex-wrap: wrap;
+            width:
+                100% !important;
+
+            margin:
+                0 0 25px 0 !important;
+
+            padding:
+                0 !important;
+
+            align-items:
+                stretch !important;
 
         }
 
 
-        .admin-button {
+        /* ========================================
+           BUTTONS
+           SAME SIZE
+        ======================================== */
 
-            display: inline-block;
+        .admin-actions .admin-button {
 
-            padding: 12px 18px;
+            display:
+                flex !important;
 
-            background: #39FF14;
+            align-items:
+                center !important;
 
-            color: #000;
+            justify-content:
+                center !important;
 
-            text-decoration: none;
+            width:
+                100% !important;
+
+            height:
+                60px !important;
+
+            min-height:
+                60px !important;
+
+            min-width:
+                0 !important;
+
+            padding:
+                6px 8px !important;
+
+            margin:
+                0 !important;
+
+            box-sizing:
+                border-box !important;
+
+            background:
+                #39FF14 !important;
+
+            color:
+                #000 !important;
+
+            border:
+                1px solid
+                #39FF14 !important;
+
+            border-radius:
+                3px !important;
+
+            text-decoration:
+                none !important;
+
+            text-align:
+                center !important;
 
             font-family:
                 Orbitron,
-                sans-serif;
+                sans-serif !important;
 
-            font-size: 11px;
+            font-size:
+                9px !important;
 
-            font-weight: 800;
+            font-weight:
+                800 !important;
 
-            border-radius: 3px;
+            line-height:
+                1.25 !important;
 
-            border:
-                1px solid #39FF14;
+            white-space:
+                normal !important;
 
-            transition: .2s ease;
+            overflow:
+                hidden !important;
+
+            overflow-wrap:
+                break-word !important;
+
+            word-break:
+                normal !important;
+
+            transition:
+                .2s ease !important;
 
         }
 
 
-        .admin-button:hover {
+        .admin-actions .admin-button:hover {
 
-            background: #39FF14;
+            background:
+                #39FF14 !important;
 
-            color: #000;
+            color:
+                #000 !important;
 
             box-shadow:
-                0 0 15px rgba(57,255,20,.45);
+                0 0 18px
+                rgba(57,255,20,.50) !important;
+
+            transform:
+                translateY(-2px);
+
+        }
+
+
+        /* ========================================
+           TOURNAMENT BUTTON
+           LONG TEXT
+        ======================================== */
+
+        .admin-actions .tournament-button {
+
+            padding-left:
+                5px !important;
+
+            padding-right:
+                5px !important;
 
         }
 
@@ -253,21 +353,26 @@ $rejectedBookings =
 
         .admin-table-wrap {
 
-            overflow-x: auto;
+            overflow-x:
+                auto;
 
             border:
-                1px solid rgba(57,255,20,.3);
+                1px solid
+                rgba(57,255,20,.3);
 
         }
 
 
         .admin-table {
 
-            width: 100%;
+            width:
+                100%;
 
-            border-collapse: collapse;
+            border-collapse:
+                collapse;
 
-            min-width: 900px;
+            min-width:
+                900px;
 
         }
 
@@ -275,35 +380,41 @@ $rejectedBookings =
         .admin-table th,
         .admin-table td {
 
-            padding: 14px;
+            padding:
+                14px;
 
             border-bottom:
                 1px solid
                 rgba(255,255,255,.08);
 
-            text-align: left;
+            text-align:
+                left;
 
-            font-size: 12px;
+            font-size:
+                12px;
 
         }
 
 
         .admin-table th {
 
-            color: #39FF14;
+            color:
+                #39FF14;
 
             font-family:
                 Orbitron,
                 sans-serif;
 
-            font-size: 10px;
+            font-size:
+                10px;
 
         }
 
 
         .admin-table td {
 
-            color: #fff;
+            color:
+                #fff;
 
         }
 
@@ -314,15 +425,20 @@ $rejectedBookings =
 
         .status {
 
-            display: inline-block;
+            display:
+                inline-block;
 
-            padding: 5px 9px;
+            padding:
+                5px 9px;
 
-            font-size: 10px;
+            font-size:
+                10px;
 
-            font-weight: 800;
+            font-weight:
+                800;
 
-            text-transform: uppercase;
+            text-transform:
+                uppercase;
 
             border:
                 1px solid
@@ -333,21 +449,24 @@ $rejectedBookings =
 
         .status.pending {
 
-            color: #fff;
+            color:
+                #fff;
 
         }
 
 
         .status.accepted {
 
-            color: #39FF14;
+            color:
+                #39FF14;
 
         }
 
 
         .status.rejected {
 
-            color: #ff4d4d;
+            color:
+                #ff4d4d;
 
         }
 
@@ -356,12 +475,56 @@ $rejectedBookings =
            RESPONSIVE
         ======================================== */
 
+        @media (max-width: 1100px) {
+
+            .admin-actions {
+
+                grid-template-columns:
+                    repeat(6, 125px)
+                    !important;
+
+                overflow-x:
+                    auto !important;
+
+                padding-bottom:
+                    5px !important;
+
+            }
+
+
+            .admin-actions .admin-button {
+
+                width:
+                    125px !important;
+
+            }
+
+        }
+
+
         @media (max-width: 800px) {
 
             .admin-stats {
 
                 grid-template-columns:
                     repeat(2, 1fr);
+
+            }
+
+
+            .admin-actions {
+
+                grid-template-columns:
+                    repeat(6, 120px)
+                    !important;
+
+            }
+
+
+            .admin-actions .admin-button {
+
+                width:
+                    120px !important;
 
             }
 
@@ -374,6 +537,38 @@ $rejectedBookings =
 
                 grid-template-columns:
                     1fr;
+
+            }
+
+
+            .admin-actions {
+
+                grid-template-columns:
+                    repeat(6, 115px)
+                    !important;
+
+                gap:
+                    10px !important;
+
+                overflow-x:
+                    auto !important;
+
+            }
+
+
+            .admin-actions .admin-button {
+
+                width:
+                    115px !important;
+
+                height:
+                    56px !important;
+
+                min-height:
+                    56px !important;
+
+                font-size:
+                    8px !important;
 
             }
 
@@ -451,7 +646,6 @@ $rejectedBookings =
     </header>
 
 
-
     <!-- ========================================
          ADMIN DASHBOARD
     ======================================== -->
@@ -473,7 +667,6 @@ $rejectedBookings =
                 </span>
 
             </h1>
-
 
 
             <!-- ========================================
@@ -538,9 +731,8 @@ $rejectedBookings =
             </div>
 
 
-
             <!-- ========================================
-                 ADMIN ACTIONS
+                 ADMIN ACTION BUTTONS
             ======================================== -->
 
             <div class="admin-actions">
@@ -570,9 +762,29 @@ $rejectedBookings =
 
                 <a
                     href="tournament_registrations.php"
-                    class="admin-button"
+                    class="admin-button tournament-button"
                 >
                     TOURNAMENT REGISTRATIONS
+                </a>
+
+
+                <!-- MANAGE SETUPS -->
+
+                <a
+                    href="setups.php"
+                    class="admin-button"
+                >
+                    MANAGE SETUPS
+                </a>
+
+
+                <!-- MANAGE RATES -->
+
+                <a
+                    href="rates.php"
+                    class="admin-button"
+                >
+                    MANAGE RATES
                 </a>
 
 
@@ -587,7 +799,6 @@ $rejectedBookings =
 
 
             </div>
-
 
 
             <!-- ========================================
@@ -641,11 +852,12 @@ $rejectedBookings =
 
                     <?php if (!$bookings): ?>
 
-
                         <tr>
 
                             <td colspan="7">
+
                                 No bookings found.
+
                             </td>
 
                         </tr>
@@ -655,7 +867,6 @@ $rejectedBookings =
 
 
                         <?php foreach ($bookings as $booking): ?>
-
 
                             <tr>
 
@@ -776,7 +987,6 @@ $rejectedBookings =
 
                             </tr>
 
-
                         <?php endforeach; ?>
 
 
@@ -792,7 +1002,6 @@ $rejectedBookings =
         </div>
 
     </main>
-
 
 
     <!-- ========================================

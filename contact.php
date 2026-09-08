@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once "database.php";
@@ -51,6 +52,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 
 include "includes/header.php";
+
 ?>
 
 <main class="inner-page">
@@ -65,13 +67,17 @@ include "includes/header.php";
             LET'S <span>CONNECT.</span>
         </h1>
 
+
         <?php if ($message): ?>
 
             <div class="form-message">
+
                 <?= htmlspecialchars($message) ?>
+
             </div>
 
         <?php endif; ?>
+
 
         <?php if ($errors): ?>
 
@@ -89,22 +95,32 @@ include "includes/header.php";
 
         <?php endif; ?>
 
+
         <div class="contact-layout">
+
 
             <div class="contact-info">
 
                 <h2>
+
                     BAIS ROUILO<br>
-                    <span>GAMING CAFE</span>
+
+                    <span>
+                        GAMING CAFE
+                    </span>
+
                 </h2>
+
 
                 <p>
                     ☎ 09926749467
                 </p>
 
+
                 <p>
                     ✉ info@brgaming.com
                 </p>
+
 
                 <p>
                     ⌖ Southbags, Bagacay, Dumaguete<br>
@@ -113,12 +129,15 @@ include "includes/header.php";
 
             </div>
 
+
             <form
                 method="POST"
                 class="booking-form"
             >
 
+
                 <label>
+
                     Name *
 
                     <input
@@ -127,9 +146,12 @@ include "includes/header.php";
                         value="<?= htmlspecialchars($name) ?>"
                         required
                     >
+
                 </label>
 
+
                 <label>
+
                     Email
 
                     <input
@@ -137,9 +159,12 @@ include "includes/header.php";
                         name="email"
                         value="<?= htmlspecialchars($email) ?>"
                     >
+
                 </label>
 
+
                 <label>
+
                     Phone
 
                     <input
@@ -147,9 +172,12 @@ include "includes/header.php";
                         name="phone"
                         value="<?= htmlspecialchars($phone) ?>"
                     >
+
                 </label>
 
+
                 <label>
+
                     Message *
 
                     <textarea
@@ -160,12 +188,14 @@ include "includes/header.php";
 
                 </label>
 
+
                 <button
                     type="submit"
                     class="green-button"
                 >
                     SEND MESSAGE
                 </button>
+
 
             </form>
 
@@ -174,5 +204,6 @@ include "includes/header.php";
     </div>
 
 </main>
+
 
 <?php include "includes/footer.php"; ?>
