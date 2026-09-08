@@ -5,21 +5,25 @@ declare(strict_types=1);
 require_once "database.php";
 require_once "auth.php";
 
-
 /* ========================================
    IF ALREADY LOGGED IN
 ======================================== */
 
 if (isLoggedIn()) {
 
-    header("Location: book.php");
+    $role = (string) ($_SESSION["user_role"] ?? "customer");
+
+    if ($role === "admin") {
+        header("Location: admin/dashboard.php");
+        exit;
+    }
+
+    header("Location: index.php");
     exit;
 }
 
-
 $message = "";
 $messageType = "";
-
 
 /* ========================================
    FORM VALUES
@@ -30,7 +34,6 @@ $middleName = "";
 $lastName = "";
 $email = "";
 $birthdate = "";
-
 
 /* ========================================
    HANDLE REGISTRATION
@@ -44,9 +47,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $csrfToken = $_POST["csrf_token"] ?? null;
 
-    if (!verifyCsrfToken(
-        is_string($csrfToken) ? $csrfToken : null
-    )) {
+    if (
+        !is_string($csrfToken) ||
+        !verifyCsrfToken($csrfToken)
+    ) {
 
         $message = "Invalid form request. Please try again.";
         $messageType = "error";
@@ -57,27 +61,33 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
            GET FORM VALUES
         ======================================== */
 
-        $firstName =
-            trim((string) ($_POST["first_name"] ?? ""));
+        $firstName = trim(
+            (string) ($_POST["first_name"] ?? "")
+        );
 
-        $middleName =
-            trim((string) ($_POST["middle_name"] ?? ""));
+        $middleName = trim(
+            (string) ($_POST["middle_name"] ?? "")
+        );
 
-        $lastName =
-            trim((string) ($_POST["last_name"] ?? ""));
+        $lastName = trim(
+            (string) ($_POST["last_name"] ?? "")
+        );
 
-        $email =
-            trim((string) ($_POST["email"] ?? ""));
+        $email = strtolower(
+            trim((string) ($_POST["email"] ?? ""))
+        );
 
-        $birthdate =
-            trim((string) ($_POST["birthdate"] ?? ""));
+        $birthdate = trim(
+            (string) ($_POST["birthdate"] ?? "")
+        );
 
-        $password =
-            (string) ($_POST["password"] ?? "");
+        $password = (string) (
+            $_POST["password"] ?? ""
+        );
 
-        $confirmPassword =
-            (string) ($_POST["confirm_password"] ?? "");
-
+        $confirmPassword = (string) (
+            $_POST["confirm_password"] ?? ""
+        );
 
         /* ========================================
            BASIC VALIDATION
@@ -97,7 +107,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $messageType = "error";
 
-
         /* ========================================
            NAME VALIDATION
         ======================================== */
@@ -113,6 +122,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $messageType = "error";
 
+        } elseif (
+            !preg_match(
+                '/^[a-zA-ZÀ-ÿ .\'-]+$/u',
+                $firstName
+            )
+        ) {
+
+            $message =
+                "First name contains invalid characters.";
+
+            $messageType = "error";
+
+        } elseif (
+            !preg_match(
+                '/^[a-zA-ZÀ-ÿ .\'-]+$/u',
+                $lastName
+            )
+        ) {
+
+            $message =
+                "Last name contains invalid characters.";
+
+            $messageType = "error";
+
+        } elseif (
+            $middleName !== "" &&
+            !preg_match(
+                '/^[a-zA-ZÀ-ÿ .\'-]+$/u',
+                $middleName
+            )
+        ) {
+
+            $message =
+                "Middle name contains invalid characters.";
+
+            $messageType = "error";
 
         /* ========================================
            EMAIL VALIDATION
@@ -130,14 +175,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $messageType = "error";
 
-
-        } elseif (strlen($email) > 255) {
+        } elseif (strlen($email) > 160) {
 
             $message =
                 "Email address is too long.";
 
             $messageType = "error";
-
 
         /* ========================================
            PASSWORD VALIDATION
@@ -150,14 +193,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $messageType = "error";
 
-
         } elseif (!preg_match('/[a-z]/', $password)) {
 
             $message =
                 "Password must contain at least one lowercase letter (a-z).";
 
             $messageType = "error";
-
 
         } elseif (!preg_match('/[A-Z]/', $password)) {
 
@@ -166,14 +207,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $messageType = "error";
 
-
         } elseif (!preg_match('/[0-9]/', $password)) {
 
             $message =
                 "Password must contain at least one number (0-9).";
 
             $messageType = "error";
-
 
         /* ========================================
            CONFIRM PASSWORD
@@ -185,7 +224,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 "Passwords do not match.";
 
             $messageType = "error";
-
 
         } else {
 
@@ -201,9 +239,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $validBirthdate =
                 $birthdateObject !== false &&
-                $birthdateObject->format("Y-m-d")
-                    === $birthdate;
-
+                $birthdateObject->format("Y-m-d") ===
+                    $birthdate;
 
             if (!$validBirthdate) {
 
@@ -212,14 +249,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $messageType = "error";
 
-
-            } elseif ($birthdate > date("Y-m-d")) {
+            } elseif (
+                $birthdate > date("Y-m-d")
+            ) {
 
                 $message =
                     "Birthdate cannot be in the future.";
 
                 $messageType = "error";
-
 
             } else {
 
@@ -234,8 +271,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     LIMIT 1
                 ");
 
-                $check->execute([$email]);
-
+                $check->execute([
+                    $email
+                ]);
 
                 if ($check->fetch()) {
 
@@ -243,7 +281,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         "An account with this email already exists.";
 
                     $messageType = "error";
-
 
                 } else {
 
@@ -254,7 +291,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $fullName = $firstName;
 
                     if ($middleName !== "") {
-
                         $fullName .=
                             " " . $middleName;
                     }
@@ -262,87 +298,91 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $fullName .=
                         " " . $lastName;
 
-
                     /* ========================================
                        HASH PASSWORD
                     ======================================== */
 
-                    $hashedPassword =
-                        password_hash(
-                            $password,
-                            PASSWORD_DEFAULT
-                        );
+                    $hashedPassword = password_hash(
+                        $password,
+                        PASSWORD_DEFAULT
+                    );
 
-
-                    /* ========================================
-                       PHONE
-                    ======================================== */
-
-                    $phone = "";
-
-
-                    /* ========================================
-                       INSERT USER
-                    ======================================== */
-
-                    $stmt = $conn->prepare("
-                        INSERT INTO users (
-                            name,
-                            first_name,
-                            middle_name,
-                            last_name,
-                            email,
-                            birthdate,
-                            phone,
-                            password
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ");
-
-
-                    try {
-
-                        $stmt->execute([
-                            $fullName,
-                            $firstName,
-                            $middleName,
-                            $lastName,
-                            $email,
-                            $birthdate,
-                            $phone,
-                            $hashedPassword
-                        ]);
-
-
-                        /* ========================================
-                           SUCCESS
-                        ======================================== */
+                    if ($hashedPassword === false) {
 
                         $message =
-                            "Account created successfully! You can now log in.";
-
-                        $messageType = "success";
-
-
-                        /* Clear form */
-
-                        $firstName = "";
-                        $middleName = "";
-                        $lastName = "";
-                        $email = "";
-                        $birthdate = "";
-
-
-                    } catch (PDOException $e) {
-
-                        /*
-                         * Avoid exposing database errors.
-                         */
-
-                        $message =
-                            "Unable to create the account. Please try again.";
+                            "Unable to secure your password. Please try again.";
 
                         $messageType = "error";
+
+                    } else {
+
+                        /* ========================================
+                           PHONE
+                           Registration currently does not ask
+                           for phone number.
+                        ======================================== */
+
+                        $phone = "";
+
+                        /* ========================================
+                           INSERT USER
+                        ======================================== */
+
+                        try {
+
+                            $stmt = $conn->prepare("
+                                INSERT INTO users (
+                                    name,
+                                    first_name,
+                                    middle_name,
+                                    last_name,
+                                    email,
+                                    birthdate,
+                                    phone,
+                                    password
+                                )
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ");
+
+                            $stmt->execute([
+                                $fullName,
+                                $firstName,
+                                $middleName !== ""
+                                    ? $middleName
+                                    : null,
+                                $lastName,
+                                $email,
+                                $birthdate,
+                                $phone,
+                                $hashedPassword
+                            ]);
+
+                            /* ========================================
+                               SUCCESS
+                            ======================================== */
+
+                            $message =
+                                "Account created successfully! You can now log in.";
+
+                            $messageType = "success";
+
+                            /* ========================================
+                               CLEAR FORM
+                            ======================================== */
+
+                            $firstName = "";
+                            $middleName = "";
+                            $lastName = "";
+                            $email = "";
+                            $birthdate = "";
+
+                        } catch (PDOException $e) {
+
+                            $message =
+                                "Unable to create the account. Please try again.";
+
+                            $messageType = "error";
+                        }
                     }
                 }
             }
@@ -373,7 +413,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         CREATE ACCOUNT | Bais Rouilo Gaming Cafe
     </title>
 
-
     <!-- ========================================
          GOOGLE FONTS
     ======================================== -->
@@ -394,14 +433,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         rel="stylesheet"
     >
 
-
     <!-- MAIN CSS -->
 
     <link
         rel="stylesheet"
         href="assets/css/style.css"
     >
-
 
     <!-- ========================================
          REGISTER PAGE FIXES
@@ -436,16 +473,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             box-sizing: border-box;
         }
 
-        .booking-form .birthdate-field input[type="date"]::-webkit-calendar-picker-indicator {
+        .booking-form .birthdate-field
+        input[type="date"]::-webkit-calendar-picker-indicator {
             cursor: pointer;
             margin-left: auto;
         }
 
-        .booking-form .birthdate-field input[type="date"]:focus {
+        .booking-form .birthdate-field
+        input[type="date"]:focus {
             border-color: var(--green);
-            box-shadow: 0 0 10px rgba(57, 255, 20, .2);
+            box-shadow:
+                0 0 10px rgba(57, 255, 20, .2);
         }
-
 
         /* ========================================
            PASSWORD REQUIREMENTS
@@ -456,7 +495,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             position: relative;
         }
 
-        .booking-form .password-field .password-requirements {
+        .booking-form .password-field
+        .password-requirements {
             position: absolute;
             top: 70px;
             left: 0;
@@ -474,7 +514,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         .requirement {
             color: #777;
-            transition: 0.2s ease;
+            transition: .2s ease;
             margin: 0 0 4px;
         }
 
@@ -505,9 +545,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </head>
 
-
 <body>
-
 
 <!-- ========================================
      HEADER
@@ -516,7 +554,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <header class="site-header">
 
     <div class="container nav-container">
-
 
         <!-- LOGO -->
 
@@ -532,7 +569,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         </a>
 
-
         <!-- MOBILE MENU -->
 
         <button
@@ -547,7 +583,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <span></span>
 
         </button>
-
 
         <!-- MAIN NAVIGATION -->
 
@@ -586,7 +621,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </header>
 
-
 <!-- ========================================
      CREATE ACCOUNT PAGE
 ======================================== -->
@@ -595,16 +629,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <div class="container form-page">
 
-
         <p class="section-kicker">
             CUSTOMER ACCOUNT
         </p>
 
-
         <h1 class="page-title">
             CREATE <span>ACCOUNT</span>
         </h1>
-
 
         <!-- MESSAGE -->
 
@@ -628,7 +659,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <?php endif; ?>
 
-
         <!-- ========================================
              REGISTRATION FORM
         ======================================== -->
@@ -637,6 +667,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             action="register.php"
             method="POST"
             class="booking-form"
+            id="registerForm"
         >
 
             <!-- CSRF TOKEN -->
@@ -650,7 +681,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     "UTF-8"
                 ) ?>"
             >
-
 
             <!-- FIRST NAME / LAST NAME -->
 
@@ -676,7 +706,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
-
                 <label>
 
                     Last Name
@@ -698,7 +727,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </label>
 
             </div>
-
 
             <!-- MIDDLE NAME / EMAIL -->
 
@@ -723,7 +751,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
-
                 <label>
 
                     Email Address
@@ -737,7 +764,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             "UTF-8"
                         ) ?>"
                         placeholder="Enter your email"
-                        maxlength="255"
+                        maxlength="160"
                         autocomplete="email"
                         required
                     >
@@ -745,7 +772,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </label>
 
             </div>
-
 
             <!-- BIRTHDATE / PASSWORD -->
 
@@ -773,7 +799,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
-
                 <!-- PASSWORD -->
 
                 <label class="password-field">
@@ -786,9 +811,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         name="password"
                         placeholder="Enter your password"
                         autocomplete="new-password"
+                        minlength="8"
                         required
                     >
-
 
                     <!-- PASSWORD REQUIREMENTS -->
 
@@ -804,7 +829,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         </div>
 
-
                         <div
                             id="case-check"
                             class="requirement"
@@ -814,7 +838,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             contains both lower (a-z) and upper case letters (A-Z)
 
                         </div>
-
 
                         <div
                             id="number-check"
@@ -832,7 +855,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
-
             <!-- CONFIRM PASSWORD -->
 
             <div class="form-row">
@@ -847,6 +869,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         name="confirm_password"
                         placeholder="Confirm your password"
                         autocomplete="new-password"
+                        minlength="8"
                         required
                     >
 
@@ -856,18 +879,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
-
             <!-- SUBMIT -->
 
             <button
                 type="submit"
                 class="green-button"
             >
+
                 SUBMIT
+
             </button>
 
         </form>
-
 
         <!-- LOGIN LINK -->
 
@@ -894,7 +917,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </main>
 
-
 <!-- ========================================
      MOBILE MENU
 ======================================== -->
@@ -906,7 +928,6 @@ const menuToggle =
 
 const mainNav =
     document.querySelector(".main-nav");
-
 
 if (menuToggle && mainNav) {
 
@@ -926,9 +947,7 @@ if (menuToggle && mainNav) {
 
         }
     );
-
 }
-
 
 /* ========================================
    BIRTHDATE CALENDAR
@@ -936,7 +955,6 @@ if (menuToggle && mainNav) {
 
 const birthdateInput =
     document.getElementById("birthdate");
-
 
 if (birthdateInput) {
 
@@ -959,14 +977,10 @@ if (birthdateInput) {
                     // will still work.
 
                 }
-
             }
-
         }
     );
-
 }
-
 
 /* ========================================
    PASSWORD REQUIREMENTS
@@ -984,89 +998,150 @@ const caseCheck =
 const numberCheck =
     document.getElementById("number-check");
 
+function updatePasswordRequirements() {
+
+    if (
+        !passwordInput ||
+        !lengthCheck ||
+        !caseCheck ||
+        !numberCheck
+    ) {
+        return;
+    }
+
+    const password =
+        passwordInput.value;
+
+    const hasLength =
+        password.length >= 8;
+
+    const hasLowercase =
+        /[a-z]/.test(password);
+
+    const hasUppercase =
+        /[A-Z]/.test(password);
+
+    const hasBothCase =
+        hasLowercase &&
+        hasUppercase;
+
+    const hasNumber =
+        /[0-9]/.test(password);
+
+    /* LENGTH */
+
+    lengthCheck.classList.toggle(
+        "valid",
+        hasLength
+    );
+
+    lengthCheck.classList.toggle(
+        "invalid",
+        !hasLength
+    );
+
+    /* CASE */
+
+    caseCheck.classList.toggle(
+        "valid",
+        hasBothCase
+    );
+
+    caseCheck.classList.toggle(
+        "invalid",
+        !hasBothCase
+    );
+
+    /* NUMBER */
+
+    numberCheck.classList.toggle(
+        "valid",
+        hasNumber
+    );
+
+    numberCheck.classList.toggle(
+        "invalid",
+        !hasNumber
+    );
+}
 
 if (passwordInput) {
 
     passwordInput.addEventListener(
         "input",
-        function () {
+        updatePasswordRequirements
+    );
 
-            const password =
-                this.value;
+    updatePasswordRequirements();
+}
 
+/* ========================================
+   CONFIRM PASSWORD CHECK
+======================================== */
 
-            const hasLength =
-                password.length >= 8;
+const registerForm =
+    document.getElementById("registerForm");
 
+const confirmPasswordInput =
+    document.getElementById("confirm_password");
 
-            const hasLowercase =
-                /[a-z]/.test(password);
+if (
+    registerForm &&
+    passwordInput &&
+    confirmPasswordInput
+) {
 
+    registerForm.addEventListener(
+        "submit",
+        function (event) {
 
-            const hasUppercase =
-                /[A-Z]/.test(password);
+            if (
+                passwordInput.value !==
+                confirmPasswordInput.value
+            ) {
 
+                event.preventDefault();
 
-            const hasBothCase =
-                hasLowercase &&
-                hasUppercase;
+                confirmPasswordInput.setCustomValidity(
+                    "Passwords do not match."
+                );
 
-
-            const hasNumber =
-                /[0-9]/.test(password);
-
-
-            /* LENGTH */
-
-            if (hasLength) {
-
-                lengthCheck.classList.add("valid");
-                lengthCheck.classList.remove("invalid");
-
-            } else {
-
-                lengthCheck.classList.remove("valid");
-                lengthCheck.classList.add("invalid");
-
-            }
-
-
-            /* CASE */
-
-            if (hasBothCase) {
-
-                caseCheck.classList.add("valid");
-                caseCheck.classList.remove("invalid");
+                confirmPasswordInput.reportValidity();
 
             } else {
 
-                caseCheck.classList.remove("valid");
-                caseCheck.classList.add("invalid");
-
+                confirmPasswordInput.setCustomValidity(
+                    ""
+                );
             }
-
-
-            /* NUMBER */
-
-            if (hasNumber) {
-
-                numberCheck.classList.add("valid");
-                numberCheck.classList.remove("invalid");
-
-            } else {
-
-                numberCheck.classList.remove("valid");
-                numberCheck.classList.add("invalid");
-
-            }
-
         }
     );
 
+    confirmPasswordInput.addEventListener(
+        "input",
+        function () {
+
+            if (
+                passwordInput.value !==
+                confirmPasswordInput.value
+            ) {
+
+                confirmPasswordInput.setCustomValidity(
+                    "Passwords do not match."
+                );
+
+            } else {
+
+                confirmPasswordInput.setCustomValidity(
+                    ""
+                );
+            }
+        }
+    );
 }
 
 </script>
 
-
 </body>
+
 </html>
