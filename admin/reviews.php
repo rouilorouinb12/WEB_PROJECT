@@ -5,13 +5,11 @@ declare(strict_types=1);
 require_once "../database.php";
 require_once "../auth.php";
 
-
 /* ========================================
    REQUIRE LOGIN
 ======================================== */
 
 requireLogin();
-
 
 /* ========================================
    ADMIN ONLY
@@ -38,14 +36,12 @@ if ($currentUserRole !== "admin") {
     exit;
 }
 
-
 /* ========================================
    VARIABLES
 ======================================== */
 
 $message = "";
 $error = "";
-
 
 /* ========================================
    HANDLE REVIEW ACTION
@@ -55,9 +51,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     try {
 
-        /* ----------------------------------------
-           VERIFY CSRF
-        ---------------------------------------- */
+        /* VERIFY CSRF */
 
         $csrf = $_POST["csrf_token"] ?? null;
 
@@ -65,50 +59,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             !is_string($csrf) ||
             !verifyCsrfToken($csrf)
         ) {
-
             throw new RuntimeException(
                 "Invalid request. Please refresh the page and try again."
             );
-
         }
 
-
-        /* ----------------------------------------
-           GET REVIEW ID
-        ---------------------------------------- */
+        /* GET REVIEW ID */
 
         $reviewId = filter_var(
             $_POST["review_id"] ?? null,
             FILTER_VALIDATE_INT
         );
 
-
-        /* ----------------------------------------
-           GET ACTION
-        ---------------------------------------- */
+        /* GET ACTION */
 
         $action = $_POST["action"] ?? "";
 
-
-        /* ----------------------------------------
-           VALIDATE REVIEW ID
-        ---------------------------------------- */
+        /* VALIDATE REVIEW ID */
 
         if (
             $reviewId === false ||
             $reviewId <= 0
         ) {
-
             throw new RuntimeException(
                 "Invalid review."
             );
-
         }
 
-
-        /* ----------------------------------------
-           VALIDATE ACTION
-        ---------------------------------------- */
+        /* VALIDATE ACTION */
 
         if (
             !in_array(
@@ -117,17 +95,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 true
             )
         ) {
-
             throw new RuntimeException(
                 "Invalid action."
             );
-
         }
 
-
-        /* ========================================
-           APPROVE REVIEW
-        ======================================== */
+        /* APPROVE REVIEW */
 
         if ($action === "approve") {
 
@@ -144,13 +117,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $message =
                 "Review approved successfully.";
-
         }
 
-
-        /* ========================================
-           REJECT REVIEW
-        ======================================== */
+        /* REJECT REVIEW */
 
         if ($action === "reject") {
 
@@ -167,18 +136,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $message =
                 "Review rejected successfully.";
-
         }
-
 
     } catch (Throwable $e) {
 
         $error = $e->getMessage();
-
     }
-
 }
-
 
 /* ========================================
    GET ALL REVIEWS
@@ -195,10 +159,8 @@ $stmt = $conn->prepare("
         u.name,
         u.email
     FROM reviews r
-
     INNER JOIN users u
         ON u.id = r.user_id
-
     ORDER BY
         CASE
             WHEN r.status = 'pending' THEN 1
@@ -206,7 +168,6 @@ $stmt = $conn->prepare("
             WHEN r.status = 'rejected' THEN 3
             ELSE 4
         END,
-
         r.created_at DESC
 ");
 
@@ -215,7 +176,6 @@ $stmt->execute();
 $reviews = $stmt->fetchAll(
     PDO::FETCH_ASSOC
 );
-
 
 /* ========================================
    CSRF TOKEN
@@ -246,10 +206,7 @@ $csrfToken = csrfToken();
         REVIEWS | ADMIN | Bais Rouilo Gaming Cafe
     </title>
 
-
-    <!-- ========================================
-         GOOGLE FONTS
-    ======================================== -->
+    <!-- GOOGLE FONTS -->
 
     <link
         rel="preconnect"
@@ -258,7 +215,7 @@ $csrfToken = csrfToken();
 
     <link
         rel="preconnect"
-        href="https://fonts.googleapis.com"
+        href="https://fonts.gstatic.com"
         crossorigin
     >
 
@@ -267,16 +224,12 @@ $csrfToken = csrfToken();
         rel="stylesheet"
     >
 
-
-    <!-- ========================================
-         MAIN CSS
-    ======================================== -->
+    <!-- MAIN CSS -->
 
     <link
         rel="stylesheet"
         href="../assets/css/style.css"
     >
-
 
     <style>
 
@@ -289,7 +242,6 @@ $csrfToken = csrfToken();
             margin: 0 auto;
         }
 
-
         .admin-top-actions {
             display: flex;
             justify-content: space-between;
@@ -298,7 +250,6 @@ $csrfToken = csrfToken();
             flex-wrap: wrap;
             margin-bottom: 30px;
         }
-
 
         .admin-back-button {
             display: inline-block;
@@ -311,12 +262,10 @@ $csrfToken = csrfToken();
             font-weight: 800;
         }
 
-
         .admin-back-button:hover {
             background: #39FF14;
             color: #000;
         }
-
 
         .admin-message {
             border: 1px solid #39FF14;
@@ -327,7 +276,6 @@ $csrfToken = csrfToken();
             font-weight: 600;
         }
 
-
         .admin-error {
             border: 1px solid #ff3333;
             background: rgba(255, 0, 0, .08);
@@ -337,24 +285,22 @@ $csrfToken = csrfToken();
             font-weight: 600;
         }
 
-
         .review-admin-card {
             border: 1px solid rgba(57, 255, 20, .35);
             background: rgba(0, 0, 0, .65);
-            padding: 25px;
-            margin-bottom: 20px;
+            padding: 20px 24px;
+            margin-bottom: 18px;
+            box-sizing: border-box;
         }
-
 
         .review-admin-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 20px;
+            gap: 15px;
             flex-wrap: wrap;
-            margin-bottom: 18px;
+            margin-bottom: 12px;
         }
-
 
         .review-customer-name {
             color: #39FF14;
@@ -363,13 +309,11 @@ $csrfToken = csrfToken();
             font-weight: 800;
         }
 
-
         .review-customer-email {
             color: rgba(255,255,255,.55);
             font-size: 12px;
             margin-top: 5px;
         }
-
 
         .review-admin-stars {
             color: #39FF14;
@@ -377,33 +321,46 @@ $csrfToken = csrfToken();
             letter-spacing: 2px;
         }
 
-
         .review-admin-text {
             color: rgba(255,255,255,.9);
-            line-height: 1.7;
-            white-space: pre-wrap;
+            line-height: 1.6;
+            white-space: normal;
             word-break: break-word;
-            padding: 18px 0;
+            padding: 14px 0;
             border-top: 1px solid rgba(57,255,20,.12);
             border-bottom: 1px solid rgba(57,255,20,.12);
         }
 
+        .review-admin-label {
+            color: #39FF14;
+            font-family: Orbitron, sans-serif;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .7px;
+            margin-bottom: 7px;
+            text-transform: uppercase;
+        }
+
+        .review-admin-content {
+            color: rgba(255,255,255,.9);
+            line-height: 1.6;
+            white-space: normal;
+            word-break: break-word;
+        }
 
         .review-admin-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             flex-wrap: wrap;
-            margin-top: 18px;
+            margin-top: 12px;
         }
-
 
         .review-admin-date {
             color: rgba(255,255,255,.5);
-            font-size: 11px;
+            font-size: 10px;
         }
-
 
         .review-status {
             display: inline-block;
@@ -416,12 +373,10 @@ $csrfToken = csrfToken();
             color: #39FF14;
         }
 
-
         .review-status.pending {
             color: #39FF14;
             border-color: #39FF14;
         }
-
 
         .review-status.approved {
             color: #39FF14;
@@ -429,20 +384,17 @@ $csrfToken = csrfToken();
             background: rgba(57,255,20,.08);
         }
 
-
         .review-status.rejected {
             color: #ff5555;
             border-color: #ff5555;
             background: rgba(255,0,0,.08);
         }
 
-
         .review-actions {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
         }
-
 
         .review-action {
             border: none;
@@ -453,17 +405,14 @@ $csrfToken = csrfToken();
             cursor: pointer;
         }
 
-
         .approve-button {
             background: #39FF14;
             color: #000;
         }
 
-
         .approve-button:hover {
             box-shadow: 0 0 12px rgba(57,255,20,.4);
         }
-
 
         .reject-button {
             background: transparent;
@@ -471,12 +420,10 @@ $csrfToken = csrfToken();
             border: 1px solid #ff5555;
         }
 
-
         .reject-button:hover {
             background: #ff5555;
             color: #000;
         }
-
 
         .no-reviews {
             text-align: center;
@@ -484,7 +431,6 @@ $csrfToken = csrfToken();
             border: 1px solid rgba(57,255,20,.25);
             color: rgba(255,255,255,.6);
         }
-
 
         @media (max-width: 600px) {
 
@@ -511,9 +457,7 @@ $csrfToken = csrfToken();
 
 </head>
 
-
 <body>
-
 
 <!-- ========================================
      HEADER
@@ -522,7 +466,6 @@ $csrfToken = csrfToken();
 <header class="site-header">
 
     <div class="container nav-container">
-
 
         <!-- LOGO -->
 
@@ -538,7 +481,6 @@ $csrfToken = csrfToken();
 
         </a>
 
-
         <!-- MOBILE MENU -->
 
         <button
@@ -552,7 +494,6 @@ $csrfToken = csrfToken();
             <span></span>
 
         </button>
-
 
         <!-- NAVIGATION -->
 
@@ -587,7 +528,6 @@ $csrfToken = csrfToken();
 </header>
 
 
-
 <!-- ========================================
      ADMIN REVIEWS
 ======================================== -->
@@ -598,25 +538,18 @@ $csrfToken = csrfToken();
 
         <div class="admin-reviews-wrapper">
 
-
-            <!-- ========================================
-                 PAGE HEADER
-            ======================================== -->
+            <!-- PAGE HEADER -->
 
             <p class="section-kicker">
                 ADMIN PANEL
             </p>
-
 
             <h1 class="page-title">
                 CUSTOMER <span>REVIEWS</span>
             </h1>
 
 
-
-            <!-- ========================================
-                 BACK BUTTON
-            ======================================== -->
+            <!-- BACK BUTTON -->
 
             <div class="admin-top-actions">
 
@@ -630,10 +563,7 @@ $csrfToken = csrfToken();
             </div>
 
 
-
-            <!-- ========================================
-                 SUCCESS MESSAGE
-            ======================================== -->
+            <!-- SUCCESS MESSAGE -->
 
             <?php if ($message !== ""): ?>
 
@@ -650,10 +580,7 @@ $csrfToken = csrfToken();
             <?php endif; ?>
 
 
-
-            <!-- ========================================
-                 ERROR MESSAGE
-            ======================================== -->
+            <!-- ERROR MESSAGE -->
 
             <?php if ($error !== ""): ?>
 
@@ -670,34 +597,23 @@ $csrfToken = csrfToken();
             <?php endif; ?>
 
 
-
-            <!-- ========================================
-                 REVIEW LIST
-            ======================================== -->
+            <!-- REVIEW LIST -->
 
             <?php if (!$reviews): ?>
 
                 <div class="no-reviews">
-
                     No customer reviews yet.
-
                 </div>
 
             <?php else: ?>
 
-
                 <?php foreach ($reviews as $item): ?>
-
 
                     <div class="review-admin-card">
 
-
-                        <!-- ========================================
-                             REVIEW HEADER
-                        ======================================== -->
+                        <!-- REVIEW HEADER -->
 
                         <div class="review-admin-header">
-
 
                             <div>
 
@@ -711,7 +627,6 @@ $csrfToken = csrfToken();
 
                                 </div>
 
-
                                 <div class="review-customer-email">
 
                                     <?= htmlspecialchars(
@@ -723,7 +638,6 @@ $csrfToken = csrfToken();
                                 </div>
 
                             </div>
-
 
 
                             <!-- STARS -->
@@ -754,36 +668,35 @@ $csrfToken = csrfToken();
 
                             </div>
 
-
                         </div>
 
 
-
-                        <!-- ========================================
-                             REVIEW CONTENT
-                        ======================================== -->
+                        <!-- REVIEW CONTENT -->
 
                         <div class="review-admin-text">
 
-                            <?= htmlspecialchars(
-                                (string)$item["review"],
-                                ENT_QUOTES,
-                                "UTF-8"
-                            ) ?>
+                            <div class="review-admin-label">
+                                CUSTOMER REVIEW
+                            </div>
+
+                            <div class="review-admin-content">
+
+                                <?= htmlspecialchars(
+                                    (string)$item["review"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>
+
+                            </div>
 
                         </div>
 
 
-
-                        <!-- ========================================
-                             REVIEW FOOTER
-                        ======================================== -->
+                        <!-- REVIEW FOOTER -->
 
                         <div class="review-admin-footer">
 
-
                             <div>
-
 
                                 <!-- DATE -->
 
@@ -803,7 +716,6 @@ $csrfToken = csrfToken();
                                     ) ?>
 
                                 </div>
-
 
 
                                 <!-- STATUS -->
@@ -827,22 +739,16 @@ $csrfToken = csrfToken();
 
                                 </div>
 
-
                             </div>
 
 
-
-                            <!-- ========================================
-                                 ACTIONS
-                            ======================================== -->
+                            <!-- ACTIONS -->
 
                             <?php if (
                                 (string)$item["status"] === "pending"
                             ): ?>
 
-
                                 <div class="review-actions">
-
 
                                     <!-- APPROVE -->
 
@@ -861,20 +767,17 @@ $csrfToken = csrfToken();
                                             ) ?>"
                                         >
 
-
                                         <input
                                             type="hidden"
                                             name="review_id"
                                             value="<?= (int)$item["id"] ?>"
                                         >
 
-
                                         <input
                                             type="hidden"
                                             name="action"
                                             value="approve"
                                         >
-
 
                                         <button
                                             type="submit"
@@ -884,7 +787,6 @@ $csrfToken = csrfToken();
                                         </button>
 
                                     </form>
-
 
 
                                     <!-- REJECT -->
@@ -904,20 +806,17 @@ $csrfToken = csrfToken();
                                             ) ?>"
                                         >
 
-
                                         <input
                                             type="hidden"
                                             name="review_id"
                                             value="<?= (int)$item["id"] ?>"
                                         >
 
-
                                         <input
                                             type="hidden"
                                             name="action"
                                             value="reject"
                                         >
-
 
                                         <button
                                             type="submit"
@@ -928,31 +827,23 @@ $csrfToken = csrfToken();
 
                                     </form>
 
-
                                 </div>
-
 
                             <?php endif; ?>
 
-
                         </div>
-
 
                     </div>
 
-
                 <?php endforeach; ?>
 
-
             <?php endif; ?>
-
 
         </div>
 
     </div>
 
 </main>
-
 
 
 <!-- ========================================
@@ -966,7 +857,6 @@ const menuToggle =
 
 const mainNav =
     document.querySelector(".main-nav");
-
 
 if (menuToggle && mainNav) {
 
@@ -992,7 +882,6 @@ if (menuToggle && mainNav) {
 }
 
 </script>
-
 
 </body>
 

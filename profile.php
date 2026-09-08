@@ -132,6 +132,17 @@ if ($isCustomer) {
         href="assets/css/style.css"
     >
 
+    <style>
+        /* Keep LOGOUT text visible when hovering on the profile page. */
+        .main-nav a.profile-logout-button:hover,
+        .profile-logout-button:hover,
+        .profile-logout-button:focus,
+        .profile-logout-button:active {
+            color: #000 !important;
+            -webkit-text-fill-color: #000 !important;
+        }
+    </style>
+
 </head>
 
 
@@ -466,7 +477,7 @@ if ($isCustomer) {
 
                     <a
                         href="logout.php"
-                        class="outline-button"
+                        class="outline-button profile-logout-button"
                         style="
                             color:#39FF14;
                             padding:13px 22px;
@@ -516,7 +527,7 @@ if ($isCustomer) {
 
                     <a
                         href="logout.php"
-                        class="outline-button"
+                        class="outline-button profile-logout-button"
                         style="
                             color:#39FF14;
                             padding:13px 22px;

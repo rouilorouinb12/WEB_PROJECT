@@ -189,6 +189,7 @@ $testimonials = [
 
 
                         <a
+                            href="book.php"
                             class="outline-button"
                         >
                             BOOK A PC
@@ -196,6 +197,7 @@ $testimonials = [
 
 
                         <a
+                            href="#rates"
                             class="outline-button nav-home-section"
                         >
 
@@ -391,14 +393,6 @@ $testimonials = [
         </section>
 
 
-
-<style>
-/* Required inner spacing for the gaming setup cards. */
-.setup-content {
-    padding: 24px 18px 22px;
-    box-sizing: border-box;
-}
-</style>
 
         <!-- =====================================
              PCS
@@ -728,6 +722,7 @@ $testimonials = [
 
 
                     <a
+                        href="book.php"
                         class="green-button cta-button"
                     >
                         BOOK NOW
