@@ -30,7 +30,9 @@ $userStmt = $conn->prepare("
     LIMIT 1
 ");
 
-$userStmt->execute([$userId]);
+$userStmt->execute([
+    $userId
+]);
 
 $user = $userStmt->fetch();
 
@@ -43,7 +45,6 @@ if (!$user) {
 
     header("Location: logout.php");
     exit;
-
 }
 
 
@@ -57,9 +58,7 @@ $messageType = "";
 $setupId = "";
 $bookingDate = "";
 $bookingTime = "";
-
 $hours = 1;
-
 $notes = "";
 
 $phone = trim(
@@ -86,7 +85,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
        CSRF CHECK
     ======================================== */
 
-    $csrfToken = $_POST["csrf_token"] ?? "";
+    $csrfToken =
+        $_POST["csrf_token"] ?? "";
 
     if (
         !is_string($csrfToken) ||
@@ -96,7 +96,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $message =
             "Invalid security token. Please refresh the page and try again.";
 
-        $messageType = "error";
+        $messageType =
+            "error";
 
     } else {
 
@@ -106,43 +107,56 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         ======================================== */
 
         $setupId = trim(
-            (string)($_POST["setup_id"] ?? "")
+            (string)(
+                $_POST["setup_id"] ?? ""
+            )
         );
 
         $bookingDate = trim(
-            (string)($_POST["booking_date"] ?? "")
+            (string)(
+                $_POST["booking_date"] ?? ""
+            )
         );
 
         $bookingTime = trim(
-            (string)($_POST["booking_time"] ?? "")
+            (string)(
+                $_POST["booking_time"] ?? ""
+            )
         );
 
-        $hours = (int)(
-            $_POST["hours"] ?? 1
-        );
+        $hours =
+            (int)(
+                $_POST["hours"] ?? 1
+            );
 
         $notes = trim(
-            (string)($_POST["notes"] ?? "")
+            (string)(
+                $_POST["notes"] ?? ""
+            )
         );
 
         $phone = trim(
-            (string)($_POST["phone"] ?? "")
-        );
-
-        $paymentMethod = trim(
-            (string)($_POST["payment_method"] ?? "")
-        );
-
-        $paymentReference = trim(
-            (string)($_POST["payment_reference"] ?? "")
+            (string)(
+                $_POST["phone"] ?? ""
+            )
         );
 
 
         /* ========================================
-           PAYMENT FILE
+           PAYMENT DATA
         ======================================== */
 
-        $paymentProofName = null;
+        $paymentMethod = trim(
+            (string)(
+                $_POST["payment_method"] ?? ""
+            )
+        );
+
+        $paymentReference = trim(
+            (string)(
+                $_POST["payment_reference"] ?? ""
+            )
+        );
 
 
         /* ========================================
@@ -158,8 +172,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Please complete all required booking fields.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } elseif (
             !in_array(
@@ -172,8 +186,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Please select a valid gaming station.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } elseif (
             $hours < 1 ||
@@ -183,8 +197,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Booking duration must be between 1 and 12 hours.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } elseif (
             strlen($phone) > 30
@@ -193,8 +207,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Phone number is too long.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } elseif (
             $phone !== "" &&
@@ -207,8 +221,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Please enter a valid phone number.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } elseif (
             strlen($notes) > 1000
@@ -217,8 +231,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Notes are too long.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } elseif (
             $paymentMethod !== "GCash" &&
@@ -228,8 +242,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Please select a valid payment method.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } elseif (
             $paymentMethod === "GCash" &&
@@ -239,8 +253,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Please enter your GCash reference number.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } elseif (
             strlen($paymentReference) > 100
@@ -249,8 +263,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Payment reference number is too long.";
 
-            $messageType = "error";
-
+            $messageType =
+                "error";
 
         } else {
 
@@ -259,10 +273,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                VALIDATE DATE
             ======================================== */
 
-            $dateObject = DateTime::createFromFormat(
-                "Y-m-d",
-                $bookingDate
-            );
+            $dateObject =
+                DateTime::createFromFormat(
+                    "Y-m-d",
+                    $bookingDate
+                );
 
             $validDate =
                 $dateObject !== false &&
@@ -275,8 +290,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $message =
                     "Please select a valid booking date.";
 
-                $messageType = "error";
-
+                $messageType =
+                    "error";
 
             } elseif (
                 $bookingDate < date("Y-m-d")
@@ -285,8 +300,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $message =
                     "You cannot book a date in the past.";
 
-                $messageType = "error";
-
+                $messageType =
+                    "error";
 
             } else {
 
@@ -295,10 +310,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                    VALIDATE TIME
                 ======================================== */
 
-                $timeObject = DateTime::createFromFormat(
-                    "H:i",
-                    $bookingTime
-                );
+                $timeObject =
+                    DateTime::createFromFormat(
+                        "H:i",
+                        $bookingTime
+                    );
 
                 $validTime =
                     $timeObject !== false &&
@@ -311,8 +327,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $message =
                         "Please select a valid booking time.";
 
-                    $messageType = "error";
-
+                    $messageType =
+                        "error";
 
                 } else {
 
@@ -334,7 +350,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         (int)$setupId
                     ]);
 
-                    $setup = $setupStmt->fetch();
+                    $setup =
+                        $setupStmt->fetch();
 
 
                     if (!$setup) {
@@ -342,8 +359,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $message =
                             "The selected gaming station is not available.";
 
-                        $messageType = "error";
-
+                        $messageType =
+                            "error";
 
                     } else {
 
@@ -353,21 +370,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         ======================================== */
 
                         $checkStmt = $conn->prepare("
-                            SELECT id
+                            SELECT
+                                id
                             FROM bookings
                             WHERE setup_id = ?
-                            AND booking_date = ?
-                            AND status IN ('pending', 'accepted')
-                            AND (
-                                start_time < ADDTIME(
-                                    ?,
-                                    SEC_TO_TIME(? * 3600)
-                                )
-                                AND ADDTIME(
-                                    start_time,
-                                    SEC_TO_TIME(hours * 3600)
-                                ) > ?
-                            )
+                              AND booking_date = ?
+                              AND status IN ('pending', 'accepted')
+                              AND (
+                                    start_time < ADDTIME(
+                                        ?,
+                                        SEC_TO_TIME(? * 3600)
+                                    )
+                                    AND
+                                    ADDTIME(
+                                        start_time,
+                                        SEC_TO_TIME(hours * 3600)
+                                    ) > ?
+                              )
                             LIMIT 1
                         ");
 
@@ -385,299 +404,155 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             $message =
                                 "That gaming station is already booked for the selected date and time.";
 
-                            $messageType = "error";
-
+                            $messageType =
+                                "error";
 
                         } else {
 
 
                             /* ========================================
-                               PAYMENT PROOF UPLOAD
+                               UPDATE USER PHONE
                             ======================================== */
 
+                            $updatePhoneStmt =
+                                $conn->prepare("
+                                    UPDATE users
+                                    SET phone = ?
+                                    WHERE id = ?
+                                ");
+
+                            $updatePhoneStmt->execute([
+                                $phone,
+                                (int)$user["id"]
+                            ]);
+
+
+                            /* ========================================
+                               CUSTOMER NAME
+                            ======================================== */
+
+                            $customerName =
+                                trim(
+                                    (string)(
+                                        $user["name"] ?? ""
+                                    )
+                                );
+
+
                             if (
-                                $paymentMethod === "GCash" &&
-                                (
-                                    !isset($_FILES["payment_proof"]) ||
-                                    $_FILES["payment_proof"]["error"] !== UPLOAD_ERR_OK
-                                )
+                                $customerName === ""
                             ) {
 
                                 $message =
-                                    "Please upload your GCash payment proof.";
+                                    "Your account name is invalid. Please contact the administrator.";
 
-                                $messageType = "error";
-
+                                $messageType =
+                                    "error";
 
                             } else {
 
 
                                 /* ========================================
-                                   HANDLE PAYMENT PROOF FILE
+                                   PAYMENT STATUS
                                 ======================================== */
 
-                                if (
-                                    $paymentMethod === "GCash" &&
-                                    isset($_FILES["payment_proof"])
-                                ) {
-
-                                    $file = $_FILES["payment_proof"];
-
-
-                                    if ($file["size"] > 5 * 1024 * 1024) {
-
-                                        $message =
-                                            "Payment proof must not exceed 5MB.";
-
-                                        $messageType = "error";
-
-                                    } else {
-
-                                        $allowedMimeTypes = [
-                                            "image/jpeg",
-                                            "image/png",
-                                            "image/webp"
-                                        ];
-
-                                        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-
-                                        $mimeType = finfo_file(
-                                            $finfo,
-                                            $file["tmp_name"]
-                                        );
-
-                                        finfo_close($finfo);
-
-
-                                        if (
-                                            !in_array(
-                                                $mimeType,
-                                                $allowedMimeTypes,
-                                                true
-                                            )
-                                        ) {
-
-                                            $message =
-                                                "Only JPG, PNG, and WEBP images are allowed.";
-
-                                            $messageType = "error";
-
-                                        } else {
-
-
-                                            /* ========================================
-                                               CREATE PAYMENT UPLOAD DIRECTORY
-                                            ======================================== */
-
-                                            $uploadDirectory =
-                                                __DIR__
-                                                . DIRECTORY_SEPARATOR
-                                                . "assets"
-                                                . DIRECTORY_SEPARATOR
-                                                . "uploads"
-                                                . DIRECTORY_SEPARATOR
-                                                . "payments";
-
-
-                                            if (
-                                                !is_dir(
-                                                    $uploadDirectory
-                                                )
-                                            ) {
-
-                                                mkdir(
-                                                    $uploadDirectory,
-                                                    0755,
-                                                    true
-                                                );
-
-                                            }
-
-
-                                            /* ========================================
-                                               FILE EXTENSION
-                                            ======================================== */
-
-                                            $extension = match ($mimeType) {
-
-                                                "image/jpeg" => "jpg",
-                                                "image/png" => "png",
-                                                "image/webp" => "webp",
-                                                default => "jpg"
-
-                                            };
-
-
-                                            $newFileName =
-                                                "booking_"
-                                                . bin2hex(
-                                                    random_bytes(16)
-                                                )
-                                                . "."
-                                                . $extension;
-
-
-                                            $destination =
-                                                $uploadDirectory
-                                                . DIRECTORY_SEPARATOR
-                                                . $newFileName;
-
-
-                                            if (
-                                                move_uploaded_file(
-                                                    $file["tmp_name"],
-                                                    $destination
-                                                )
-                                            ) {
-
-                                                $paymentProofName =
-                                                    $newFileName;
-
-                                            } else {
-
-                                                $message =
-                                                    "Unable to upload payment proof.";
-
-                                                $messageType =
-                                                    "error";
-
-                                            }
-
-                                        }
-                                    }
-                                }
+                                $paymentStatus =
+                                    $paymentMethod === "GCash"
+                                        ? "pending"
+                                        : "unpaid";
 
 
                                 /* ========================================
-                                   CONTINUE ONLY IF NO UPLOAD ERROR
+                                   SAVE BOOKING
                                 ======================================== */
 
-                                if (
-                                    $messageType !== "error"
-                                ) {
-
-
-                                    /* ========================================
-                                       UPDATE USER PHONE
-                                    ======================================== */
-
-                                    $updatePhoneStmt =
-                                        $conn->prepare("
-                                            UPDATE users
-                                            SET phone = ?
-                                            WHERE id = ?
-                                        ");
-
-                                    $updatePhoneStmt->execute([
-                                        $phone,
-                                        (int)$user["id"]
-                                    ]);
-
-
-                                    /* ========================================
-                                       GET CUSTOMER NAME
-                                    ======================================== */
-
-                                    $customerName = trim(
-                                        (string)(
-                                            $user["name"] ?? ""
+                                $insertStmt =
+                                    $conn->prepare("
+                                        INSERT INTO bookings (
+                                            customer_name,
+                                            email,
+                                            phone,
+                                            setup_id,
+                                            booking_date,
+                                            start_time,
+                                            hours,
+                                            message,
+                                            status,
+                                            payment_method,
+                                            payment_reference,
+                                            payment_status
                                         )
-                                    );
+                                        VALUES (
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            ?,
+                                            'pending',
+                                            ?,
+                                            ?,
+                                            ?
+                                        )
+                                    ");
 
 
-                                    if ($customerName === "") {
+                                $insertStmt->execute([
 
-                                        $message =
-                                            "Your account name is invalid. Please contact the administrator.";
+                                    $customerName,
 
-                                        $messageType =
-                                            "error";
+                                    (string)
+                                    $user["email"],
 
-                                    } else {
+                                    $phone !== ""
+                                        ? $phone
+                                        : null,
 
+                                    (int)$setupId,
 
-                                        /* ========================================
-                                           SAVE BOOKING
-                                        ======================================== */
+                                    $bookingDate,
 
-                                        $insertStmt = $conn->prepare("
-                                            INSERT INTO bookings (
-                                                customer_name,
-                                                email,
-                                                phone,
-                                                setup_id,
-                                                booking_date,
-                                                start_time,
-                                                hours,
-                                                message,
-                                                status,
-                                                payment_method,
-                                                payment_reference,
-                                                payment_proof,
-                                                payment_status
-                                            )
-                                            VALUES (
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?,
-                                                'pending',
-                                                ?,
-                                                ?,
-                                                ?,
-                                                ?
-                                            )
-                                        ");
+                                    $bookingTime,
+
+                                    $hours,
+
+                                    $notes !== ""
+                                        ? $notes
+                                        : null,
+
+                                    $paymentMethod,
+
+                                    $paymentReference !== ""
+                                        ? $paymentReference
+                                        : null,
+
+                                    $paymentStatus
+
+                                ]);
 
 
-                                        $insertStmt->execute([
-                                            $customerName,
-                                            (string)$user["email"],
-                                            $phone !== ""
-                                                ? $phone
-                                                : null,
-                                            (int)$setupId,
-                                            $bookingDate,
-                                            $bookingTime,
-                                            $hours,
-                                            $notes !== ""
-                                                ? $notes
-                                                : null,
-                                            $paymentMethod,
-                                            $paymentReference !== ""
-                                                ? $paymentReference
-                                                : null,
-                                            $paymentProofName,
-                                            $paymentMethod === "GCash"
-                                                ? "pending"
-                                                : "unpaid"
-                                        ]);
+                                /* ========================================
+                                   GET NEW BOOKING ID
+                                ======================================== */
+
+                                $bookingId =
+                                    (int)
+                                    $conn->lastInsertId();
 
 
-                                        /* ========================================
-                                           GET NEW BOOKING ID
-                                        ======================================== */
+                                /* ========================================
+                                   SUCCESS PAGE
+                                ======================================== */
 
-                                        $bookingId =
-                                            (int)$conn->lastInsertId();
+                                header(
+                                    "Location: success.php?id="
+                                    . $bookingId
+                                );
 
+                                exit;
 
-                                        /* ========================================
-                                           GO TO SUCCESS PAGE
-                                        ======================================== */
-
-                                        header(
-                                            "Location: success.php?id="
-                                            . $bookingId
-                                        );
-
-                                        exit;
-                                    }
-                                }
                             }
                         }
                     }
@@ -690,7 +565,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -738,47 +612,92 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         href="assets/css/style.css"
     >
 
+
     <style>
 
+        /* ========================================
+           PAYMENT
+        ======================================== */
+
         .payment-section {
-            margin-top: 25px;
-            padding-top: 25px;
-            border-top: 1px solid rgba(57,255,20,.25);
+
+            margin-top:
+                25px;
+
+            padding-top:
+                25px;
+
+            border-top:
+                1px solid
+                rgba(57,255,20,.25);
+
         }
+
 
         .payment-section h2 {
-            margin: 0 0 20px;
-            color: #39FF14;
-            font-family: "Orbitron", sans-serif;
-            font-size: 18px;
+
+            margin:
+                0 0 20px;
+
+            color:
+                #39FF14;
+
+            font-family:
+                "Orbitron",
+                sans-serif;
+
+            font-size:
+                18px;
+
         }
+
 
         .payment-note {
-            margin: 0 0 18px;
-            padding: 12px 14px;
-            border: 1px solid rgba(57,255,20,.3);
-            background: rgba(57,255,20,.03);
-            color: #ccc;
-            font-size: 13px;
-            line-height: 1.5;
+
+            margin:
+                0 0 18px;
+
+            padding:
+                12px 14px;
+
+            border:
+                1px solid
+                rgba(57,255,20,.3);
+
+            background:
+                rgba(57,255,20,.03);
+
+            color:
+                #ccc;
+
+            font-size:
+                13px;
+
+            line-height:
+                1.5;
+
         }
+
 
         .payment-note strong {
-            color: #39FF14;
+
+            color:
+                #39FF14;
+
         }
 
-        .payment-proof-label {
-            display: block;
-        }
 
-        .payment-proof-label input[type="file"] {
-            padding: 10px;
-        }
+        /* ========================================
+           MOBILE
+        ======================================== */
 
         @media (max-width: 700px) {
 
             .payment-section {
-                padding-top: 20px;
+
+                padding-top:
+                    20px;
+
             }
 
         }
@@ -787,12 +706,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </head>
 
+
 <body>
 
 
 <header class="site-header">
 
     <div class="container nav-container">
+
+
+        <!-- LOGO -->
 
         <a
             href="index.php"
@@ -807,6 +730,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         </a>
 
 
+        <!-- MOBILE MENU -->
+
         <button
             class="menu-toggle"
             aria-label="Open menu"
@@ -820,6 +745,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         </button>
 
+
+        <!-- MAIN NAVIGATION -->
 
         <nav
             class="main-nav"
@@ -870,19 +797,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <div class="container form-page">
 
 
+        <!-- ========================================
+             TITLE
+        ========================================= -->
+
         <p class="section-kicker">
+
             CUSTOMER BOOKING
+
         </p>
 
 
         <h1 class="page-title">
-            BOOK <span>NOW</span>
+
+            BOOK
+            <span>
+                NOW
+            </span>
+
         </h1>
+
 
 
         <!-- ========================================
              CUSTOMER INFORMATION
-        ======================================== -->
+        ========================================= -->
 
         <div
             class="booking-form"
@@ -897,11 +836,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     font-size:18px;
                 "
             >
+
                 CUSTOMER INFORMATION
+
             </h2>
 
 
             <div class="form-row">
+
+
+                <!-- FULL NAME -->
 
                 <label>
 
@@ -910,7 +854,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <input
                         type="text"
                         value="<?= htmlspecialchars(
-                            (string)$user["name"],
+                            (string)
+                            $user["name"],
                             ENT_QUOTES,
                             "UTF-8"
                         ) ?>"
@@ -919,6 +864,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
+                <!-- EMAIL -->
 
                 <label>
 
@@ -927,7 +874,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <input
                         type="email"
                         value="<?= htmlspecialchars(
-                            (string)$user["email"],
+                            (string)
+                            $user["email"],
                             ENT_QUOTES,
                             "UTF-8"
                         ) ?>"
@@ -936,10 +884,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
             </div>
 
 
             <div class="form-row">
+
+
+                <!-- PHONE -->
 
                 <label>
 
@@ -961,6 +913,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </label>
 
 
+                <!-- ACCOUNT -->
+
                 <label>
 
                     Account
@@ -973,14 +927,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
             </div>
 
         </div>
 
 
+
         <!-- ========================================
-             ERROR / SUCCESS MESSAGE
-        ======================================== -->
+             MESSAGE
+        ========================================= -->
 
         <?php if ($message !== ""): ?>
 
@@ -1003,17 +959,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <?php endif; ?>
 
 
+
         <!-- ========================================
              BOOKING FORM
-        ======================================== -->
+        ========================================= -->
 
         <form
             action="book.php"
             method="POST"
             class="booking-form"
             id="bookingForm"
-            enctype="multipart/form-data"
         >
+
+
+            <!-- CSRF -->
 
             <input
                 type="hidden"
@@ -1025,6 +984,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ) ?>"
             >
 
+
+
+            <!-- ========================================
+                 GAMING STATION / DATE
+            ========================================= -->
 
             <div class="form-row">
 
@@ -1044,6 +1008,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             Select a station
                         </option>
 
+
                         <option
                             value="1"
                             <?= (
@@ -1053,8 +1018,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 : ""
                             ?>
                         >
-                            PC 01
+
+                            RTX Gaming PC
+
                         </option>
+
 
                         <option
                             value="2"
@@ -1065,8 +1033,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 : ""
                             ?>
                         >
-                            PC 02
+
+                            Premium Gaming PC
+
                         </option>
+
 
                         <option
                             value="3"
@@ -1077,8 +1048,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 : ""
                             ?>
                         >
-                            PC 03
+
+                            Streamer Setup
+
                         </option>
+
 
                         <option
                             value="4"
@@ -1089,7 +1063,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 : ""
                             ?>
                         >
-                            PC 04
+
+                            VIP Room
+
                         </option>
 
                     </select>
@@ -1097,7 +1073,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </label>
 
 
-                <!-- DATE -->
+                <!-- BOOKING DATE -->
 
                 <label>
 
@@ -1117,8 +1093,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
             </div>
 
+
+
+            <!-- ========================================
+                 TIME / HOURS
+            ========================================= -->
 
             <div class="form-row">
 
@@ -1169,8 +1151,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     : ""
                                 ?>
                             >
+
                                 <?= $i ?>
                                 Hour<?= $i > 1 ? "s" : "" ?>
+
                             </option>
 
                         <?php endfor; ?>
@@ -1179,10 +1163,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
             </div>
 
 
-            <!-- NOTES -->
+
+            <!-- ========================================
+                 NOTES
+            ========================================= -->
 
             <label>
 
@@ -1202,29 +1190,41 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </label>
 
 
+
             <!-- ========================================
                  PAYMENT
-            ======================================== -->
+            ========================================= -->
 
             <div class="payment-section">
 
 
                 <h2>
+
                     PAYMENT
+
                 </h2>
 
 
                 <p class="payment-note">
 
-                    <strong>GCash:</strong>
-                    Send your payment to the gaming cafe GCash account,
-                    then enter your reference number and upload the
-                    payment screenshot.
+                    <strong>
+                        GCash:
+                    </strong>
+
+                    Send your payment to the gaming cafe
+                    GCash account, then enter your
+                    <strong>
+                        reference number
+                    </strong>.
 
                     <br><br>
 
-                    <strong>Cash:</strong>
-                    Select Cash if you will pay directly at the cafe.
+                    <strong>
+                        Cash:
+                    </strong>
+
+                    Select Cash if you will pay directly
+                    at the cafe.
 
                 </p>
 
@@ -1245,8 +1245,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         >
 
                             <option value="">
+
                                 Select payment method
+
                             </option>
+
 
                             <option
                                 value="GCash"
@@ -1255,8 +1258,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     : ""
                                 ?>
                             >
+
                                 GCash
+
                             </option>
+
 
                             <option
                                 value="Cash"
@@ -1265,7 +1271,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     : ""
                                 ?>
                             >
+
                                 Cash
+
                             </option>
 
                         </select>
@@ -1273,9 +1281,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     </label>
 
 
-                    <!-- REFERENCE -->
+                    <!-- GCASH REFERENCE -->
 
-                    <label id="referenceLabel">
+                    <label
+                        id="referenceLabel"
+                    >
 
                         GCash Reference Number
 
@@ -1297,30 +1307,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </div>
 
-
-                <!-- PAYMENT PROOF -->
-
-                <label
-                    id="paymentProofLabel"
-                    class="payment-proof-label"
-                >
-
-                    GCash Payment Screenshot
-
-                    <input
-                        type="file"
-                        name="payment_proof"
-                        id="paymentProof"
-                        accept="image/jpeg,image/png,image/webp"
-                    >
-
-                </label>
-
-
             </div>
 
 
-            <!-- SUBMIT -->
+
+            <!-- ========================================
+                 CONFIRM
+            ========================================= -->
 
             <button
                 type="submit"
@@ -1330,15 +1323,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     padding:13px 25px;
                 "
             >
+
                 CONFIRM BOOKING
+
             </button>
 
 
         </form>
 
+
     </div>
 
 </main>
+
 
 
 <script>
@@ -1348,19 +1345,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 ======================================== */
 
 const paymentMethod =
-    document.getElementById("paymentMethod");
+    document.getElementById(
+        "paymentMethod"
+    );
+
 
 const referenceLabel =
-    document.getElementById("referenceLabel");
+    document.getElementById(
+        "referenceLabel"
+    );
+
 
 const paymentReference =
-    document.getElementById("paymentReference");
-
-const paymentProofLabel =
-    document.getElementById("paymentProofLabel");
-
-const paymentProof =
-    document.getElementById("paymentProof");
+    document.getElementById(
+        "paymentReference"
+    );
 
 
 function updatePaymentFields() {
@@ -1374,6 +1373,8 @@ function updatePaymentFields() {
         paymentMethod.value === "GCash";
 
 
+    /* SHOW / HIDE REFERENCE */
+
     if (referenceLabel) {
 
         referenceLabel.style.display =
@@ -1384,28 +1385,20 @@ function updatePaymentFields() {
     }
 
 
-    if (paymentProofLabel) {
-
-        paymentProofLabel.style.display =
-            isGCash
-                ? ""
-                : "none";
-
-    }
-
+    /* REQUIRED ONLY FOR GCASH */
 
     if (paymentReference) {
 
         paymentReference.required =
             isGCash;
 
-    }
 
+        if (!isGCash) {
 
-    if (paymentProof) {
+            paymentReference.value =
+                "";
 
-        paymentProof.required =
-            isGCash;
+        }
 
     }
 
@@ -1429,22 +1422,36 @@ if (paymentMethod) {
 ======================================== */
 
 const menuToggle =
-    document.querySelector(".menu-toggle");
+    document.querySelector(
+        ".menu-toggle"
+    );
+
 
 const mainNav =
-    document.querySelector(".main-nav");
+    document.querySelector(
+        ".main-nav"
+    );
 
 
-if (menuToggle && mainNav) {
+if (
+    menuToggle &&
+    mainNav
+) {
 
     menuToggle.addEventListener(
         "click",
         function () {
 
-            mainNav.classList.toggle("open");
+            mainNav.classList.toggle(
+                "open"
+            );
+
 
             const isOpen =
-                mainNav.classList.contains("open");
+                mainNav.classList.contains(
+                    "open"
+                );
+
 
             menuToggle.setAttribute(
                 "aria-expanded",
@@ -1460,5 +1467,7 @@ if (menuToggle && mainNav) {
 
 </script>
 
+
 </body>
+
 </html>

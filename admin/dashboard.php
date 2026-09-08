@@ -197,16 +197,15 @@ $rejectedBookings =
 
         /* ========================================
            ADMIN ACTION BUTTONS
-           SIX BUTTONS - ONE LINE
+           FOUR BUTTONS - ONE LINE
         ======================================== */
 
         .admin-actions {
 
-            display:
-                grid !important;
+            display: grid !important;
 
             grid-template-columns:
-                repeat(6, minmax(0, 1fr)) !important;
+                repeat(4, minmax(0, 1fr)) !important;
 
             gap:
                 12px !important;
@@ -227,8 +226,7 @@ $rejectedBookings =
 
 
         /* ========================================
-           BUTTONS
-           SAME SIZE
+           BUTTONS - SAME SIZE
         ======================================== */
 
         .admin-actions .admin-button {
@@ -255,7 +253,7 @@ $rejectedBookings =
                 0 !important;
 
             padding:
-                6px 8px !important;
+                6px 10px !important;
 
             margin:
                 0 !important;
@@ -287,7 +285,7 @@ $rejectedBookings =
                 sans-serif !important;
 
             font-size:
-                9px !important;
+                10px !important;
 
             font-weight:
                 800 !important;
@@ -333,16 +331,15 @@ $rejectedBookings =
 
         /* ========================================
            TOURNAMENT BUTTON
-           LONG TEXT
         ======================================== */
 
         .admin-actions .tournament-button {
 
             padding-left:
-                5px !important;
+                8px !important;
 
             padding-right:
-                5px !important;
+                8px !important;
 
         }
 
@@ -475,27 +472,13 @@ $rejectedBookings =
            RESPONSIVE
         ======================================== */
 
-        @media (max-width: 1100px) {
+        @media (max-width: 900px) {
 
             .admin-actions {
 
                 grid-template-columns:
-                    repeat(6, 125px)
+                    repeat(2, minmax(0, 1fr))
                     !important;
-
-                overflow-x:
-                    auto !important;
-
-                padding-bottom:
-                    5px !important;
-
-            }
-
-
-            .admin-actions .admin-button {
-
-                width:
-                    125px !important;
 
             }
 
@@ -508,23 +491,6 @@ $rejectedBookings =
 
                 grid-template-columns:
                     repeat(2, 1fr);
-
-            }
-
-
-            .admin-actions {
-
-                grid-template-columns:
-                    repeat(6, 120px)
-                    !important;
-
-            }
-
-
-            .admin-actions .admin-button {
-
-                width:
-                    120px !important;
 
             }
 
@@ -544,14 +510,7 @@ $rejectedBookings =
             .admin-actions {
 
                 grid-template-columns:
-                    repeat(6, 115px)
-                    !important;
-
-                gap:
-                    10px !important;
-
-                overflow-x:
-                    auto !important;
+                    1fr !important;
 
             }
 
@@ -559,16 +518,7 @@ $rejectedBookings =
             .admin-actions .admin-button {
 
                 width:
-                    115px !important;
-
-                height:
-                    56px !important;
-
-                min-height:
-                    56px !important;
-
-                font-size:
-                    8px !important;
+                    100% !important;
 
             }
 
@@ -618,6 +568,10 @@ $rejectedBookings =
             </button>
 
 
+            <!-- ========================================
+                 ADMIN HEADER NAVIGATION
+            ======================================== -->
+
             <nav
                 class="main-nav"
                 id="mainNav"
@@ -633,10 +587,6 @@ $rejectedBookings =
 
                 <a href="bookings.php">
                     BOOKINGS
-                </a>
-
-                <a href="logout.php">
-                    LOGOUT
                 </a>
 
             </nav>
@@ -738,16 +688,6 @@ $rejectedBookings =
             <div class="admin-actions">
 
 
-                <!-- MANAGE BOOKINGS -->
-
-                <a
-                    href="bookings.php"
-                    class="admin-button"
-                >
-                    MANAGE BOOKINGS
-                </a>
-
-
                 <!-- CUSTOMER REVIEWS -->
 
                 <a
@@ -785,16 +725,6 @@ $rejectedBookings =
                     class="admin-button"
                 >
                     MANAGE RATES
-                </a>
-
-
-                <!-- VIEW WEBSITE -->
-
-                <a
-                    href="../index.php"
-                    class="admin-button"
-                >
-                    VIEW WEBSITE
                 </a>
 
 

@@ -5,109 +5,153 @@ declare(strict_types=1);
 require_once "../database.php";
 require_once "../auth.php";
 
-requireLogin();
-
-/* ========================================
-   ADMIN ONLY
-======================================== */
-if (($_SESSION["user_role"] ?? "customer") !== "admin") {
-    http_response_code(403);
-    die("Access denied.");
-}
+requireAdmin();
 
 $message = "";
 $error = "";
 
+
 /* ========================================
    HANDLE BOOKING ACTION
 ======================================== */
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     try {
 
-        /* ----------------------------------------
+        /* ========================================
            VERIFY CSRF
-        ---------------------------------------- */
-        $csrf = $_POST["csrf_token"] ?? "";
+        ======================================== */
 
-        if (!is_string($csrf) || !verifyCsrfToken($csrf)) {
+        $csrf =
+            $_POST["csrf_token"] ?? "";
+
+        if (
+            !is_string($csrf) ||
+            !verifyCsrfToken($csrf)
+        ) {
+
             throw new RuntimeException(
                 "Invalid request. Please refresh the page and try again."
             );
         }
 
-        /* ----------------------------------------
-           GET BOOKING ID
-        ---------------------------------------- */
-        $bookingId = filter_var(
-            $_POST["booking_id"] ?? null,
-            FILTER_VALIDATE_INT
-        );
 
-        if ($bookingId === false || $bookingId <= 0) {
-            throw new RuntimeException("Invalid booking.");
+        /* ========================================
+           GET BOOKING ID
+        ======================================== */
+
+        $bookingId =
+            filter_var(
+                $_POST["booking_id"] ?? null,
+                FILTER_VALIDATE_INT
+            );
+
+        if (
+            $bookingId === false ||
+            $bookingId <= 0
+        ) {
+
+            throw new RuntimeException(
+                "Invalid booking."
+            );
         }
 
-        /* ----------------------------------------
+
+        /* ========================================
            GET ACTION
-        ---------------------------------------- */
-        $action = $_POST["action"] ?? "";
+        ======================================== */
+
+        $action =
+            $_POST["action"] ?? "";
 
         if (!is_string($action)) {
-            throw new RuntimeException("Invalid action.");
+
+            throw new RuntimeException(
+                "Invalid action."
+            );
         }
 
-        if (!in_array($action, ["accept", "reject"], true)) {
-            throw new RuntimeException("Invalid action.");
+
+        if (
+            !in_array(
+                $action,
+                [
+                    "accept",
+                    "reject"
+                ],
+                true
+            )
+        ) {
+
+            throw new RuntimeException(
+                "Invalid action."
+            );
         }
+
 
         /* ========================================
            ACCEPT
+           PENDING -> ACCEPTED
+           THEN OPEN PROCESSING / RECEIPT
         ======================================== */
+
         if ($action === "accept") {
 
-            $stmt = $conn->prepare("
-                UPDATE bookings
-                SET status = 'accepted'
-                WHERE id = ?
-                AND status = 'pending'
-            ");
+            $stmt =
+                $conn->prepare("
+                    UPDATE bookings
+                    SET status = 'accepted'
+                    WHERE id = ?
+                      AND status = 'pending'
+                ");
 
-            $stmt->execute([$bookingId]);
+            $stmt->execute([
+                $bookingId
+            ]);
 
-            /*
-             * IMPORTANT:
-             * Do not rely only on rowCount().
-             * Check the actual database value after UPDATE.
-             */
-            $checkStmt = $conn->prepare("
-                SELECT status
-                FROM bookings
-                WHERE id = ?
-                LIMIT 1
-            ");
 
-            $checkStmt->execute([$bookingId]);
+            /* ========================================
+               CHECK UPDATED STATUS
+            ======================================== */
 
-            $currentStatus = $checkStmt->fetchColumn();
+            $checkStmt =
+                $conn->prepare("
+                    SELECT status
+                    FROM bookings
+                    WHERE id = ?
+                    LIMIT 1
+                ");
 
-            if ($currentStatus === "accepted") {
+            $checkStmt->execute([
+                $bookingId
+            ]);
 
-                /*
-                 * Redirect after successful update.
-                 * This removes POST refresh problems.
-                 */
+            $currentStatus =
+                $checkStmt->fetchColumn();
+
+
+            if (
+                $currentStatus === "accepted"
+            ) {
+
                 header(
-                    "Location: bookings.php?updated=accepted"
+                    "Location: process_booking.php?id="
+                    . (int)$bookingId
                 );
+
                 exit;
 
-            } elseif ($currentStatus === "pending") {
+            } elseif (
+                $currentStatus === "pending"
+            ) {
 
                 $error =
-                    "The booking is still pending. The status was not updated.";
+                    "The booking is still pending.";
 
-            } elseif ($currentStatus === false) {
+            } elseif (
+                $currentStatus === false
+            ) {
 
                 $error =
                     "Booking not found.";
@@ -119,47 +163,67 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
         }
 
+
         /* ========================================
            REJECT
+           PENDING -> REJECTED
         ======================================== */
+
         if ($action === "reject") {
 
-            $stmt = $conn->prepare("
-                UPDATE bookings
-                SET status = 'rejected'
-                WHERE id = ?
-                AND status = 'pending'
-            ");
+            $stmt =
+                $conn->prepare("
+                    UPDATE bookings
+                    SET status = 'rejected'
+                    WHERE id = ?
+                      AND status = 'pending'
+                ");
 
-            $stmt->execute([$bookingId]);
+            $stmt->execute([
+                $bookingId
+            ]);
 
-            /*
-             * Check the actual database value.
-             */
-            $checkStmt = $conn->prepare("
-                SELECT status
-                FROM bookings
-                WHERE id = ?
-                LIMIT 1
-            ");
 
-            $checkStmt->execute([$bookingId]);
+            /* ========================================
+               CHECK UPDATED STATUS
+            ======================================== */
 
-            $currentStatus = $checkStmt->fetchColumn();
+            $checkStmt =
+                $conn->prepare("
+                    SELECT status
+                    FROM bookings
+                    WHERE id = ?
+                    LIMIT 1
+                ");
 
-            if ($currentStatus === "rejected") {
+            $checkStmt->execute([
+                $bookingId
+            ]);
+
+            $currentStatus =
+                $checkStmt->fetchColumn();
+
+
+            if (
+                $currentStatus === "rejected"
+            ) {
 
                 header(
                     "Location: bookings.php?updated=rejected"
                 );
+
                 exit;
 
-            } elseif ($currentStatus === "pending") {
+            } elseif (
+                $currentStatus === "pending"
+            ) {
 
                 $error =
-                    "The booking is still pending. The status was not updated.";
+                    "The booking is still pending.";
 
-            } elseif ($currentStatus === false) {
+            } elseif (
+                $currentStatus === false
+            ) {
 
                 $error =
                     "Booking not found.";
@@ -173,78 +237,96 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     } catch (Throwable $e) {
 
-        $error = $e->getMessage();
+        $error =
+            $e->getMessage();
     }
 }
 
 
 /* ========================================
-   SUCCESS MESSAGE AFTER REDIRECT
+   SUCCESS MESSAGE
 ======================================== */
-if (isset($_GET["updated"])) {
 
-    $updated = $_GET["updated"];
+if (
+    isset($_GET["updated"]) &&
+    $_GET["updated"] === "rejected"
+) {
 
-    if ($updated === "accepted") {
-
-        $message =
-            "Booking accepted successfully.";
-
-    } elseif ($updated === "rejected") {
-
-        $message =
-            "Booking rejected successfully.";
-    }
+    $message =
+        "Booking rejected successfully.";
 }
 
 
 /* ========================================
    GET ALL BOOKINGS
 ======================================== */
-$stmt = $conn->prepare("
-    SELECT
-        b.id,
-        b.customer_name,
-        b.email,
-        b.phone,
-        b.booking_date,
-        b.start_time,
-        b.hours,
-        b.message,
-        b.status,
-        b.created_at,
-        gs.name AS setup_name,
-        gs.price_per_hour
 
-    FROM bookings b
+$stmt =
+    $conn->prepare("
+        SELECT
+            b.id,
+            b.customer_name,
+            b.email,
+            b.phone,
+            b.booking_date,
+            b.start_time,
+            b.hours,
+            b.message,
+            b.status,
+            b.created_at,
+            b.payment_method,
+            b.payment_reference,
+            b.payment_status,
+            gs.name AS setup_name,
+            gs.price_per_hour
 
-    LEFT JOIN gaming_setups gs
-        ON gs.id = b.setup_id
+        FROM bookings b
 
-    ORDER BY
-        CASE
-            WHEN b.status = 'pending' THEN 1
-            WHEN b.status = 'accepted' THEN 2
-            WHEN b.status = 'rejected' THEN 3
-            ELSE 4
-        END,
+        LEFT JOIN gaming_setups gs
+            ON gs.id = b.setup_id
 
-        b.created_at DESC
-");
+        ORDER BY
+
+            CASE
+
+                WHEN b.status = 'pending'
+                    THEN 1
+
+                WHEN b.status = 'accepted'
+                    THEN 2
+
+                WHEN b.status = 'completed'
+                    THEN 3
+
+                WHEN b.status = 'rejected'
+                    THEN 4
+
+                ELSE 5
+
+            END,
+
+            b.created_at DESC
+    ");
 
 $stmt->execute();
 
-$bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$bookings =
+    $stmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
 
 
 /* ========================================
    CSRF TOKEN
 ======================================== */
-$csrfToken = csrfToken();
+
+$csrfToken =
+    csrfToken();
 
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -300,77 +382,125 @@ $csrfToken = csrfToken();
         ======================================== */
 
         .admin-bookings-wrapper {
-            max-width: 1200px;
+
+            width: 100%;
+
+            max-width: 1400px;
+
             margin: 0 auto;
         }
 
 
         /* ========================================
-           TOP ACTIONS
+           TOP ACTION
         ======================================== */
 
         .admin-top-actions {
+
             display: flex;
-            justify-content: space-between;
+
+            justify-content: flex-start;
+
             align-items: center;
+
             gap: 12px;
-            flex-wrap: wrap;
+
             margin-bottom: 25px;
         }
 
 
         .admin-button {
-            display: inline-block;
-            padding: 12px 18px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            min-height: 46px;
+
+            padding: 12px 20px;
+
             background: #39FF14;
+
             color: #000;
+
             text-decoration: none;
+
             font-family: Orbitron, sans-serif;
-            font-size: 11px;
+
+            font-size: 10px;
+
             font-weight: 800;
-            border-radius: 3px;
+
             border: 1px solid #39FF14;
+
+            border-radius: 3px;
+
             transition: .2s ease;
         }
 
 
         .admin-button:hover {
+
             background: #39FF14;
+
             color: #000;
+
             box-shadow:
                 0 0 15px
                 rgba(57,255,20,.45);
-        }
 
-
-        .admin-button.dark {
-            background: #39FF14;
-            color: #000;
-            border: 1px solid #39FF14;
+            transform:
+                translateY(-2px);
         }
 
 
         /* ========================================
-           MESSAGE
+           MESSAGES
         ======================================== */
 
         .admin-message {
-            border: 1px solid #39FF14;
-            background: rgba(57,255,20,.08);
-            color: #39FF14;
-            padding: 15px 18px;
-            margin-bottom: 25px;
-            font-weight: 600;
+
+            border:
+                1px solid #39FF14;
+
+            background:
+                rgba(57,255,20,.08);
+
+            color:
+                #39FF14;
+
+            padding:
+                15px 18px;
+
+            margin-bottom:
+                25px;
+
+            font-weight:
+                600;
         }
 
 
         .admin-error {
-            border: 1px solid #ff3333;
-            background: rgba(255,0,0,.08);
-            color: #ff6666;
-            padding: 15px 18px;
-            margin-bottom: 25px;
-            font-weight: 600;
+
+            border:
+                1px solid #ff3333;
+
+            background:
+                rgba(255,0,0,.08);
+
+            color:
+                #ff6666;
+
+            padding:
+                15px 18px;
+
+            margin-bottom:
+                25px;
+
+            font-weight:
+                600;
         }
 
 
@@ -379,47 +509,213 @@ $csrfToken = csrfToken();
         ======================================== */
 
         .admin-table-wrap {
-            overflow-x: auto;
-            border: 1px solid rgba(57,255,20,.3);
+
+            width:
+                100%;
+
+            overflow:
+                hidden;
+
+            border:
+                1px solid
+                rgba(57,255,20,.35);
+
+            box-sizing:
+                border-box;
+
+            background:
+                rgba(0,0,0,.35);
         }
 
 
         .admin-table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 1100px;
+
+            width:
+                100%;
+
+            min-width:
+                0 !important;
+
+            table-layout:
+                fixed;
+
+            border-collapse:
+                collapse;
+
+            border-spacing:
+                0;
         }
 
 
         .admin-table th,
         .admin-table td {
-            padding: 14px;
+
+            padding:
+                16px 11px;
+
             border-bottom:
                 1px solid
                 rgba(255,255,255,.08);
-            text-align: left;
-            font-size: 12px;
-            vertical-align: middle;
+
+            text-align:
+                left;
+
+            vertical-align:
+                middle;
+
+            font-size:
+                12px;
+
+            line-height:
+                1.4;
+
+            box-sizing:
+                border-box;
+
+            overflow-wrap:
+                anywhere;
         }
 
 
         .admin-table th {
-            color: #39FF14;
-            font-family: Orbitron, sans-serif;
-            font-size: 10px;
-            font-weight: 800;
-            white-space: nowrap;
+
+            color:
+                #39FF14;
+
+            font-family:
+                Orbitron,
+                sans-serif;
+
+            font-size:
+                10px;
+
+            font-weight:
+                800;
+
+            white-space:
+                nowrap;
         }
 
 
         .admin-table td {
-            color: #fff;
+
+            color:
+                #fff;
         }
 
 
         .admin-table tr:hover {
+
             background:
-                rgba(57,255,20,.025);
+                rgba(57,255,20,.03);
+        }
+
+
+        /* ========================================
+           COLUMN WIDTHS
+        ======================================== */
+
+        .admin-table th:nth-child(1),
+        .admin-table td:nth-child(1) {
+            width: 5%;
+        }
+
+
+        .admin-table th:nth-child(2),
+        .admin-table td:nth-child(2) {
+            width: 18%;
+        }
+
+
+        .admin-table th:nth-child(3),
+        .admin-table td:nth-child(3) {
+            width: 13%;
+        }
+
+
+        .admin-table th:nth-child(4),
+        .admin-table td:nth-child(4) {
+            width: 10%;
+        }
+
+
+        .admin-table th:nth-child(5),
+        .admin-table td:nth-child(5) {
+            width: 9%;
+        }
+
+
+        .admin-table th:nth-child(6),
+        .admin-table td:nth-child(6) {
+
+            width:
+                6%;
+
+            text-align:
+                center;
+        }
+
+
+        .admin-table th:nth-child(7),
+        .admin-table td:nth-child(7) {
+            width: 16%;
+        }
+
+
+        .admin-table th:nth-child(8),
+        .admin-table td:nth-child(8) {
+            width: 10%;
+        }
+
+
+        .admin-table th:nth-child(9),
+        .admin-table td:nth-child(9) {
+            width: 13%;
+        }
+
+
+        /* ========================================
+           CUSTOMER
+        ======================================== */
+
+        .admin-table td strong {
+
+            display:
+                block;
+
+            margin-bottom:
+                3px;
+
+            font-size:
+                13px;
+
+            font-weight:
+                700;
+
+            line-height:
+                1.3;
+        }
+
+
+        .admin-table td small {
+
+            display:
+                block;
+
+            margin-top:
+                2px;
+
+            font-size:
+                10px;
+
+            line-height:
+                1.35;
+
+            overflow-wrap:
+                anywhere;
+
+            color:
+                rgba(255,255,255,.58);
         }
 
 
@@ -428,145 +724,501 @@ $csrfToken = csrfToken();
         ======================================== */
 
         .status {
-            display: inline-block;
-            padding: 6px 11px;
-            font-family: Orbitron, sans-serif;
-            font-size: 9px;
-            font-weight: 800;
-            text-transform: uppercase;
-            border: 1px solid;
-            white-space: nowrap;
+
+            display:
+                inline-flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            min-width:
+                82px;
+
+            padding:
+                7px 9px;
+
+            font-family:
+                Orbitron,
+                sans-serif;
+
+            font-size:
+                8px;
+
+            font-weight:
+                800;
+
+            text-transform:
+                uppercase;
+
+            border:
+                1px solid;
+
+            white-space:
+                nowrap;
+
+            box-sizing:
+                border-box;
         }
 
 
         .status.pending {
-            color: #39FF14;
-            border-color: #39FF14;
+
+            color:
+                #39FF14;
+
+            border-color:
+                #39FF14;
+
             background:
                 rgba(57,255,20,.08);
         }
 
 
         .status.accepted {
-            color: #39FF14;
-            border-color: #39FF14;
+
+            color:
+                #39FF14;
+
+            border-color:
+                #39FF14;
+
             background:
                 rgba(57,255,20,.08);
         }
 
 
+        .status.completed {
+
+            color:
+                #39FF14;
+
+            border-color:
+                #39FF14;
+
+            background:
+                rgba(57,255,20,.15);
+        }
+
+
         .status.rejected {
-            color: #ff5555;
-            border-color: #ff5555;
+
+            color:
+                #ff5555;
+
+            border-color:
+                #ff5555;
+
             background:
                 rgba(255,0,0,.08);
         }
 
 
         /* ========================================
-           ACTION BUTTONS
+           BOOKING ACTIONS
         ======================================== */
 
         .booking-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
+
+            display:
+                flex;
+
+            flex-direction:
+                column;
+
+            gap:
+                6px;
+
+            align-items:
+                stretch;
+
+            width:
+                100%;
         }
 
 
         .booking-actions form {
-            margin: 0;
+
+            width:
+                100%;
+
+            margin:
+                0;
+
+            padding:
+                0;
         }
 
 
         .booking-action {
-            display: inline-block;
-            padding: 8px 13px;
-            font-family: Orbitron, sans-serif;
-            font-size: 9px;
-            font-weight: 800;
-            cursor: pointer;
-            text-decoration: none;
-            border-radius: 2px;
-            transition: .2s ease;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            width:
+                100%;
+
+            min-width:
+                0;
+
+            min-height:
+                36px;
+
+            padding:
+                7px 5px;
+
+            font-family:
+                Orbitron,
+                sans-serif;
+
+            font-size:
+                8px;
+
+            font-weight:
+                800;
+
+            cursor:
+                pointer;
+
+            border-radius:
+                2px;
+
+            box-sizing:
+                border-box;
+
+            transition:
+                .2s ease;
         }
 
 
-        /* ACCEPT */
+        /* ========================================
+           ACCEPT
+        ======================================== */
 
         .accept-button {
-            background: #39FF14;
-            color: #000;
-            border: 1px solid #39FF14;
+
+            background:
+                #39FF14;
+
+            color:
+                #000;
+
+            border:
+                1px solid
+                #39FF14;
         }
 
 
         .accept-button:hover {
-            background: #39FF14;
-            color: #000;
+
+            background:
+                #39FF14;
+
+            color:
+                #000;
+
             box-shadow:
                 0 0 10px
                 rgba(57,255,20,.45);
         }
 
 
-        /* REJECT */
+        /* ========================================
+           REJECT
+        ======================================== */
 
         .reject-button {
-            background: transparent;
-            color: #ff5555;
-            border: 1px solid #ff5555;
+
+            background:
+                transparent;
+
+            color:
+                #ff5555;
+
+            border:
+                1px solid
+                #ff5555;
         }
 
 
         .reject-button:hover {
-            background: #ff5555;
-            color: #000;
+
+            background:
+                #ff5555;
+
+            color:
+                #000;
         }
 
 
         /* ========================================
-           COMPLETED ACTION
+           PROCESSING / VIEW RECEIPT
         ======================================== */
 
-        .action-complete {
-            display: inline-block;
-            padding: 6px 10px;
-            font-family: Orbitron, sans-serif;
-            font-size: 9px;
-            font-weight: 800;
-            white-space: nowrap;
-            border: 1px solid;
+        .action-link {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            width:
+                100%;
+
+            min-height:
+                36px;
+
+            padding:
+                7px 5px;
+
+            font-family:
+                Orbitron,
+                sans-serif;
+
+            font-size:
+                8px;
+
+            font-weight:
+                800;
+
+            white-space:
+                nowrap;
+
+            border:
+                1px solid
+                #39FF14;
+
+            border-radius:
+                2px;
+
+            background:
+                rgba(57,255,20,.10);
+
+            color:
+                #39FF14;
+
+            text-decoration:
+                none;
+
+            box-sizing:
+                border-box;
+
+            transition:
+                .2s ease;
         }
 
 
-        .action-complete.accepted {
-            color: #39FF14;
-            border-color: #39FF14;
-            background: rgba(57,255,20,.08);
-        }
+        .action-link:hover {
 
+            background:
+                #39FF14;
 
-        .action-complete.rejected {
-            color: #ff5555;
-            border-color: #ff5555;
-            background: rgba(255,0,0,.08);
+            color:
+                #000;
+
+            box-shadow:
+                0 0 10px
+                rgba(57,255,20,.45);
         }
 
 
         /* ========================================
-           EMPTY TABLE
+           REJECTED ACTION
+        ======================================== */
+
+        .action-rejected {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            width:
+                100%;
+
+            min-height:
+                36px;
+
+            padding:
+                7px 5px;
+
+            font-family:
+                Orbitron,
+                sans-serif;
+
+            font-size:
+                8px;
+
+            font-weight:
+                800;
+
+            white-space:
+                nowrap;
+
+            border:
+                1px solid
+                #ff5555;
+
+            box-sizing:
+                border-box;
+
+            color:
+                #ff5555;
+
+            background:
+                rgba(255,0,0,.08);
+        }
+
+
+        /* ========================================
+           EMPTY
         ======================================== */
 
         .no-bookings {
-            text-align: center;
-            padding: 45px 20px;
+
+            text-align:
+                center;
+
+            padding:
+                50px 20px;
+
             border:
                 1px solid
                 rgba(57,255,20,.25);
+
             color:
                 rgba(255,255,255,.6);
+        }
+
+
+        /* ========================================
+           LARGE DESKTOP
+        ======================================== */
+
+        @media (min-width: 1400px) {
+
+            .admin-bookings-wrapper {
+                max-width: 1400px;
+            }
+
+
+            .admin-table th,
+            .admin-table td {
+
+                padding:
+                    17px 13px;
+
+                font-size:
+                    12px;
+            }
+
+
+            .admin-table th {
+                font-size: 10px;
+            }
+
+
+            .admin-table td strong {
+                font-size: 13px;
+            }
+
+
+            .admin-table td small {
+                font-size: 10px;
+            }
+
+
+            .status {
+                font-size: 9px;
+            }
+
+
+            .booking-action,
+            .action-link,
+            .action-rejected {
+
+                min-height:
+                    36px;
+
+                font-size:
+                    8px;
+            }
+
+        }
+
+
+        /* ========================================
+           TABLET
+        ======================================== */
+
+        @media (max-width: 1000px) {
+
+            .admin-table th,
+            .admin-table td {
+
+                padding:
+                    11px 7px;
+
+                font-size:
+                    10px;
+            }
+
+
+            .admin-table th {
+                font-size: 8px;
+            }
+
+
+            .admin-table td strong {
+                font-size: 10px;
+            }
+
+
+            .admin-table td small {
+                font-size: 7px;
+            }
+
+
+            .status {
+
+                min-width:
+                    64px;
+
+                font-size:
+                    7px;
+
+                padding:
+                    5px;
+            }
+
+
+            .booking-action,
+            .action-link,
+            .action-rejected {
+
+                min-height:
+                    30px;
+
+                font-size:
+                    7px;
+            }
+
         }
 
 
@@ -576,14 +1228,57 @@ $csrfToken = csrfToken();
 
         @media (max-width: 600px) {
 
-            .admin-top-actions {
-                align-items: flex-start;
-                flex-direction: column;
+            .admin-table th,
+            .admin-table td {
+
+                padding:
+                    8px 4px;
+
+                font-size:
+                    8px;
             }
 
-            .admin-button {
-                width: 100%;
-                text-align: center;
+
+            .admin-table th {
+                font-size: 6px;
+            }
+
+
+            .admin-table td strong {
+                font-size: 8px;
+            }
+
+
+            .admin-table td small {
+                font-size: 6px;
+            }
+
+
+            .status {
+
+                min-width:
+                    48px;
+
+                padding:
+                    4px 3px;
+
+                font-size:
+                    5px;
+            }
+
+
+            .booking-action,
+            .action-link,
+            .action-rejected {
+
+                min-height:
+                    26px;
+
+                padding:
+                    4px 2px;
+
+                font-size:
+                    5px;
             }
 
         }
@@ -636,7 +1331,7 @@ $csrfToken = csrfToken();
         </button>
 
 
-        <!-- NAVIGATION -->
+        <!-- ADMIN NAVIGATION -->
 
         <nav
             class="main-nav"
@@ -656,18 +1351,8 @@ $csrfToken = csrfToken();
             </a>
 
 
-            <a href="reviews.php">
-                REVIEWS
-            </a>
-
-
             <a href="../index.php">
                 WEBSITE
-            </a>
-
-
-            <a href="logout.php">
-                LOGOUT
             </a>
 
         </nav>
@@ -677,7 +1362,6 @@ $csrfToken = csrfToken();
 </header>
 
 
-
 <!-- ========================================
      MAIN
 ======================================== -->
@@ -685,6 +1369,7 @@ $csrfToken = csrfToken();
 <main class="inner-page">
 
     <div class="container form-page">
+
 
         <div class="admin-bookings-wrapper">
 
@@ -701,53 +1386,34 @@ $csrfToken = csrfToken();
             <h1 class="page-title">
 
                 CUSTOMER
-                <span>BOOKINGS</span>
+
+                <span>
+                    BOOKINGS
+                </span>
 
             </h1>
 
 
-
             <!-- ========================================
-                 TOP ACTIONS
+                 DASHBOARD BUTTON
             ======================================== -->
 
             <div class="admin-top-actions">
 
-
-                <div>
-
-                    <a
-                        href="dashboard.php"
-                        class="admin-button"
-                    >
-                        ← DASHBOARD
-                    </a>
-
-
-                    <a
-                        href="reviews.php"
-                        class="admin-button"
-                        style="margin-left:8px;"
-                    >
-                        CUSTOMER REVIEWS
-                    </a>
-
-                </div>
-
-
                 <a
-                    href="../index.php"
-                    class="admin-button dark"
+                    href="dashboard.php"
+                    class="admin-button"
                 >
-                    VIEW WEBSITE
+
+                    ← DASHBOARD
+
                 </a>
 
             </div>
 
 
-
             <!-- ========================================
-                 SUCCESS MESSAGE
+                 SUCCESS
             ======================================== -->
 
             <?php if ($message !== ""): ?>
@@ -765,9 +1431,8 @@ $csrfToken = csrfToken();
             <?php endif; ?>
 
 
-
             <!-- ========================================
-                 ERROR MESSAGE
+                 ERROR
             ======================================== -->
 
             <?php if ($error !== ""): ?>
@@ -785,7 +1450,6 @@ $csrfToken = csrfToken();
             <?php endif; ?>
 
 
-
             <!-- ========================================
                  BOOKINGS TABLE
             ======================================== -->
@@ -793,7 +1457,9 @@ $csrfToken = csrfToken();
             <?php if (!$bookings): ?>
 
                 <div class="no-bookings">
+
                     No customer bookings found.
+
                 </div>
 
             <?php else: ?>
@@ -807,23 +1473,41 @@ $csrfToken = csrfToken();
 
                             <tr>
 
-                                <th>ID</th>
+                                <th>
+                                    ID
+                                </th>
 
-                                <th>CUSTOMER</th>
+                                <th>
+                                    CUSTOMER
+                                </th>
 
-                                <th>SETUP</th>
+                                <th>
+                                    SETUP
+                                </th>
 
-                                <th>DATE</th>
+                                <th>
+                                    DATE
+                                </th>
 
-                                <th>TIME</th>
+                                <th>
+                                    TIME
+                                </th>
 
-                                <th>HOURS</th>
+                                <th>
+                                    HOURS
+                                </th>
 
-                                <th>MESSAGE</th>
+                                <th>
+                                    MESSAGE
+                                </th>
 
-                                <th>STATUS</th>
+                                <th>
+                                    STATUS
+                                </th>
 
-                                <th>ACTION</th>
+                                <th>
+                                    ACTION
+                                </th>
 
                             </tr>
 
@@ -833,91 +1517,112 @@ $csrfToken = csrfToken();
                         <tbody>
 
 
-                        <?php foreach ($bookings as $booking): ?>
+                        <?php foreach (
+                            $bookings
+                            as $booking
+                        ): ?>
+
 
                             <?php
 
-                            /*
-                             * Normalize status.
-                             */
-                            $status = strtolower(
-                                trim(
-                                    (string)
-                                    ($booking["status"] ?? "")
-                                )
-                            );
+                            /* ========================================
+                               NORMALIZE STATUS
+                            ======================================== */
 
-                            /*
-                             * Safety fallback.
-                             */
+                            $status =
+                                strtolower(
+                                    trim(
+                                        (string)(
+                                            $booking["status"]
+                                            ?? ""
+                                        )
+                                    )
+                                );
+
+
                             if ($status === "") {
-                                $status = "pending";
+
+                                $status =
+                                    "pending";
                             }
 
-                            /*
-                             * Only allow known CSS/action statuses.
-                             */
+
+                            $knownStatuses = [
+
+                                "pending",
+                                "accepted",
+                                "completed",
+                                "rejected"
+
+                            ];
+
+
                             if (
                                 !in_array(
                                     $status,
-                                    [
-                                        "pending",
-                                        "accepted",
-                                        "rejected"
-                                    ],
+                                    $knownStatuses,
                                     true
                                 )
                             ) {
-                                $statusClass = "pending";
-                                $statusLabel = strtoupper($status);
-                            } else {
-                                $statusClass = $status;
-                                $statusLabel = strtoupper($status);
+
+                                $status =
+                                    "pending";
                             }
 
+
+                            $statusLabel =
+                                strtoupper(
+                                    $status
+                                );
+
                             ?>
+
 
                             <tr>
 
 
-                                <!-- ID -->
+                                <!-- ========================================
+                                     ID
+                                ======================================== -->
 
                                 <td>
 
                                     #<?= (int)
-                                        $booking["id"] ?>
+                                        $booking["id"]
+                                    ?>
 
                                 </td>
 
 
-
-                                <!-- CUSTOMER -->
+                                <!-- ========================================
+                                     CUSTOMER
+                                ======================================== -->
 
                                 <td>
 
                                     <strong>
 
                                         <?= htmlspecialchars(
-                                            (string)
-                                            $booking["customer_name"],
+                                            (string)(
+                                                $booking[
+                                                    "customer_name"
+                                                ] ?? ""
+                                            ),
                                             ENT_QUOTES,
                                             "UTF-8"
                                         ) ?>
 
                                     </strong>
 
-                                    <br>
 
-                                    <small
-                                        style="
-                                            color:
-                                            rgba(255,255,255,.5);
-                                        "
-                                    >
+                                    <small>
 
                                         <?= htmlspecialchars(
-                                            (string)
-                                            ($booking["email"] ?? ""),
+                                            (string)(
+                                                $booking[
+                                                    "email"
+                                                ] ?? ""
+                                            ),
                                             ENT_QUOTES,
                                             "UTF-8"
                                         ) ?>
@@ -926,22 +1631,12 @@ $csrfToken = csrfToken();
 
 
                                     <?php if (
-                                        !empty($booking["phone"])
+                                        !empty(
+                                            $booking["phone"]
+                                        )
                                     ): ?>
 
-                                        <br>
-
-                                        <small
-                                            style="
-                                                color:
-                                                rgba(
-                                                    255,
-                                                    255,
-                                                    255,
-                                                    .5
-                                                );
-                                            "
-                                        >
+                                        <small>
 
                                             <?= htmlspecialchars(
                                                 (string)
@@ -957,15 +1652,17 @@ $csrfToken = csrfToken();
                                 </td>
 
 
-
-                                <!-- SETUP -->
+                                <!-- ========================================
+                                     SETUP
+                                ======================================== -->
 
                                 <td>
 
                                     <?= htmlspecialchars(
-                                        (string)
-                                        (
-                                            $booking["setup_name"]
+                                        (string)(
+                                            $booking[
+                                                "setup_name"
+                                            ]
                                             ?? "Unknown"
                                         ),
                                         ENT_QUOTES,
@@ -975,14 +1672,17 @@ $csrfToken = csrfToken();
                                 </td>
 
 
-
-                                <!-- DATE -->
+                                <!-- ========================================
+                                     DATE
+                                ======================================== -->
 
                                 <td>
 
                                     <?= htmlspecialchars(
                                         (string)
-                                        $booking["booking_date"],
+                                        $booking[
+                                            "booking_date"
+                                        ],
                                         ENT_QUOTES,
                                         "UTF-8"
                                     ) ?>
@@ -990,14 +1690,17 @@ $csrfToken = csrfToken();
                                 </td>
 
 
-
-                                <!-- TIME -->
+                                <!-- ========================================
+                                     TIME
+                                ======================================== -->
 
                                 <td>
 
                                     <?= htmlspecialchars(
                                         (string)
-                                        $booking["start_time"],
+                                        $booking[
+                                            "start_time"
+                                        ],
                                         ENT_QUOTES,
                                         "UTF-8"
                                     ) ?>
@@ -1005,19 +1708,24 @@ $csrfToken = csrfToken();
                                 </td>
 
 
-
-                                <!-- HOURS -->
+                                <!-- ========================================
+                                     HOURS
+                                ======================================== -->
 
                                 <td>
 
                                     <?= (int)
-                                        $booking["hours"] ?>
+                                        $booking[
+                                            "hours"
+                                        ]
+                                    ?>
 
                                 </td>
 
 
-
-                                <!-- MESSAGE -->
+                                <!-- ========================================
+                                     MESSAGE
+                                ======================================== -->
 
                                 <td>
 
@@ -1025,14 +1733,15 @@ $csrfToken = csrfToken();
 
                                     $bookingMessage =
                                         trim(
-                                            (string)
-                                            (
-                                                $booking["message"]
-                                                ?? ""
+                                            (string)(
+                                                $booking[
+                                                    "message"
+                                                ] ?? ""
                                             )
                                         );
 
                                     ?>
+
 
                                     <?php if (
                                         $bookingMessage !== ""
@@ -1065,8 +1774,9 @@ $csrfToken = csrfToken();
                                 </td>
 
 
-
-                                <!-- STATUS -->
+                                <!-- ========================================
+                                     STATUS
+                                ======================================== -->
 
                                 <td>
 
@@ -1074,7 +1784,7 @@ $csrfToken = csrfToken();
                                         class="
                                             status
                                             <?= htmlspecialchars(
-                                                $statusClass,
+                                                $status,
                                                 ENT_QUOTES,
                                                 "UTF-8"
                                             )
@@ -1093,8 +1803,9 @@ $csrfToken = csrfToken();
                                 </td>
 
 
-
-                                <!-- ACTION -->
+                                <!-- ========================================
+                                     ACTION
+                                ======================================== -->
 
                                 <td>
 
@@ -1131,7 +1842,8 @@ $csrfToken = csrfToken();
                                                     type="hidden"
                                                     name="booking_id"
                                                     value="<?= (int)
-                                                        $booking["id"] ?>"
+                                                        $booking["id"]
+                                                    ?>"
                                                 >
 
 
@@ -1155,12 +1867,16 @@ $csrfToken = csrfToken();
                                             </form>
 
 
-
                                             <!-- REJECT -->
 
                                             <form
                                                 method="POST"
                                                 action="bookings.php"
+                                                onsubmit="
+                                                    return confirm(
+                                                        'Reject this booking?'
+                                                    );
+                                                "
                                             >
 
                                                 <input
@@ -1178,7 +1894,8 @@ $csrfToken = csrfToken();
                                                     type="hidden"
                                                     name="booking_id"
                                                     value="<?= (int)
-                                                        $booking["id"] ?>"
+                                                        $booking["id"]
+                                                    ?>"
                                                 >
 
 
@@ -1201,6 +1918,7 @@ $csrfToken = csrfToken();
 
                                             </form>
 
+
                                         </div>
 
 
@@ -1209,14 +1927,33 @@ $csrfToken = csrfToken();
                                     ): ?>
 
 
-                                        <span
-                                            class="
-                                                action-complete
-                                                accepted
-                                            "
+                                        <!-- PROCESSING -->
+
+                                        <a
+                                            href="process_booking.php?id=<?= (int)
+                                                $booking["id"]
+                                            ?>"
+                                            class="action-link"
                                         >
-                                            ACCEPTED
-                                        </span>
+                                            PROCESSING
+                                        </a>
+
+
+                                    <?php elseif (
+                                        $status === "completed"
+                                    ): ?>
+
+
+                                        <!-- VIEW RECEIPT -->
+
+                                        <a
+                                            href="process_booking.php?id=<?= (int)
+                                                $booking["id"]
+                                            ?>&view=1"
+                                            class="action-link"
+                                        >
+                                            VIEW RECEIPT
+                                        </a>
 
 
                                     <?php elseif (
@@ -1225,10 +1962,7 @@ $csrfToken = csrfToken();
 
 
                                         <span
-                                            class="
-                                                action-complete
-                                                rejected
-                                            "
+                                            class="action-rejected"
                                         >
                                             REJECTED
                                         </span>
@@ -1260,6 +1994,7 @@ $csrfToken = csrfToken();
 
                             </tr>
 
+
                         <?php endforeach; ?>
 
 
@@ -1279,7 +2014,6 @@ $csrfToken = csrfToken();
 </main>
 
 
-
 <!-- ========================================
      MOBILE MENU
 ======================================== -->
@@ -1287,22 +2021,36 @@ $csrfToken = csrfToken();
 <script>
 
 const menuToggle =
-    document.querySelector(".menu-toggle");
+    document.querySelector(
+        ".menu-toggle"
+    );
+
 
 const mainNav =
-    document.querySelector(".main-nav");
+    document.querySelector(
+        ".main-nav"
+    );
 
 
-if (menuToggle && mainNav) {
+if (
+    menuToggle &&
+    mainNav
+) {
 
     menuToggle.addEventListener(
         "click",
         function () {
 
-            mainNav.classList.toggle("open");
+            mainNav.classList.toggle(
+                "open"
+            );
+
 
             const isOpen =
-                mainNav.classList.contains("open");
+                mainNav.classList.contains(
+                    "open"
+                );
+
 
             menuToggle.setAttribute(
                 "aria-expanded",

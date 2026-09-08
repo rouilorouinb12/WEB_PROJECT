@@ -5,35 +5,57 @@ declare(strict_types=1);
 require_once "database.php";
 require_once "auth.php";
 
+
 /* ========================================
    IF ALREADY LOGGED IN
 ======================================== */
 
 if (isLoggedIn()) {
 
-    $role = (string) ($_SESSION["user_role"] ?? "customer");
+    $role =
+        (string)(
+            $_SESSION["user_role"] ??
+            "customer"
+        );
+
 
     if ($role === "admin") {
-        header("Location: admin/dashboard.php");
+
+        header(
+            "Location: admin/dashboard.php"
+        );
+
         exit;
     }
 
-    header("Location: index.php");
+
+    header(
+        "Location: index.php"
+    );
+
     exit;
 }
 
+
 $message = "";
+
 $messageType = "";
+
 
 /* ========================================
    FORM VALUES
 ======================================== */
 
 $firstName = "";
+
 $middleName = "";
+
 $lastName = "";
+
 $email = "";
+
 $birthdate = "";
+
 
 /* ========================================
    HANDLE REGISTRATION
@@ -41,53 +63,87 @@ $birthdate = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
+
     /* ========================================
        CSRF PROTECTION
     ======================================== */
 
-    $csrfToken = $_POST["csrf_token"] ?? null;
+    $csrfToken =
+        $_POST["csrf_token"] ?? null;
+
 
     if (
         !is_string($csrfToken) ||
         !verifyCsrfToken($csrfToken)
     ) {
 
-        $message = "Invalid form request. Please try again.";
-        $messageType = "error";
+        $message =
+            "Invalid form request. Please try again.";
+
+        $messageType =
+            "error";
+
 
     } else {
+
 
         /* ========================================
            GET FORM VALUES
         ======================================== */
 
-        $firstName = trim(
-            (string) ($_POST["first_name"] ?? "")
-        );
+        $firstName =
+            trim(
+                (string)(
+                    $_POST["first_name"] ?? ""
+                )
+            );
 
-        $middleName = trim(
-            (string) ($_POST["middle_name"] ?? "")
-        );
 
-        $lastName = trim(
-            (string) ($_POST["last_name"] ?? "")
-        );
+        $middleName =
+            trim(
+                (string)(
+                    $_POST["middle_name"] ?? ""
+                )
+            );
 
-        $email = strtolower(
-            trim((string) ($_POST["email"] ?? ""))
-        );
 
-        $birthdate = trim(
-            (string) ($_POST["birthdate"] ?? "")
-        );
+        $lastName =
+            trim(
+                (string)(
+                    $_POST["last_name"] ?? ""
+                )
+            );
 
-        $password = (string) (
-            $_POST["password"] ?? ""
-        );
 
-        $confirmPassword = (string) (
-            $_POST["confirm_password"] ?? ""
-        );
+        $email =
+            strtolower(
+                trim(
+                    (string)(
+                        $_POST["email"] ?? ""
+                    )
+                )
+            );
+
+
+        $birthdate =
+            trim(
+                (string)(
+                    $_POST["birthdate"] ?? ""
+                )
+            );
+
+
+        $password =
+            (string)(
+                $_POST["password"] ?? ""
+            );
+
+
+        $confirmPassword =
+            (string)(
+                $_POST["confirm_password"] ?? ""
+            );
+
 
         /* ========================================
            BASIC VALIDATION
@@ -105,7 +161,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Please fill in all required fields.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
+
 
         /* ========================================
            NAME VALIDATION
@@ -120,7 +178,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Name fields are too long.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
+
 
         } elseif (
             !preg_match(
@@ -132,7 +192,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "First name contains invalid characters.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
+
 
         } elseif (
             !preg_match(
@@ -144,7 +206,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Last name contains invalid characters.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
+
 
         } elseif (
             $middleName !== "" &&
@@ -157,7 +221,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Middle name contains invalid characters.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
+
 
         /* ========================================
            EMAIL VALIDATION
@@ -173,59 +239,96 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $message =
                 "Please enter a valid email address.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
 
-        } elseif (strlen($email) > 160) {
+
+        } elseif (
+            strlen($email) > 160
+        ) {
 
             $message =
                 "Email address is too long.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
+
 
         /* ========================================
            PASSWORD VALIDATION
         ======================================== */
 
-        } elseif (strlen($password) < 8) {
+        } elseif (
+            strlen($password) < 8
+        ) {
 
             $message =
                 "Password must contain at least 8 characters.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
 
-        } elseif (!preg_match('/[a-z]/', $password)) {
+
+        } elseif (
+            !preg_match(
+                '/[a-z]/',
+                $password
+            )
+        ) {
 
             $message =
                 "Password must contain at least one lowercase letter (a-z).";
 
-            $messageType = "error";
+            $messageType =
+                "error";
 
-        } elseif (!preg_match('/[A-Z]/', $password)) {
+
+        } elseif (
+            !preg_match(
+                '/[A-Z]/',
+                $password
+            )
+        ) {
 
             $message =
                 "Password must contain at least one uppercase letter (A-Z).";
 
-            $messageType = "error";
+            $messageType =
+                "error";
 
-        } elseif (!preg_match('/[0-9]/', $password)) {
+
+        } elseif (
+            !preg_match(
+                '/[0-9]/',
+                $password
+            )
+        ) {
 
             $message =
                 "Password must contain at least one number (0-9).";
 
-            $messageType = "error";
+            $messageType =
+                "error";
+
 
         /* ========================================
            CONFIRM PASSWORD
         ======================================== */
 
-        } elseif ($password !== $confirmPassword) {
+        } elseif (
+            $password !==
+            $confirmPassword
+        ) {
 
             $message =
                 "Passwords do not match.";
 
-            $messageType = "error";
+            $messageType =
+                "error";
+
 
         } else {
+
 
             /* ========================================
                VALIDATE BIRTHDATE
@@ -237,17 +340,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $birthdate
                 );
 
+
             $validBirthdate =
                 $birthdateObject !== false &&
-                $birthdateObject->format("Y-m-d") ===
-                    $birthdate;
+                $birthdateObject->format(
+                    "Y-m-d"
+                ) === $birthdate;
+
 
             if (!$validBirthdate) {
 
                 $message =
                     "Please enter a valid birthdate.";
 
-                $messageType = "error";
+                $messageType =
+                    "error";
+
 
             } elseif (
                 $birthdate > date("Y-m-d")
@@ -256,73 +364,93 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $message =
                     "Birthdate cannot be in the future.";
 
-                $messageType = "error";
+                $messageType =
+                    "error";
+
 
             } else {
+
 
                 /* ========================================
                    CHECK EMAIL
                 ======================================== */
 
-                $check = $conn->prepare("
-                    SELECT id
-                    FROM users
-                    WHERE email = ?
-                    LIMIT 1
-                ");
+                $check =
+                    $conn->prepare("
+                        SELECT id
+                        FROM users
+                        WHERE email = ?
+                        LIMIT 1
+                    ");
+
 
                 $check->execute([
                     $email
                 ]);
+
 
                 if ($check->fetch()) {
 
                     $message =
                         "An account with this email already exists.";
 
-                    $messageType = "error";
+                    $messageType =
+                        "error";
+
 
                 } else {
+
 
                     /* ========================================
                        CREATE FULL NAME
                     ======================================== */
 
-                    $fullName = $firstName;
+                    $fullName =
+                        $firstName;
+
 
                     if ($middleName !== "") {
+
                         $fullName .=
-                            " " . $middleName;
+                            " " .
+                            $middleName;
                     }
 
+
                     $fullName .=
-                        " " . $lastName;
+                        " " .
+                        $lastName;
+
 
                     /* ========================================
                        HASH PASSWORD
                     ======================================== */
 
-                    $hashedPassword = password_hash(
-                        $password,
-                        PASSWORD_DEFAULT
-                    );
+                    $hashedPassword =
+                        password_hash(
+                            $password,
+                            PASSWORD_DEFAULT
+                        );
+
 
                     if ($hashedPassword === false) {
 
                         $message =
                             "Unable to secure your password. Please try again.";
 
-                        $messageType = "error";
+                        $messageType =
+                            "error";
+
 
                     } else {
 
+
                         /* ========================================
                            PHONE
-                           Registration currently does not ask
-                           for phone number.
                         ======================================== */
 
                         $phone = "";
+
 
                         /* ========================================
                            INSERT USER
@@ -330,19 +458,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         try {
 
-                            $stmt = $conn->prepare("
-                                INSERT INTO users (
-                                    name,
-                                    first_name,
-                                    middle_name,
-                                    last_name,
-                                    email,
-                                    birthdate,
-                                    phone,
-                                    password
-                                )
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            ");
+                            $stmt =
+                                $conn->prepare("
+                                    INSERT INTO users (
+                                        name,
+                                        first_name,
+                                        middle_name,
+                                        last_name,
+                                        email,
+                                        birthdate,
+                                        phone,
+                                        password
+                                    )
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                ");
+
 
                             $stmt->execute([
                                 $fullName,
@@ -357,6 +487,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 $hashedPassword
                             ]);
 
+
                             /* ========================================
                                SUCCESS
                             ======================================== */
@@ -364,24 +495,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             $message =
                                 "Account created successfully! You can now log in.";
 
-                            $messageType = "success";
+                            $messageType =
+                                "success";
+
 
                             /* ========================================
                                CLEAR FORM
                             ======================================== */
 
                             $firstName = "";
+
                             $middleName = "";
+
                             $lastName = "";
+
                             $email = "";
+
                             $birthdate = "";
+
 
                         } catch (PDOException $e) {
 
                             $message =
                                 "Unable to create the account. Please try again.";
 
-                            $messageType = "error";
+                            $messageType =
+                                "error";
                         }
                     }
                 }
@@ -393,6 +532,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -412,6 +552,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <title>
         CREATE ACCOUNT | Bais Rouilo Gaming Cafe
     </title>
+
 
     <!-- ========================================
          GOOGLE FONTS
@@ -433,6 +574,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         rel="stylesheet"
     >
 
+
     <!-- MAIN CSS -->
 
     <link
@@ -440,120 +582,504 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         href="assets/css/style.css"
     >
 
-    <!-- ========================================
-         REGISTER PAGE FIXES
-    ======================================== -->
 
     <style>
 
-        .booking-form .birthdate-field {
-            display: grid;
-            grid-template-rows: auto 40px;
-            gap: 7px;
-            margin: 0;
-            padding: 0;
-            align-content: start;
+        /* ========================================
+           ACCOUNT BACKGROUND
+        ======================================== */
+
+        body {
+
+            background:
+
+                linear-gradient(
+                    rgba(0, 0, 0, .72),
+                    rgba(0, 0, 0, .72)
+                ),
+
+                url("assets/images/account-bg.png");
+
+            background-position:
+                center center;
+
+            background-size:
+                cover;
+
+            background-repeat:
+                no-repeat;
+
+            background-attachment:
+                fixed;
+
+            background-color:
+                #000;
+
         }
 
-        .booking-form .birthdate-field input[type="date"] {
-            width: 100%;
-            height: 40px;
-            min-height: 40px;
-            max-height: 40px;
-            margin: 0;
-            padding: 0 12px;
-            border: 1px solid #333;
-            border-radius: 4px;
-            color: #fff;
-            background: #070707;
-            outline: none;
-            font-family: "Montserrat", Arial, sans-serif;
-            font-size: 11px;
-            font-weight: 600;
-            box-sizing: border-box;
+
+        .site-header {
+
+            background:
+                rgba(0, 0, 0, .82);
+
+            backdrop-filter:
+                blur(4px);
+
         }
 
-        .booking-form .birthdate-field
+
+        /* ========================================
+           REGISTER HEADER
+           LOGO ONLY
+        ======================================== */
+
+        .register-header {
+
+            justify-content:
+                flex-start;
+
+        }
+
+
+        /* ========================================
+           BIRTHDATE
+        ======================================== */
+
+        .booking-form
+        .birthdate-field {
+
+            display:
+                grid;
+
+            grid-template-rows:
+                auto 40px;
+
+            gap:
+                7px;
+
+            margin:
+                0;
+
+            padding:
+                0;
+
+            align-content:
+                start;
+
+        }
+
+
+        .booking-form
+        .birthdate-field
+        input[type="date"] {
+
+            width:
+                100%;
+
+            height:
+                40px;
+
+            min-height:
+                40px;
+
+            max-height:
+                40px;
+
+            margin:
+                0;
+
+            padding:
+                0 12px;
+
+            border:
+                1px solid #333;
+
+            border-radius:
+                4px;
+
+            color:
+                #fff;
+
+            background:
+                rgba(7, 7, 7, .94);
+
+            outline:
+                none;
+
+            font-family:
+                "Montserrat",
+                Arial,
+                sans-serif;
+
+            font-size:
+                11px;
+
+            font-weight:
+                600;
+
+            box-sizing:
+                border-box;
+
+        }
+
+
+        .booking-form
+        .birthdate-field
         input[type="date"]::-webkit-calendar-picker-indicator {
-            cursor: pointer;
-            margin-left: auto;
+
+            cursor:
+                pointer;
+
+            margin-left:
+                auto;
+
         }
 
-        .booking-form .birthdate-field
+
+        .booking-form
+        .birthdate-field
         input[type="date"]:focus {
-            border-color: var(--green);
+
+            border-color:
+                var(--green);
+
             box-shadow:
-                0 0 10px rgba(57, 255, 20, .2);
+                0 0 10px
+                rgba(57,255,20,.2);
+
         }
+
+
+        /* ========================================
+           PASSWORD FIELD
+        ======================================== */
+
+        .booking-form
+        .password-field {
+
+            position:
+                relative;
+
+        }
+
+
+        /* ========================================
+           PASSWORD INPUT WRAPPER
+        ======================================== */
+
+        .password-input-wrap {
+
+            position:
+                relative;
+
+            width:
+                100%;
+
+        }
+
+
+        .password-input-wrap input {
+
+            width:
+                100%;
+
+            height:
+                40px;
+
+            min-height:
+                40px;
+
+            padding:
+                0 82px 0 12px;
+
+            border:
+                1px solid #333;
+
+            border-radius:
+                4px;
+
+            color:
+                #fff;
+
+            background:
+                rgba(7, 7, 7, .94);
+
+            outline:
+                none;
+
+            box-sizing:
+                border-box;
+
+            font-family:
+                "Montserrat",
+                Arial,
+                sans-serif;
+
+            font-size:
+                11px;
+
+            font-weight:
+                600;
+
+            transition:
+                border-color .2s ease,
+                box-shadow .2s ease;
+
+        }
+
+
+        .password-input-wrap input::placeholder {
+
+            color:
+                #777;
+
+        }
+
+
+        .password-input-wrap input:focus {
+
+            border-color:
+                var(--green);
+
+            box-shadow:
+                0 0 10px
+                rgba(57,255,20,.2);
+
+        }
+
+
+        /* ========================================
+           SHOW / HIDE PASSWORD
+        ======================================== */
+
+        .show-password {
+
+            position:
+                absolute;
+
+            right:
+                10px;
+
+            top:
+                50%;
+
+            transform:
+                translateY(-50%);
+
+            border:
+                none;
+
+            background:
+                transparent;
+
+            color:
+                var(--green);
+
+            padding:
+                5px;
+
+            font-family:
+                "Orbitron",
+                sans-serif;
+
+            font-size:
+                8px;
+
+            font-weight:
+                800;
+
+            line-height:
+                1;
+
+            cursor:
+                pointer;
+
+            z-index:
+                3;
+
+        }
+
+
+        .show-password:hover {
+
+            color:
+                #fff;
+
+        }
+
+
+        .show-password:focus {
+
+            outline:
+                none;
+
+        }
+
+
+        .show-password:active {
+
+            color:
+                var(--green);
+
+        }
+
 
         /* ========================================
            PASSWORD REQUIREMENTS
-           DOES NOT CHANGE FORM LAYOUT
         ======================================== */
 
-        .booking-form .password-field {
-            position: relative;
+        .booking-form
+        .password-field
+        .password-requirements {
+
+            position:
+                absolute;
+
+            top:
+                70px;
+
+            left:
+                0;
+
+            width:
+                100%;
+
+            margin:
+                0;
+
+            padding:
+                0;
+
+            z-index:
+                5;
+
         }
 
-        .booking-form .password-field
-        .password-requirements {
-            position: absolute;
-            top: 70px;
-            left: 0;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            z-index: 5;
-        }
 
         .password-requirements {
-            font-family: Montserrat, sans-serif;
-            font-size: 11px;
-            line-height: 1.5;
+
+            font-family:
+                Montserrat,
+                sans-serif;
+
+            font-size:
+                11px;
+
+            line-height:
+                1.5;
+
         }
+
 
         .requirement {
-            color: #777;
-            transition: .2s ease;
-            margin: 0 0 4px;
+
+            color:
+                #777;
+
+            transition:
+                .2s ease;
+
+            margin:
+                0 0 4px;
+
         }
+
 
         .requirement span {
-            display: inline-block;
-            width: 18px;
-            font-weight: 800;
-            color: #777;
+
+            display:
+                inline-block;
+
+            width:
+                18px;
+
+            font-weight:
+                800;
+
+            color:
+                #777;
+
         }
+
 
         .requirement.valid {
-            color: #39FF14;
+
+            color:
+                #39FF14;
+
         }
+
 
         .requirement.valid span {
-            color: #39FF14;
+
+            color:
+                #39FF14;
+
         }
+
 
         .requirement.invalid {
-            color: #777;
+
+            color:
+                #777;
+
         }
 
+
         .requirement.invalid span {
-            color: #777;
+
+            color:
+                #777;
+
+        }
+
+
+        /* ========================================
+           MOBILE
+        ======================================== */
+
+        @media (max-width: 600px) {
+
+            .password-input-wrap input {
+
+                height:
+                    40px;
+
+            }
+
+
+            .show-password {
+
+                font-size:
+                    8px;
+
+                right:
+                    8px;
+
+            }
+
         }
 
     </style>
 
 </head>
 
+
 <body>
+
 
 <!-- ========================================
      HEADER
+     LOGO ONLY
 ======================================== -->
 
 <header class="site-header">
 
-    <div class="container nav-container">
+    <div
+        class="container nav-container register-header"
+    >
+
 
         <!-- LOGO -->
 
@@ -569,57 +1095,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         </a>
 
-        <!-- MOBILE MENU -->
-
-        <button
-            class="menu-toggle"
-            aria-label="Open menu"
-            aria-expanded="false"
-            type="button"
-        >
-
-            <span></span>
-            <span></span>
-            <span></span>
-
-        </button>
-
-        <!-- MAIN NAVIGATION -->
-
-        <nav
-            class="main-nav"
-            id="mainNav"
-        >
-
-            <a href="index.php#home">
-                HOME
-            </a>
-
-            <a href="index.php#pcs">
-                PCS
-            </a>
-
-            <a href="index.php#rates">
-                RATES
-            </a>
-
-            <a href="index.php#tournaments">
-                TOURNAMENTS
-            </a>
-
-            <a href="index.php#gallery">
-                GALLERY
-            </a>
-
-            <a href="contact.php">
-                CONTACT
-            </a>
-
-        </nav>
 
     </div>
 
 </header>
+
 
 <!-- ========================================
      CREATE ACCOUNT PAGE
@@ -629,13 +1109,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <div class="container form-page">
 
+
         <p class="section-kicker">
+
             CUSTOMER ACCOUNT
+
         </p>
 
+
         <h1 class="page-title">
-            CREATE <span>ACCOUNT</span>
+
+            CREATE
+
+            <span>
+                ACCOUNT
+            </span>
+
         </h1>
+
 
         <!-- MESSAGE -->
 
@@ -659,6 +1150,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <?php endif; ?>
 
+
         <!-- ========================================
              REGISTRATION FORM
         ======================================== -->
@@ -669,6 +1161,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             class="booking-form"
             id="registerForm"
         >
+
 
             <!-- CSRF TOKEN -->
 
@@ -682,9 +1175,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ) ?>"
             >
 
-            <!-- FIRST NAME / LAST NAME -->
+
+            <!-- ========================================
+                 FIRST NAME / LAST NAME
+            ======================================== -->
 
             <div class="form-row">
+
 
                 <label>
 
@@ -706,6 +1203,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
                 <label>
 
                     Last Name
@@ -726,11 +1224,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
             </div>
 
-            <!-- MIDDLE NAME / EMAIL -->
+
+            <!-- ========================================
+                 MIDDLE NAME / EMAIL
+            ======================================== -->
 
             <div class="form-row">
+
 
                 <label>
 
@@ -750,6 +1253,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     >
 
                 </label>
+
 
                 <label>
 
@@ -771,11 +1275,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
             </div>
 
-            <!-- BIRTHDATE / PASSWORD -->
+
+            <!-- ========================================
+                 BIRTHDATE / PASSWORD
+            ======================================== -->
 
             <div class="form-row">
+
 
                 <!-- BIRTHDATE -->
 
@@ -799,87 +1308,154 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </label>
 
+
                 <!-- PASSWORD -->
 
                 <label class="password-field">
 
                     Password
 
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        placeholder="Enter your password"
-                        autocomplete="new-password"
-                        minlength="8"
-                        required
+
+                    <div
+                        class="password-input-wrap"
                     >
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Enter your password"
+                            autocomplete="new-password"
+                            minlength="8"
+                            required
+                        >
+
+
+                        <button
+                            type="button"
+                            class="show-password"
+                            data-target="password"
+                            aria-label="Show password"
+                            aria-pressed="false"
+                        >
+
+                            SHOW
+
+                        </button>
+
+                    </div>
+
 
                     <!-- PASSWORD REQUIREMENTS -->
 
-                    <div class="password-requirements">
+                    <div
+                        class="password-requirements"
+                    >
+
 
                         <div
                             id="length-check"
                             class="requirement"
                         >
 
-                            <span>✓</span>
+                            <span>
+                                ✓
+                            </span>
+
                             contains at least 8 characters
 
                         </div>
+
 
                         <div
                             id="case-check"
                             class="requirement"
                         >
 
-                            <span>✓</span>
+                            <span>
+                                ✓
+                            </span>
+
                             contains both lower (a-z) and upper case letters (A-Z)
 
                         </div>
+
 
                         <div
                             id="number-check"
                             class="requirement"
                         >
 
-                            <span>✓</span>
+                            <span>
+                                ✓
+                            </span>
+
                             contains at least one number (0-9)
 
                         </div>
+
 
                     </div>
 
                 </label>
 
+
             </div>
 
-            <!-- CONFIRM PASSWORD -->
+
+            <!-- ========================================
+                 CONFIRM PASSWORD
+            ======================================== -->
 
             <div class="form-row">
+
 
                 <label>
 
                     Confirm Password
 
-                    <input
-                        type="password"
-                        id="confirm_password"
-                        name="confirm_password"
-                        placeholder="Confirm your password"
-                        autocomplete="new-password"
-                        minlength="8"
-                        required
+
+                    <div
+                        class="password-input-wrap"
                     >
+
+                        <input
+                            type="password"
+                            id="confirm_password"
+                            name="confirm_password"
+                            placeholder="Confirm your password"
+                            autocomplete="new-password"
+                            minlength="8"
+                            required
+                        >
+
+
+                        <button
+                            type="button"
+                            class="show-password"
+                            data-target="confirm_password"
+                            aria-label="Show password"
+                            aria-pressed="false"
+                        >
+
+                            SHOW
+
+                        </button>
+
+                    </div>
 
                 </label>
 
+
                 <div></div>
+
 
             </div>
 
-            <!-- SUBMIT -->
+
+            <!-- ========================================
+                 SUBMIT
+            ======================================== -->
 
             <button
                 type="submit"
@@ -890,9 +1466,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </button>
 
+
         </form>
 
-        <!-- LOGIN LINK -->
+
+        <!-- ========================================
+             LOGIN LINK
+        ======================================== -->
 
         <p
             style="
@@ -908,53 +1488,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 href="login.php"
                 style="color:#39FF14;"
             >
+
                 LOGIN HERE
+
             </a>
 
         </p>
+
 
     </div>
 
 </main>
 
+
 <!-- ========================================
-     MOBILE MENU
+     BIRTHDATE + PASSWORD SCRIPTS
 ======================================== -->
 
 <script>
 
-const menuToggle =
-    document.querySelector(".menu-toggle");
-
-const mainNav =
-    document.querySelector(".main-nav");
-
-if (menuToggle && mainNav) {
-
-    menuToggle.addEventListener(
-        "click",
-        function () {
-
-            mainNav.classList.toggle("open");
-
-            const isOpen =
-                mainNav.classList.contains("open");
-
-            menuToggle.setAttribute(
-                "aria-expanded",
-                isOpen ? "true" : "false"
-            );
-
-        }
-    );
-}
 
 /* ========================================
    BIRTHDATE CALENDAR
 ======================================== */
 
 const birthdateInput =
-    document.getElementById("birthdate");
+    document.getElementById(
+        "birthdate"
+    );
+
 
 if (birthdateInput) {
 
@@ -973,30 +1535,48 @@ if (birthdateInput) {
 
                 } catch (error) {
 
-                    // Native date picker
-                    // will still work.
+                    /*
+                     * Native date picker
+                     * will still work.
+                     */
 
                 }
+
             }
+
         }
     );
+
 }
+
 
 /* ========================================
    PASSWORD REQUIREMENTS
 ======================================== */
 
 const passwordInput =
-    document.getElementById("password");
+    document.getElementById(
+        "password"
+    );
+
 
 const lengthCheck =
-    document.getElementById("length-check");
+    document.getElementById(
+        "length-check"
+    );
+
 
 const caseCheck =
-    document.getElementById("case-check");
+    document.getElementById(
+        "case-check"
+    );
+
 
 const numberCheck =
-    document.getElementById("number-check");
+    document.getElementById(
+        "number-check"
+    );
+
 
 function updatePasswordRequirements() {
 
@@ -1006,27 +1586,42 @@ function updatePasswordRequirements() {
         !caseCheck ||
         !numberCheck
     ) {
+
         return;
+
     }
+
 
     const password =
         passwordInput.value;
 
+
     const hasLength =
         password.length >= 8;
 
+
     const hasLowercase =
-        /[a-z]/.test(password);
+        /[a-z]/.test(
+            password
+        );
+
 
     const hasUppercase =
-        /[A-Z]/.test(password);
+        /[A-Z]/.test(
+            password
+        );
+
 
     const hasBothCase =
         hasLowercase &&
         hasUppercase;
 
+
     const hasNumber =
-        /[0-9]/.test(password);
+        /[0-9]/.test(
+            password
+        );
+
 
     /* LENGTH */
 
@@ -1035,10 +1630,12 @@ function updatePasswordRequirements() {
         hasLength
     );
 
+
     lengthCheck.classList.toggle(
         "invalid",
         !hasLength
     );
+
 
     /* CASE */
 
@@ -1047,10 +1644,12 @@ function updatePasswordRequirements() {
         hasBothCase
     );
 
+
     caseCheck.classList.toggle(
         "invalid",
         !hasBothCase
     );
+
 
     /* NUMBER */
 
@@ -1059,11 +1658,14 @@ function updatePasswordRequirements() {
         hasNumber
     );
 
+
     numberCheck.classList.toggle(
         "invalid",
         !hasNumber
     );
+
 }
+
 
 if (passwordInput) {
 
@@ -1072,18 +1674,27 @@ if (passwordInput) {
         updatePasswordRequirements
     );
 
+
     updatePasswordRequirements();
+
 }
+
 
 /* ========================================
    CONFIRM PASSWORD CHECK
 ======================================== */
 
 const registerForm =
-    document.getElementById("registerForm");
+    document.getElementById(
+        "registerForm"
+    );
+
 
 const confirmPasswordInput =
-    document.getElementById("confirm_password");
+    document.getElementById(
+        "confirm_password"
+    );
+
 
 if (
     registerForm &&
@@ -1091,9 +1702,11 @@ if (
     confirmPasswordInput
 ) {
 
+
     registerForm.addEventListener(
         "submit",
         function (event) {
+
 
             if (
                 passwordInput.value !==
@@ -1102,24 +1715,31 @@ if (
 
                 event.preventDefault();
 
+
                 confirmPasswordInput.setCustomValidity(
                     "Passwords do not match."
                 );
 
+
                 confirmPasswordInput.reportValidity();
+
 
             } else {
 
                 confirmPasswordInput.setCustomValidity(
                     ""
                 );
+
             }
+
         }
     );
+
 
     confirmPasswordInput.addEventListener(
         "input",
         function () {
+
 
             if (
                 passwordInput.value !==
@@ -1130,17 +1750,114 @@ if (
                     "Passwords do not match."
                 );
 
+
             } else {
 
                 confirmPasswordInput.setCustomValidity(
                     ""
                 );
+
             }
+
         }
     );
+
 }
 
+
+/* ========================================
+   SHOW / HIDE PASSWORD
+======================================== */
+
+document.querySelectorAll(
+    ".show-password"
+).forEach(
+    function (button) {
+
+
+        button.addEventListener(
+            "click",
+            function () {
+
+
+                const targetId =
+                    button.getAttribute(
+                        "data-target"
+                    );
+
+
+                const target =
+                    document.getElementById(
+                        targetId
+                    );
+
+
+                if (!target) {
+
+                    return;
+
+                }
+
+
+                const isHidden =
+                    target.type ===
+                    "password";
+
+
+                if (isHidden) {
+
+                    target.type =
+                        "text";
+
+
+                    button.textContent =
+                        "HIDE";
+
+
+                    button.setAttribute(
+                        "aria-label",
+                        "Hide password"
+                    );
+
+
+                    button.setAttribute(
+                        "aria-pressed",
+                        "true"
+                    );
+
+
+                } else {
+
+                    target.type =
+                        "password";
+
+
+                    button.textContent =
+                        "SHOW";
+
+
+                    button.setAttribute(
+                        "aria-label",
+                        "Show password"
+                    );
+
+
+                    button.setAttribute(
+                        "aria-pressed",
+                        "false"
+                    );
+
+                }
+
+            }
+        );
+
+    }
+);
+
+
 </script>
+
 
 </body>
 

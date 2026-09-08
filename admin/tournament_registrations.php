@@ -15,7 +15,6 @@ if (($_SESSION["user_role"] ?? "") !== "admin") {
 $error = "";
 $success = "";
 
-
 /* ========================================
    HANDLE STATUS ACTION
 ======================================== */
@@ -24,7 +23,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $csrfToken = $_POST["csrf_token"] ?? "";
 
-    if (!verifyCsrfToken($csrfToken)) {
+    if (
+        !is_string($csrfToken) ||
+        !verifyCsrfToken($csrfToken)
+    ) {
 
         $error = "Invalid request. Please try again.";
 
@@ -47,16 +49,36 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $error = "Invalid registration.";
 
-        } elseif (!in_array($status, $allowedStatuses, true)) {
+        } elseif (
+            !in_array(
+                $status,
+                $allowedStatuses,
+                true
+            )
+        ) {
 
             $error = "Invalid registration status.";
 
         } else {
 
+            /* ========================================
+               GET REGISTRATION INFO
+            ======================================== */
             $check = $conn->prepare("
-                SELECT id, status
-                FROM tournament_registrations
-                WHERE id = :id
+                SELECT
+                    tr.id,
+                    tr.user_id,
+                    tr.status,
+                    tr.team_name,
+                    t.title AS tournament_title
+
+                FROM tournament_registrations tr
+
+                INNER JOIN tournaments t
+                    ON t.id = tr.tournament_id
+
+                WHERE tr.id = :id
+
                 LIMIT 1
             ");
 
@@ -68,29 +90,123 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if (!$registration) {
 
-                $error = "Registration not found.";
+                $error =
+                    "Registration not found.";
 
-            } elseif ($registration["status"] !== "pending") {
+            } elseif (
+                $registration["status"] !== "pending"
+            ) {
 
-                $error = "This registration has already been processed.";
+                $error =
+                    "This registration has already been processed.";
 
             } else {
 
-                $update = $conn->prepare("
-                    UPDATE tournament_registrations
-                    SET status = :status
-                    WHERE id = :id
-                      AND status = 'pending'
-                ");
+                try {
 
-                $update->execute([
-                    ":status" => $status,
-                    ":id" => $registrationId
-                ]);
+                    /*
+                     * Transaction keeps the status change
+                     * and notification together.
+                     */
+                    $conn->beginTransaction();
 
-                if ($update->rowCount() === 1) {
+                    /* ========================================
+                       UPDATE REGISTRATION STATUS
+                    ======================================== */
+                    $update = $conn->prepare("
+                        UPDATE tournament_registrations
 
+                        SET status = :status
+
+                        WHERE id = :id
+                          AND status = 'pending'
+                    ");
+
+                    $update->execute([
+                        ":status" => $status,
+                        ":id" => $registrationId
+                    ]);
+
+                    if ($update->rowCount() !== 1) {
+
+                        throw new RuntimeException(
+                            "Unable to update the tournament registration."
+                        );
+                    }
+
+                    /* ========================================
+                       ACCEPTED
+                       CREATE CUSTOMER NOTIFICATION
+                    ======================================== */
                     if ($status === "accepted") {
+
+                        $userId =
+                            (int)$registration["user_id"];
+
+                        $tournamentTitle =
+                            (string)$registration[
+                                "tournament_title"
+                            ];
+
+                        $notificationTitle =
+                            "TOURNAMENT APPROVED";
+
+                        $notificationMessage =
+                            "Your registration for "
+                            . $tournamentTitle
+                            . " has been approved successfully.";
+
+                        /*
+                         * Prevent duplicate notifications.
+                         */
+                        $duplicateCheck = $conn->prepare("
+                            SELECT id
+
+                            FROM notifications
+
+                            WHERE user_id = ?
+                              AND type = 'tournament'
+                              AND title = ?
+                              AND message = ?
+
+                            LIMIT 1
+                        ");
+
+                        $duplicateCheck->execute([
+                            $userId,
+                            $notificationTitle,
+                            $notificationMessage
+                        ]);
+
+                        $existingNotification =
+                            $duplicateCheck->fetchColumn();
+
+                        if (!$existingNotification) {
+
+                            $notifyStmt = $conn->prepare("
+                                INSERT INTO notifications
+                                (
+                                    user_id,
+                                    type,
+                                    title,
+                                    message
+                                )
+
+                                VALUES
+                                (
+                                    ?,
+                                    'tournament',
+                                    ?,
+                                    ?
+                                )
+                            ");
+
+                            $notifyStmt->execute([
+                                $userId,
+                                $notificationTitle,
+                                $notificationMessage
+                            ]);
+                        }
 
                         $success =
                             "Tournament registration accepted successfully.";
@@ -101,16 +217,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             "Tournament registration rejected successfully.";
                     }
 
-                } else {
+                    $conn->commit();
+
+                } catch (Throwable $e) {
+
+                    if ($conn->inTransaction()) {
+                        $conn->rollBack();
+                    }
 
                     $error =
-                        "Unable to update the tournament registration.";
+                        "Unable to process the tournament registration.";
                 }
             }
         }
     }
 }
-
 
 /* ========================================
    GET REGISTRATIONS
@@ -128,22 +249,26 @@ $stmt = $conn->query("
         u.email AS customer_email,
         t.title AS tournament_title,
         t.tournament_date
+
     FROM tournament_registrations tr
+
     INNER JOIN users u
         ON u.id = tr.user_id
+
     INNER JOIN tournaments t
         ON t.id = tr.tournament_id
+
     ORDER BY
         CASE
             WHEN tr.status = 'pending' THEN 0
             WHEN tr.status = 'accepted' THEN 1
             ELSE 2
         END,
+
         tr.created_at DESC
 ");
 
 $registrations = $stmt->fetchAll();
-
 
 /* ========================================
    COUNTS
@@ -154,14 +279,20 @@ $countStmt = $conn->query("
         SUM(status = 'pending') AS pending_count,
         SUM(status = 'accepted') AS accepted_count,
         SUM(status = 'rejected') AS rejected_count
+
     FROM tournament_registrations
 ");
 
 $counts = $countStmt->fetch();
 
-$pendingCount = (int)($counts["pending_count"] ?? 0);
-$acceptedCount = (int)($counts["accepted_count"] ?? 0);
-$rejectedCount = (int)($counts["rejected_count"] ?? 0);
+$pendingCount =
+    (int)($counts["pending_count"] ?? 0);
+
+$acceptedCount =
+    (int)($counts["accepted_count"] ?? 0);
+
+$rejectedCount =
+    (int)($counts["rejected_count"] ?? 0);
 
 ?>
 
@@ -177,7 +308,9 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Tournament Registrations | Admin</title>
+    <title>
+        Tournament Registrations | Admin
+    </title>
 
     <link
         rel="preconnect"
@@ -514,7 +647,6 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
 
 <div class="page">
 
-
     <!-- ========================================
          TOP BAR
     ======================================== -->
@@ -544,10 +676,13 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
     </p>
 
     <h1 class="page-title">
+
         TOURNAMENT
+
         <span>
             REGISTRATIONS
         </span>
+
     </h1>
 
 
@@ -605,7 +740,13 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
     <?php if ($success !== ""): ?>
 
         <div class="alert success">
-            <?= htmlspecialchars($success) ?>
+
+            <?= htmlspecialchars(
+                $success,
+                ENT_QUOTES,
+                "UTF-8"
+            ) ?>
+
         </div>
 
     <?php endif; ?>
@@ -614,7 +755,13 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
     <?php if ($error !== ""): ?>
 
         <div class="alert error">
-            <?= htmlspecialchars($error) ?>
+
+            <?= htmlspecialchars(
+                $error,
+                ENT_QUOTES,
+                "UTF-8"
+            ) ?>
+
         </div>
 
     <?php endif; ?>
@@ -644,7 +791,6 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
 
                 <article class="registration-card">
 
-
                     <!-- HEADER -->
 
                     <div class="registration-header">
@@ -653,20 +799,26 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
 
                             <h2>
                                 <?= htmlspecialchars(
-                                    $registration["tournament_title"]
+                                    (string)$registration["tournament_title"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 ) ?>
                             </h2>
 
                             <p>
 
                                 <?= htmlspecialchars(
-                                    $registration["customer_name"]
+                                    (string)$registration["customer_name"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 ) ?>
 
                                 —
 
                                 <?= htmlspecialchars(
-                                    $registration["customer_email"]
+                                    (string)$registration["customer_email"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 ) ?>
 
                             </p>
@@ -676,13 +828,17 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
 
                         <span
                             class="status <?= htmlspecialchars(
-                                $registration["status"]
+                                (string)$registration["status"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             ) ?>"
                         >
 
                             <?= strtoupper(
                                 htmlspecialchars(
-                                    $registration["status"]
+                                    (string)$registration["status"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 )
                             ) ?>
 
@@ -695,7 +851,6 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
 
                     <div class="details">
 
-
                         <div class="detail">
 
                             <span class="detail-label">
@@ -707,7 +862,7 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
                                 <?= date(
                                     "F d, Y",
                                     strtotime(
-                                        $registration["tournament_date"]
+                                        (string)$registration["tournament_date"]
                                     )
                                 ) ?>
 
@@ -725,7 +880,9 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
                             <div class="detail-value">
 
                                 <?= htmlspecialchars(
-                                    $registration["team_name"]
+                                    (string)$registration["team_name"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 ) ?>
 
                             </div>
@@ -742,7 +899,9 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
                             <div class="detail-value">
 
                                 <?= htmlspecialchars(
-                                    $registration["contact_number"]
+                                    (string)$registration["contact_number"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 ) ?>
 
                             </div>
@@ -759,7 +918,9 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
                             <div class="detail-value">
 
                                 <?= htmlspecialchars(
-                                    $registration["customer_email"]
+                                    (string)$registration["customer_email"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 ) ?>
 
                             </div>
@@ -776,13 +937,14 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
                             <div class="detail-value">
 
                                 <?= htmlspecialchars(
-                                    $registration["message"]
+                                    (string)$registration["message"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
                                 ) ?>
 
                             </div>
 
                         </div>
-
 
                     </div>
 
@@ -792,10 +954,11 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
                     <div class="date-added">
 
                         REGISTERED:
+
                         <?= date(
                             "M d, Y h:i A",
                             strtotime(
-                                $registration["created_at"]
+                                (string)$registration["created_at"]
                             )
                         ) ?>
 
@@ -804,21 +967,31 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
 
                     <!-- ACTIONS -->
 
-                    <?php if ($registration["status"] === "pending"): ?>
+                    <?php if (
+                        $registration["status"] === "pending"
+                    ): ?>
 
                         <div class="actions">
 
+                            <!-- ACCEPT -->
 
                             <form
                                 method="POST"
                                 class="action-form"
+                                onsubmit="
+                                    return confirm(
+                                        'Accept this tournament registration?'
+                                    );
+                                "
                             >
 
                                 <input
                                     type="hidden"
                                     name="csrf_token"
                                     value="<?= htmlspecialchars(
-                                        csrfToken()
+                                        csrfToken(),
+                                        ENT_QUOTES,
+                                        "UTF-8"
                                     ) ?>"
                                 >
 
@@ -844,16 +1017,25 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
                             </form>
 
 
+                            <!-- REJECT -->
+
                             <form
                                 method="POST"
                                 class="action-form"
+                                onsubmit="
+                                    return confirm(
+                                        'Reject this tournament registration?'
+                                    );
+                                "
                             >
 
                                 <input
                                     type="hidden"
                                     name="csrf_token"
                                     value="<?= htmlspecialchars(
-                                        csrfToken()
+                                        csrfToken(),
+                                        ENT_QUOTES,
+                                        "UTF-8"
                                     ) ?>"
                                 >
 
@@ -878,11 +1060,9 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
 
                             </form>
 
-
                         </div>
 
                     <?php endif; ?>
-
 
                 </article>
 
@@ -891,7 +1071,6 @@ $rejectedCount = (int)($counts["rejected_count"] ?? 0);
         </div>
 
     <?php endif; ?>
-
 
 </div>
 

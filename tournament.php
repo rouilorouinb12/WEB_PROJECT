@@ -16,10 +16,8 @@ $tournamentId = filter_input(
 );
 
 if (!$tournamentId) {
-
     header("Location: index.php#tournaments");
     exit;
-
 }
 
 
@@ -45,12 +43,9 @@ $stmt->execute([
 
 $tournament = $stmt->fetch();
 
-
 if (!$tournament) {
-
     header("Location: index.php#tournaments");
     exit;
-
 }
 
 
@@ -74,14 +69,15 @@ $userStmt->execute([
 
 $user = $userStmt->fetch();
 
-
 if (!$user) {
-
     header("Location: logout.php");
     exit;
-
 }
 
+
+/* ========================================
+   INITIAL VALUES
+======================================== */
 
 $error = "";
 $success = "";
@@ -96,42 +92,60 @@ $paymentReference = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-
     /* ========================================
        CSRF
     ======================================== */
 
     $csrfToken = $_POST["csrf_token"] ?? "";
 
-    if (!verifyCsrfToken($csrfToken)) {
+    if (
+        !is_string($csrfToken) ||
+        !verifyCsrfToken($csrfToken)
+    ) {
 
-        $error = "Invalid request. Please try again.";
+        $error =
+            "Invalid request. Please try again.";
 
     } else {
 
+        /* ========================================
+           GET FORM VALUES
+        ======================================== */
 
         $teamName = trim(
-            $_POST["team_name"] ?? ""
+            (string)(
+                $_POST["team_name"] ?? ""
+            )
         );
 
         $teamMembers = trim(
-            $_POST["team_members"] ?? ""
+            (string)(
+                $_POST["team_members"] ?? ""
+            )
         );
 
         $contactNumber = trim(
-            $_POST["contact_number"] ?? ""
+            (string)(
+                $_POST["contact_number"] ?? ""
+            )
         );
 
         $message = trim(
-            $_POST["message"] ?? ""
+            (string)(
+                $_POST["message"] ?? ""
+            )
         );
 
         $paymentMethod = trim(
-            $_POST["payment_method"] ?? ""
+            (string)(
+                $_POST["payment_method"] ?? ""
+            )
         );
 
         $paymentReference = trim(
-            $_POST["payment_reference"] ?? ""
+            (string)(
+                $_POST["payment_reference"] ?? ""
+            )
         );
 
 
@@ -144,7 +158,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $error =
                 "Please enter your team name.";
 
-        } elseif (mb_strlen($teamName) > 120) {
+        } elseif (
+            mb_strlen($teamName) > 120
+        ) {
 
             $error =
                 "Team name is too long.";
@@ -154,7 +170,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $error =
                 "Please enter your team members.";
 
-        } elseif (mb_strlen($teamMembers) > 500) {
+        } elseif (
+            mb_strlen($teamMembers) > 500
+        ) {
 
             $error =
                 "Team members information is too long.";
@@ -207,13 +225,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } else {
 
-
             /* ========================================
-               CHECK DUPLICATE
+               CHECK DUPLICATE REGISTRATION
             ======================================== */
 
             $check = $conn->prepare("
-                SELECT id
+                SELECT
+                    id
                 FROM tournament_registrations
                 WHERE tournament_id = :tournament_id
                   AND user_id = :user_id
@@ -225,7 +243,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ":user_id" => $userId
             ]);
 
-
             if ($check->fetch()) {
 
                 $error =
@@ -233,284 +250,104 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             } else {
 
-
                 /* ========================================
-                   PAYMENT PROOF
+                   STORE TEAM MEMBERS
                 ======================================== */
 
-                $paymentProofName = null;
-
-
-                if (
-                    $paymentMethod === "GCash" &&
-                    (
-                        !isset($_FILES["payment_proof"]) ||
-                        $_FILES["payment_proof"]["error"]
-                            !== UPLOAD_ERR_OK
-                    )
-                ) {
-
-                    $error =
-                        "Please upload your GCash payment proof.";
-
-                } else {
-
-
-                    /* ========================================
-                       PROCESS PAYMENT PROOF
-                    ======================================== */
-
-                    if (
-                        $paymentMethod === "GCash" &&
-                        isset($_FILES["payment_proof"])
-                    ) {
-
-                        $file =
-                            $_FILES["payment_proof"];
-
-
-                        if (
-                            $file["size"]
-                            > 5 * 1024 * 1024
-                        ) {
-
-                            $error =
-                                "Payment proof must not exceed 5MB.";
-
-                        } else {
-
-
-                            $allowedMimeTypes = [
-
-                                "image/jpeg",
-                                "image/png",
-                                "image/webp"
-
-                            ];
-
-
-                            $finfo =
-                                finfo_open(
-                                    FILEINFO_MIME_TYPE
-                                );
-
-
-                            $mimeType =
-                                finfo_file(
-                                    $finfo,
-                                    $file["tmp_name"]
-                                );
-
-
-                            finfo_close($finfo);
-
-
-                            if (
-                                !in_array(
-                                    $mimeType,
-                                    $allowedMimeTypes,
-                                    true
-                                )
-                            ) {
-
-                                $error =
-                                    "Only JPG, PNG, and WEBP images are allowed.";
-
-                            } else {
-
-
-                                /* ========================================
-                                   UPLOAD DIRECTORY
-                                ======================================== */
-
-                                $uploadDirectory =
-                                    __DIR__
-                                    . DIRECTORY_SEPARATOR
-                                    . "assets"
-                                    . DIRECTORY_SEPARATOR
-                                    . "uploads"
-                                    . DIRECTORY_SEPARATOR
-                                    . "payments";
-
-
-                                if (
-                                    !is_dir(
-                                        $uploadDirectory
-                                    )
-                                ) {
-
-                                    mkdir(
-                                        $uploadDirectory,
-                                        0755,
-                                        true
-                                    );
-
-                                }
-
-
-                                /* ========================================
-                                   EXTENSION
-                                ======================================== */
-
-                                $extension = match (
-                                    $mimeType
-                                ) {
-
-                                    "image/jpeg" => "jpg",
-                                    "image/png" => "png",
-                                    "image/webp" => "webp",
-                                    default => "jpg"
-
-                                };
-
-
-                                $newFileName =
-                                    "tournament_"
-                                    . bin2hex(
-                                        random_bytes(16)
-                                    )
-                                    . "."
-                                    . $extension;
-
-
-                                $destination =
-                                    $uploadDirectory
-                                    . DIRECTORY_SEPARATOR
-                                    . $newFileName;
-
-
-                                if (
-                                    move_uploaded_file(
-                                        $file["tmp_name"],
-                                        $destination
-                                    )
-                                ) {
-
-                                    $paymentProofName =
-                                        $newFileName;
-
-                                } else {
-
-                                    $error =
-                                        "Unable to upload payment proof.";
-
-                                }
-
-                            }
-
-                        }
-
-                    }
-
-
-                    if ($error === "") {
-
-
-                        /* ========================================
-                           STORE TEAM MEMBERS
-                        ======================================== */
-
-                        $registrationMessage =
-                            "Team Members:\n"
-                            . $teamMembers;
-
-
-                        if ($message !== "") {
-
-                            $registrationMessage .=
-                                "\n\nAdditional Message:\n"
-                                . $message;
-
-                        }
-
-
-                        /* ========================================
-                           INSERT REGISTRATION
-                        ======================================== */
-
-                        $insert = $conn->prepare("
-                            INSERT INTO tournament_registrations
-                            (
-                                tournament_id,
-                                user_id,
-                                team_name,
-                                contact_number,
-                                message,
-                                status,
-                                payment_method,
-                                payment_reference,
-                                payment_proof,
-                                payment_status
-                            )
-                            VALUES
-                            (
-                                :tournament_id,
-                                :user_id,
-                                :team_name,
-                                :contact_number,
-                                :message,
-                                'pending',
-                                :payment_method,
-                                :payment_reference,
-                                :payment_proof,
-                                :payment_status
-                            )
-                        ");
-
-
-                        $insert->execute([
-
-                            ":tournament_id" =>
-                                $tournamentId,
-
-                            ":user_id" =>
-                                $userId,
-
-                            ":team_name" =>
-                                $teamName,
-
-                            ":contact_number" =>
-                                $contactNumber,
-
-                            ":message" =>
-                                $registrationMessage,
-
-                            ":payment_method" =>
-                                $paymentMethod,
-
-                            ":payment_reference" =>
-                                $paymentReference !== ""
-                                    ? $paymentReference
-                                    : null,
-
-                            ":payment_proof" =>
-                                $paymentProofName,
-
-                            ":payment_status" =>
-                                $paymentMethod === "GCash"
-                                    ? "pending"
-                                    : "unpaid"
-
-                        ]);
-
-
-                        $success =
-                            "Tournament registration submitted successfully.";
-
-                        $_POST = [];
-
-                    }
-
+                $registrationMessage =
+                    "Team Members:\n"
+                    . $teamMembers;
+
+                if ($message !== "") {
+
+                    $registrationMessage .=
+                        "\n\nAdditional Message:\n"
+                        . $message;
                 }
 
+
+                /* ========================================
+                   PAYMENT STATUS
+                ======================================== */
+
+                $paymentStatus =
+                    $paymentMethod === "GCash"
+                        ? "pending"
+                        : "unpaid";
+
+
+                /* ========================================
+                   INSERT REGISTRATION
+                ======================================== */
+
+                $insert = $conn->prepare("
+                    INSERT INTO tournament_registrations
+                    (
+                        tournament_id,
+                        user_id,
+                        team_name,
+                        contact_number,
+                        message,
+                        status,
+                        payment_method,
+                        payment_reference,
+                        payment_status
+                    )
+                    VALUES
+                    (
+                        :tournament_id,
+                        :user_id,
+                        :team_name,
+                        :contact_number,
+                        :message,
+                        'pending',
+                        :payment_method,
+                        :payment_reference,
+                        :payment_status
+                    )
+                ");
+
+                $insert->execute([
+                    ":tournament_id" =>
+                        $tournamentId,
+
+                    ":user_id" =>
+                        $userId,
+
+                    ":team_name" =>
+                        $teamName,
+
+                    ":contact_number" =>
+                        $contactNumber,
+
+                    ":message" =>
+                        $registrationMessage,
+
+                    ":payment_method" =>
+                        $paymentMethod,
+
+                    ":payment_reference" =>
+                        $paymentReference !== ""
+                            ? $paymentReference
+                            : null,
+
+                    ":payment_status" =>
+                        $paymentStatus
+                ]);
+
+
+                /* ========================================
+                   SUCCESS
+                ======================================== */
+
+                $success =
+                    "Tournament registration submitted successfully.";
+
+                $_POST = [];
             }
-
         }
-
     }
-
 }
-
 
 include "includes/header.php";
 
@@ -525,63 +362,77 @@ include "includes/header.php";
 .tournament-register-wrapper {
 
     width: 100%;
-    max-width: 1120px;
-    margin: 0 auto;
 
+    max-width: 1120px;
+
+    margin: 0 auto;
 }
 
 
 .tournament-register-card {
 
-    border: 1px solid var(--green);
-    border-radius: 5px;
-    background: #050505;
-    padding: 28px 32px 32px;
-    box-sizing: border-box;
+    border:
+        1px solid
+        var(--green);
 
+    border-radius:
+        5px;
+
+    background:
+        #050505;
+
+    padding:
+        28px 32px 32px;
+
+    box-sizing:
+        border-box;
 }
 
 
 .tournament-register-grid {
 
-    display: grid;
+    display:
+        grid;
 
     grid-template-columns:
         repeat(2, minmax(0, 1fr));
 
-    gap: 20px 24px;
-
+    gap:
+        20px 24px;
 }
 
 
 .tournament-field {
 
     width: 100%;
-
 }
 
 
 .tournament-field.full-width {
 
-    grid-column: 1 / -1;
-
+    grid-column:
+        1 / -1;
 }
 
 
 .tournament-field label {
 
-    display: block;
+    display:
+        block;
 
-    margin-bottom: 8px;
+    margin-bottom:
+        8px;
 
-    color: #fff;
+    color:
+        #fff;
 
     font:
-        700 11px "Rajdhani",
+        700 11px
+        "Rajdhani",
         sans-serif;
 
-    letter-spacing: .3px;
-
+    letter-spacing:
+        .3px;
 }
 
 
@@ -591,26 +442,34 @@ include "includes/header.php";
 
     width: 100%;
 
-    min-height: 46px;
+    min-height:
+        46px;
 
-    padding: 12px 14px;
+    padding:
+        12px 14px;
 
-    box-sizing: border-box;
+    box-sizing:
+        border-box;
 
-    background: #080808;
+    background:
+        #080808;
 
-    color: #fff;
+    color:
+        #fff;
 
-    border: 1px solid #333;
+    border:
+        1px solid #333;
 
-    border-radius: 4px;
+    border-radius:
+        4px;
 
-    outline: none;
+    outline:
+        none;
 
     font:
-        600 14px "Rajdhani",
+        600 14px
+        "Rajdhani",
         sans-serif;
-
 }
 
 
@@ -618,100 +477,132 @@ include "includes/header.php";
 .tournament-field textarea:focus,
 .tournament-field select:focus {
 
-    border-color: var(--green);
+    border-color:
+        var(--green);
 
     box-shadow:
-        0 0 0 1px rgba(57,255,20,.15),
-        0 0 12px rgba(57,255,20,.08);
+        0 0 0 1px
+        rgba(57,255,20,.15),
 
+        0 0 12px
+        rgba(57,255,20,.08);
 }
 
 
 .tournament-field input[readonly] {
 
-    color: #d8d8d8;
-    background: #0b0b0b;
+    color:
+        #d8d8d8;
 
+    background:
+        #0b0b0b;
 }
 
 
 .tournament-field textarea {
 
-    min-height: 120px;
-    resize: vertical;
+    min-height:
+        120px;
 
+    resize:
+        vertical;
 }
 
 
 .tournament-field textarea.team-members {
 
-    min-height: 135px;
-
+    min-height:
+        135px;
 }
 
 
+/* ========================================
+   BUTTONS
+======================================== */
+
 .tournament-buttons {
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    gap: 12px;
+    gap:
+        12px;
 
-    flex-wrap: wrap;
+    flex-wrap:
+        wrap;
 
-    margin-top: 26px;
-
+    margin-top:
+        26px;
 }
 
 
 .tournament-buttons .green-button,
 .tournament-buttons .outline-button {
 
-    min-height: 44px;
-    box-sizing: border-box;
+    min-height:
+        44px;
 
+    box-sizing:
+        border-box;
 }
 
 
+/* ========================================
+   ALERTS
+======================================== */
+
 .tournament-alert {
 
-    max-width: 1120px;
+    max-width:
+        1120px;
 
-    margin: 18px auto 0;
+    margin:
+        18px auto 0;
 
-    padding: 14px 16px;
+    padding:
+        14px 16px;
 
-    border-radius: 4px;
+    border-radius:
+        4px;
 
-    box-sizing: border-box;
+    box-sizing:
+        border-box;
 
     font:
-        600 14px "Rajdhani",
+        600 14px
+        "Rajdhani",
         sans-serif;
-
 }
 
 
 .tournament-alert.error {
 
-    border: 1px solid #ff4444;
+    border:
+        1px solid
+        #ff4444;
 
-    color: #ff6666;
+    color:
+        #ff6666;
 
-    background: rgba(255,0,0,.04);
-
+    background:
+        rgba(255,0,0,.04);
 }
 
 
 .tournament-alert.success {
 
-    border: 1px solid var(--green);
+    border:
+        1px solid
+        var(--green);
 
-    color: var(--green);
+    color:
+        var(--green);
 
-    background: rgba(57,255,20,.04);
-
+    background:
+        rgba(57,255,20,.04);
 }
 
 
@@ -721,65 +612,79 @@ include "includes/header.php";
 
 .tournament-payment {
 
-    grid-column: 1 / -1;
+    grid-column:
+        1 / -1;
 
-    margin-top: 4px;
+    margin-top:
+        4px;
 
-    padding-top: 24px;
+    padding-top:
+        24px;
 
     border-top:
-        1px solid rgba(57,255,20,.25);
-
+        1px solid
+        rgba(57,255,20,.25);
 }
 
 
 .tournament-payment h2 {
 
-    margin: 0 0 15px;
+    margin:
+        0 0 15px;
 
-    color: var(--green);
+    color:
+        var(--green);
 
     font:
-        700 18px "Orbitron",
+        700 18px
+        "Orbitron",
         sans-serif;
-
 }
 
 
 .tournament-payment-note {
 
-    margin: 0 0 20px;
+    margin:
+        0 0 20px;
 
-    padding: 12px 14px;
+    padding:
+        12px 14px;
 
     border:
-        1px solid rgba(57,255,20,.3);
+        1px solid
+        rgba(57,255,20,.3);
 
     background:
         rgba(57,255,20,.03);
 
-    color: #ccc;
+    color:
+        #ccc;
 
-    font-size: 13px;
+    font-size:
+        13px;
 
-    line-height: 1.5;
-
+    line-height:
+        1.5;
 }
 
 
 .tournament-payment-note strong {
 
-    color: var(--green);
-
+    color:
+        var(--green);
 }
 
 
 .tournament-details-card {
 
-    margin-bottom: 24px;
-
+    margin-bottom:
+        24px;
 }
 
+
+/* ========================================
+   MOBILE
+======================================== */
 
 @media (max-width: 768px) {
 
@@ -787,42 +692,41 @@ include "includes/header.php";
 
         padding:
             22px 18px 24px;
-
     }
 
     .tournament-register-grid {
 
-        grid-template-columns: 1fr;
-
+        grid-template-columns:
+            1fr;
     }
 
     .tournament-field.full-width {
 
-        grid-column: auto;
-
+        grid-column:
+            auto;
     }
 
     .tournament-payment {
 
-        grid-column: auto;
-
+        grid-column:
+            auto;
     }
 
     .tournament-buttons {
 
-        align-items: stretch;
+        align-items:
+            stretch;
 
-        flex-direction: column;
-
+        flex-direction:
+            column;
     }
 
     .tournament-buttons a,
     .tournament-buttons button {
 
-        width: 100%;
-
+        width:
+            100%;
     }
-
 }
 
 </style>
@@ -834,6 +738,10 @@ include "includes/header.php";
 
         <div class="tournament-register-wrapper">
 
+
+            <!-- ========================================
+                 TITLE
+            ========================================= -->
 
             <p class="section-kicker">
                 TOURNAMENT REGISTRATION
@@ -853,7 +761,7 @@ include "includes/header.php";
 
             <!-- ========================================
                  TOURNAMENT DETAILS
-            ======================================== -->
+            ========================================= -->
 
             <div
                 class="tournament-card
@@ -894,7 +802,10 @@ include "includes/header.php";
                     <h3>
 
                         <?= htmlspecialchars(
-                            $tournament["title"]
+                            (string)
+                            $tournament["title"],
+                            ENT_QUOTES,
+                            "UTF-8"
                         ) ?>
 
                     </h3>
@@ -903,7 +814,10 @@ include "includes/header.php";
                     <p>
 
                         <?= htmlspecialchars(
-                            $tournament["description"]
+                            (string)
+                            $tournament["description"],
+                            ENT_QUOTES,
+                            "UTF-8"
                         ) ?>
 
                     </p>
@@ -912,7 +826,10 @@ include "includes/header.php";
                     <span>
 
                         <?= htmlspecialchars(
-                            $tournament["status_message"]
+                            (string)
+                            $tournament["status_message"],
+                            ENT_QUOTES,
+                            "UTF-8"
                         ) ?>
 
                     </span>
@@ -924,16 +841,16 @@ include "includes/header.php";
 
             <!-- ========================================
                  MESSAGES
-            ======================================== -->
+            ========================================= -->
 
             <?php if ($error !== ""): ?>
 
-                <div
-                    class="tournament-alert error"
-                >
+                <div class="tournament-alert error">
 
                     <?= htmlspecialchars(
-                        $error
+                        $error,
+                        ENT_QUOTES,
+                        "UTF-8"
                     ) ?>
 
                 </div>
@@ -943,12 +860,12 @@ include "includes/header.php";
 
             <?php if ($success !== ""): ?>
 
-                <div
-                    class="tournament-alert success"
-                >
+                <div class="tournament-alert success">
 
                     <?= htmlspecialchars(
-                        $success
+                        $success,
+                        ENT_QUOTES,
+                        "UTF-8"
                     ) ?>
 
                 </div>
@@ -958,20 +875,23 @@ include "includes/header.php";
 
             <!-- ========================================
                  REGISTRATION FORM
-            ======================================== -->
+            ========================================= -->
 
             <form
                 method="POST"
                 class="tournament-register-card"
                 autocomplete="off"
-                enctype="multipart/form-data"
             >
+
+                <!-- CSRF -->
 
                 <input
                     type="hidden"
                     name="csrf_token"
                     value="<?= htmlspecialchars(
-                        csrfToken()
+                        csrfToken(),
+                        ENT_QUOTES,
+                        "UTF-8"
                     ) ?>"
                 >
 
@@ -987,17 +907,20 @@ include "includes/header.php";
                         class="tournament-field full-width"
                     >
 
-                        <label for="tournament">
-
+                        <label
+                            for="tournament"
+                        >
                             TOURNAMENT
-
                         </label>
 
                         <input
                             type="text"
                             id="tournament"
                             value="<?= htmlspecialchars(
-                                $tournament["title"]
+                                (string)
+                                $tournament["title"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             ) ?>"
                             readonly
                         >
@@ -1007,19 +930,24 @@ include "includes/header.php";
 
                     <!-- FULL NAME -->
 
-                    <div class="tournament-field">
+                    <div
+                        class="tournament-field"
+                    >
 
-                        <label for="full_name">
-
+                        <label
+                            for="full_name"
+                        >
                             FULL NAME
-
                         </label>
 
                         <input
                             type="text"
                             id="full_name"
                             value="<?= htmlspecialchars(
-                                $user["name"]
+                                (string)
+                                $user["name"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             ) ?>"
                             readonly
                         >
@@ -1029,19 +957,24 @@ include "includes/header.php";
 
                     <!-- EMAIL -->
 
-                    <div class="tournament-field">
+                    <div
+                        class="tournament-field"
+                    >
 
-                        <label for="email">
-
+                        <label
+                            for="email"
+                        >
                             EMAIL ADDRESS
-
                         </label>
 
                         <input
                             type="email"
                             id="email"
                             value="<?= htmlspecialchars(
-                                $user["email"]
+                                (string)
+                                $user["email"],
+                                ENT_QUOTES,
+                                "UTF-8"
                             ) ?>"
                             readonly
                         >
@@ -1051,12 +984,14 @@ include "includes/header.php";
 
                     <!-- CONTACT -->
 
-                    <div class="tournament-field">
+                    <div
+                        class="tournament-field"
+                    >
 
-                        <label for="contact_number">
-
+                        <label
+                            for="contact_number"
+                        >
                             CONTACT NUMBER
-
                         </label>
 
                         <input
@@ -1066,13 +1001,15 @@ include "includes/header.php";
                             maxlength="40"
                             placeholder="ENTER CONTACT NUMBER"
                             value="<?= htmlspecialchars(
-                                $_POST[
-                                    "contact_number"
-                                ]
-                                ?? (
-                                    $user["phone"]
-                                    ?? ""
-                                )
+                                (string)(
+                                    $_POST[
+                                        "contact_number"
+                                    ]
+                                    ??
+                                    ($user["phone"] ?? "")
+                                ),
+                                ENT_QUOTES,
+                                "UTF-8"
                             ) ?>"
                             required
                         >
@@ -1082,12 +1019,14 @@ include "includes/header.php";
 
                     <!-- TEAM NAME -->
 
-                    <div class="tournament-field">
+                    <div
+                        class="tournament-field"
+                    >
 
-                        <label for="team_name">
-
+                        <label
+                            for="team_name"
+                        >
                             TEAM NAME
-
                         </label>
 
                         <input
@@ -1097,9 +1036,13 @@ include "includes/header.php";
                             maxlength="120"
                             placeholder="ENTER TEAM NAME"
                             value="<?= htmlspecialchars(
-                                $_POST[
-                                    "team_name"
-                                ] ?? ""
+                                (string)(
+                                    $_POST[
+                                        "team_name"
+                                    ] ?? ""
+                                ),
+                                ENT_QUOTES,
+                                "UTF-8"
                             ) ?>"
                             required
                         >
@@ -1113,10 +1056,10 @@ include "includes/header.php";
                         class="tournament-field full-width"
                     >
 
-                        <label for="team_members">
-
+                        <label
+                            for="team_members"
+                        >
                             TEAM MEMBERS
-
                         </label>
 
                         <textarea
@@ -1127,9 +1070,13 @@ include "includes/header.php";
                             placeholder="ENTER TEAM MEMBERS&#10;Example:&#10;Player 1 - Juan Dela Cruz&#10;Player 2 - Pedro Santos&#10;Player 3 - Mark Reyes"
                             required
                         ><?= htmlspecialchars(
-                            $_POST[
-                                "team_members"
-                            ] ?? ""
+                            (string)(
+                                $_POST[
+                                    "team_members"
+                                ] ?? ""
+                            ),
+                            ENT_QUOTES,
+                            "UTF-8"
                         ) ?></textarea>
 
                     </div>
@@ -1141,10 +1088,10 @@ include "includes/header.php";
                         class="tournament-field full-width"
                     >
 
-                        <label for="message">
-
+                        <label
+                            for="message"
+                        >
                             MESSAGE
-
                         </label>
 
                         <textarea
@@ -1153,9 +1100,13 @@ include "includes/header.php";
                             maxlength="500"
                             placeholder="OPTIONAL MESSAGE OR SPECIAL REQUEST"
                         ><?= htmlspecialchars(
-                            $_POST[
-                                "message"
-                            ] ?? ""
+                            (string)(
+                                $_POST[
+                                    "message"
+                                ] ?? ""
+                            ),
+                            ENT_QUOTES,
+                            "UTF-8"
                         ) ?></textarea>
 
                     </div>
@@ -1163,7 +1114,7 @@ include "includes/header.php";
 
                     <!-- ========================================
                          PAYMENT
-                    ======================================== -->
+                    ========================================= -->
 
                     <div class="tournament-payment">
 
@@ -1176,15 +1127,23 @@ include "includes/header.php";
                             class="tournament-payment-note"
                         >
 
-                            <strong>GCash:</strong>
+                            <strong>
+                                GCash:
+                            </strong>
+
                             Send your tournament payment
                             to the gaming cafe GCash account,
-                            then enter your reference number
-                            and upload the payment screenshot.
+                            then enter your
+                            <strong>
+                                reference number
+                            </strong>.
 
                             <br><br>
 
-                            <strong>Cash:</strong>
+                            <strong>
+                                Cash:
+                            </strong>
+
                             Select Cash if you will pay
                             directly at the cafe.
 
@@ -1205,9 +1164,7 @@ include "includes/header.php";
                                 <label
                                     for="payment_method"
                                 >
-
                                     PAYMENT METHOD
-
                                 </label>
 
                                 <select
@@ -1217,35 +1174,25 @@ include "includes/header.php";
                                 >
 
                                     <option value="">
-
                                         SELECT PAYMENT METHOD
-
                                     </option>
 
                                     <option
                                         value="GCash"
-                                        <?= $paymentMethod
-                                            === "GCash"
-                                                ? "selected"
-                                                : ""
-                                        ?>
+                                        <?= $paymentMethod === "GCash"
+                                            ? "selected"
+                                            : "" ?>
                                     >
-
                                         GCash
-
                                     </option>
 
                                     <option
                                         value="Cash"
-                                        <?= $paymentMethod
-                                            === "Cash"
-                                                ? "selected"
-                                                : ""
-                                        ?>
+                                        <?= $paymentMethod === "Cash"
+                                            ? "selected"
+                                            : "" ?>
                                     >
-
                                         Cash
-
                                     </option>
 
                                 </select>
@@ -1253,7 +1200,7 @@ include "includes/header.php";
                             </div>
 
 
-                            <!-- REFERENCE -->
+                            <!-- GCASH REFERENCE -->
 
                             <div
                                 class="tournament-field"
@@ -1263,9 +1210,7 @@ include "includes/header.php";
                                 <label
                                     for="payment_reference"
                                 >
-
                                     GCASH REFERENCE NUMBER
-
                                 </label>
 
                                 <input
@@ -1275,33 +1220,10 @@ include "includes/header.php";
                                     maxlength="100"
                                     placeholder="ENTER REFERENCE NUMBER"
                                     value="<?= htmlspecialchars(
-                                        $paymentReference
+                                        $paymentReference,
+                                        ENT_QUOTES,
+                                        "UTF-8"
                                     ) ?>"
-                                >
-
-                            </div>
-
-
-                            <!-- PROOF -->
-
-                            <div
-                                class="tournament-field full-width"
-                                id="paymentProofField"
-                            >
-
-                                <label
-                                    for="payment_proof"
-                                >
-
-                                    GCASH PAYMENT SCREENSHOT
-
-                                </label>
-
-                                <input
-                                    type="file"
-                                    id="payment_proof"
-                                    name="payment_proof"
-                                    accept="image/jpeg,image/png,image/webp"
                                 >
 
                             </div>
@@ -1314,7 +1236,9 @@ include "includes/header.php";
                 </div>
 
 
-                <!-- BUTTONS -->
+                <!-- ========================================
+                     BUTTONS
+                ========================================= -->
 
                 <div class="tournament-buttons">
 
@@ -1322,9 +1246,7 @@ include "includes/header.php";
                         type="submit"
                         class="green-button"
                     >
-
                         REGISTER NOW
-
                     </button>
 
 
@@ -1332,13 +1254,10 @@ include "includes/header.php";
                         href="index.php#tournaments"
                         class="outline-button"
                     >
-
                         BACK TO TOURNAMENTS
-
                     </a>
 
                 </div>
-
 
             </form>
 
@@ -1365,19 +1284,9 @@ const referenceField =
         "referenceField"
     );
 
-const paymentProofField =
-    document.getElementById(
-        "paymentProofField"
-    );
-
 const paymentReference =
     document.getElementById(
         "payment_reference"
-    );
-
-const paymentProof =
-    document.getElementById(
-        "payment_proof"
     );
 
 
@@ -1398,17 +1307,6 @@ function updatePaymentFields() {
             isGCash
                 ? ""
                 : "none";
-
-    }
-
-
-    if (paymentProofField) {
-
-        paymentProofField.style.display =
-            isGCash
-                ? ""
-                : "none";
-
     }
 
 
@@ -1417,16 +1315,11 @@ function updatePaymentFields() {
         paymentReference.required =
             isGCash;
 
+        if (!isGCash) {
+
+            paymentReference.value = "";
+        }
     }
-
-
-    if (paymentProof) {
-
-        paymentProof.required =
-            isGCash;
-
-    }
-
 }
 
 
@@ -1438,7 +1331,51 @@ if (paymentMethod) {
     );
 
     updatePaymentFields();
+}
 
+
+/* ========================================
+   MOBILE MENU
+======================================== */
+
+const menuToggle =
+    document.querySelector(
+        ".menu-toggle"
+    );
+
+const mainNav =
+    document.querySelector(
+        ".main-nav"
+    );
+
+
+if (
+    menuToggle &&
+    mainNav
+) {
+
+    menuToggle.addEventListener(
+        "click",
+        function () {
+
+            mainNav.classList.toggle(
+                "open"
+            );
+
+            const isOpen =
+                mainNav.classList.contains(
+                    "open"
+                );
+
+            menuToggle.setAttribute(
+                "aria-expanded",
+                isOpen
+                    ? "true"
+                    : "false"
+            );
+
+        }
+    );
 }
 
 </script>

@@ -6,19 +6,18 @@ require_once "database.php";
 require_once "auth.php";
 
 
-/* 
+/* ========================================
    IF ALREADY LOGGED IN
-*/
+======================================== */
 
 if (isLoggedIn()) {
 
-    $role = $_SESSION["user_role"] ?? "customer";
+    $role = currentUserRole();
 
     if ($role === "admin") {
 
         header("Location: admin/dashboard.php");
         exit;
-
     }
 
     header("Location: index.php");
@@ -31,320 +30,325 @@ $messageType = "";
 $email = "";
 
 
- 
-   //LOGIN RATE LIMIT
-
-
-if (!isset($_SESSION["login_attempts"])) {
-    $_SESSION["login_attempts"] = 0;
-}
-
-if (!isset($_SESSION["login_lock_until"])) {
-    $_SESSION["login_lock_until"] = 0;
-}
-
-
-
-   //HANDLE LOGIN
-
+/* ========================================
+   HANDLE LOGIN
+======================================== */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
-    
-       //CHECK LOGIN LOCK
-    
+    /* ========================================
+       CSRF CHECK
+    ======================================== */
+
+    $csrfToken =
+        $_POST["csrf_token"] ?? null;
+
 
     if (
-        isset($_SESSION["login_lock_until"]) &&
-        time() < (int) $_SESSION["login_lock_until"]
+        !verifyCsrfToken(
+            is_string($csrfToken)
+                ? $csrfToken
+                : null
+        )
     ) {
 
         $message =
-            "Too many login attempts. Please try again later.";
+            "Invalid form request. Please try again.";
 
-        $messageType = "error";
-
+        $messageType =
+            "error";
 
     } else {
 
 
-        
-           //CSRF CHECK
-        
-        $csrfToken = $_POST["csrf_token"] ?? null;
+        /* ========================================
+           GET INPUT
+        ======================================== */
 
-        if (
-            !verifyCsrfToken(
-                is_string($csrfToken)
-                    ? $csrfToken
-                    : null
-            )
-        ) {
-
-            $message =
-                "Invalid form request. Please try again.";
-
-            $messageType = "error";
-
-
-        } else {
-
-
-        
-               //GET LOGIN VALUES
-           
-
-            $email = strtolower(
+        $email =
+            strtolower(
                 trim(
-                    (string) ($_POST["email"] ?? "")
+                    (string)(
+                        $_POST["email"] ?? ""
+                    )
                 )
             );
 
-            $password = (string) (
+
+        $password =
+            (string)(
                 $_POST["password"] ?? ""
             );
 
 
-            
-               //VALIDATION
-            
+        /* ========================================
+           BASIC VALIDATION
+        ======================================== */
 
-            if (
-                $email === "" ||
-                $password === ""
-            ) {
+        if (
+            $email === "" ||
+            $password === ""
+        ) {
 
-                $message =
-                    "Please enter your email and password.";
+            $message =
+                "Please enter your email and password.";
 
-                $messageType = "error";
-
-
-            } elseif (
-                !filter_var(
-                    $email,
-                    FILTER_VALIDATE_EMAIL
-                )
-            ) {
-
-                $message =
-                    "Please enter a valid email address.";
-
-                $messageType = "error";
+            $messageType =
+                "error";
 
 
-            } else {
+        } elseif (
+            !filter_var(
+                $email,
+                FILTER_VALIDATE_EMAIL
+            )
+        ) {
+
+            $message =
+                "Please enter a valid email address.";
+
+            $messageType =
+                "error";
 
 
-               
-                   //FIND USER
-              
+        } else {
 
-                $stmt = $conn->prepare("
-                    SELECT
-                        id,
-                        name,
-                        email,
-                        phone,
-                        password,
-                        role
-                    FROM users
-                    WHERE email = ?
-                    LIMIT 1
-                ");
-
-                $stmt->execute([
-                    $email
-                ]);
-
-                $user = $stmt->fetch(
-                    PDO::FETCH_ASSOC
-                );
+            try {
 
 
                 /* ========================================
-                   CHECK PASSWORD
+                   RATE LIMIT CHECK
                 ======================================== */
 
                 if (
-                    $user &&
-                    isset($user["password"]) &&
-                    password_verify(
-                        $password,
-                        $user["password"]
+                    loginRateLimitExceeded(
+                        $email
                     )
                 ) {
 
+                    $message =
+                        "Too many login attempts. Please try again later.";
 
-                    /* ========================================
-                       REHASH PASSWORD IF NEEDED
-                    ======================================== */
+                    $messageType =
+                        "error";
 
-                    if (
-                        password_needs_rehash(
-                            $user["password"],
-                            PASSWORD_DEFAULT
-                        )
-                    ) {
-
-                        $newHash = password_hash(
-                            $password,
-                            PASSWORD_DEFAULT
-                        );
-
-                        $update = $conn->prepare("
-                            UPDATE users
-                            SET password = ?
-                            WHERE id = ?
-                        ");
-
-                        $update->execute([
-                            $newHash,
-                            (int) $user["id"]
-                        ]);
-
-                    }
-
-
-                    /* ========================================
-                       RESET LOGIN ATTEMPTS
-                    ======================================== */
-
-                    $_SESSION["login_attempts"] = 0;
-                    $_SESSION["login_lock_until"] = 0;
-
-
-                    /* ========================================
-                       REGENERATE SESSION ID
-                    ======================================== */
-
-                    session_regenerate_id(true);
-
-
-                    /* ========================================
-                       GET USER ROLE
-                    ======================================== */
-
-                    $role = (string) (
-                        $user["role"] ?? "customer"
-                    );
-
-
-                    /* ========================================
-                       ONLY ALLOW VALID ROLES
-                    ======================================== */
-
-                    if (
-                        $role !== "admin" &&
-                        $role !== "customer"
-                    ) {
-
-                        $role = "customer";
-
-                    }
-
-
-                    /* ========================================
-                       SAVE USER SESSION
-                    ======================================== */
-
-                    $_SESSION["user_id"] =
-                        (int) $user["id"];
-
-                    $_SESSION["user_name"] =
-                        (string) $user["name"];
-
-                    $_SESSION["user_email"] =
-                        (string) $user["email"];
-
-                    $_SESSION["user_phone"] =
-                        (string) (
-                            $user["phone"] ?? ""
-                        );
-
-                    $_SESSION["user_role"] =
-                        $role;
-
-
-                    /* ========================================
-                       GENERATE NEW CSRF TOKEN
-                    ======================================== */
-
-                    $_SESSION["csrf_token"] =
-                        bin2hex(
-                            random_bytes(32)
-                        );
-
-
-                    /* ========================================
-                       ROLE-BASED REDIRECT
-                    ======================================== */
-
-                    if ($role === "admin") {
-
-                        header(
-                            "Location: admin/dashboard.php"
-                        );
-
-                        exit;
-
-                    }
-
-
-                    header(
-                        "Location: index.php"
-                    );
-
-                    exit;
 
                 } else {
 
 
                     /* ========================================
-                       FAILED LOGIN
+                       FIND USER
                     ======================================== */
 
-                    $_SESSION["login_attempts"]++;
+                    $stmt =
+                        $conn->prepare("
+                            SELECT
+                                id,
+                                name,
+                                email,
+                                phone,
+                                password,
+                                role
+                            FROM users
+                            WHERE email = ?
+                            LIMIT 1
+                        ");
+
+
+                    $stmt->execute([
+                        $email
+                    ]);
+
+
+                    $user =
+                        $stmt->fetch(
+                            PDO::FETCH_ASSOC
+                        );
 
 
                     /* ========================================
-                       LOCK AFTER 5 FAILED ATTEMPTS
+                       PASSWORD CHECK
+                    ======================================== */
+
+                    $passwordHash =
+                        $user
+                            ? (string)$user["password"]
+                            : "";
+
+
+                    /*
+                     * Perform password verification even
+                     * when account does not exist.
+                     */
+                    if ($passwordHash === "") {
+
+                        $passwordHash =
+                            password_hash(
+                                "invalid-login-password",
+                                PASSWORD_DEFAULT
+                            );
+                    }
+
+
+                    $passwordValid =
+                        password_verify(
+                            $password,
+                            $passwordHash
+                        );
+
+
+                    /* ========================================
+                       SUCCESSFUL LOGIN
                     ======================================== */
 
                     if (
-                        $_SESSION["login_attempts"] >= 5
+                        $user &&
+                        $passwordValid
                     ) {
 
-                        $_SESSION["login_lock_until"] =
-                            time() + 60;
 
-                        $_SESSION["login_attempts"] = 0;
+                        $role =
+                            (string)(
+                                $user["role"] ?? ""
+                            );
 
-                        $message =
-                            "Too many login attempts. Please try again later.";
+
+                        /* ========================================
+                           VALIDATE ROLE
+                        ======================================== */
+
+                        if (
+                            $role !== "admin" &&
+                            $role !== "customer"
+                        ) {
+
+                            throw new RuntimeException(
+                                "Invalid account role."
+                            );
+                        }
+
+
+                        /* ========================================
+                           REHASH PASSWORD IF NEEDED
+                        ======================================== */
+
+                        if (
+                            password_needs_rehash(
+                                (string)$user["password"],
+                                PASSWORD_DEFAULT
+                            )
+                        ) {
+
+                            $newHash =
+                                password_hash(
+                                    $password,
+                                    PASSWORD_DEFAULT
+                                );
+
+
+                            $update =
+                                $conn->prepare("
+                                    UPDATE users
+                                    SET password = ?
+                                    WHERE id = ?
+                                ");
+
+
+                            $update->execute([
+                                $newHash,
+                                (int)$user["id"]
+                            ]);
+                        }
+
+
+                        /* ========================================
+                           CLEAR FAILED LOGIN RECORD
+                        ======================================== */
+
+                        clearFailedLogin(
+                            $email
+                        );
+
+
+                        /* ========================================
+                           CREATE AUTHENTICATED SESSION
+                        ======================================== */
+
+                        loginUser(
+                            $user
+                        );
+
+
+                        /* ========================================
+                           ROLE-BASED REDIRECT
+                        ======================================== */
+
+                        if (
+                            $role === "admin"
+                        ) {
+
+                            header(
+                                "Location: admin/dashboard.php"
+                            );
+
+                            exit;
+                        }
+
+
+                        header(
+                            "Location: index.php"
+                        );
+
+                        exit;
+
 
                     } else {
+
+
+                        /* ========================================
+                           FAILED LOGIN
+                        ======================================== */
+
+                        registerFailedLogin(
+                            $email
+                        );
+
 
                         $message =
                             "Incorrect email or password.";
 
+                        $messageType =
+                            "error";
                     }
-
-                    $messageType = "error";
-
                 }
 
+
+            } catch (PDOException $e) {
+
+                /*
+                 * Do not expose database details.
+                 */
+                $message =
+                    "Unable to process your login right now. Please try again.";
+
+                $messageType =
+                    "error";
+
+
+            } catch (RuntimeException $e) {
+
+                $message =
+                    "Unable to process your login right now. Please try again.";
+
+                $messageType =
+                    "error";
             }
-
         }
-
     }
-
 }
 
 ?>
-
 
 <!DOCTYPE html>
 
@@ -395,148 +399,644 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         href="assets/css/style.css"
     >
 
+
+    <style>
+
+        /* ========================================
+           PAGE BACKGROUND
+           IMAGE ONLY IN LOGIN CONTENT
+        ======================================== */
+
+        body {
+
+            background:
+                #000;
+
+        }
+
+
+        .site-header {
+
+            background:
+                #000;
+
+            backdrop-filter:
+                none;
+
+        }
+
+
+        .login-page {
+
+            position:
+                relative;
+
+            isolation:
+                isolate;
+
+            min-height:
+                calc(100vh - 101px);
+
+            display:
+                flex;
+
+            align-items:
+                flex-start;
+
+            justify-content:
+                center;
+
+            padding:
+                55px 20px 80px;
+
+        }
+
+
+        .login-page::before {
+
+            content:
+                "";
+
+            position:
+                absolute;
+
+            inset:
+                0;
+
+            z-index:
+                -1;
+
+            background:
+
+                linear-gradient(
+                    rgba(0, 0, 0, .72),
+                    rgba(0, 0, 0, .72)
+                ),
+
+                url("assets/images/account-bg.png")
+                center center / cover
+                no-repeat;
+
+        }
+
+
+        /* ========================================
+           LOGIN CONTAINER
+        ======================================== */
+
+        .login-container {
+
+            width:
+                100%;
+
+            max-width:
+                560px;
+
+            margin:
+                0 auto;
+
+        }
+
+
+        /* ========================================
+           LOGIN HEADING
+        ======================================== */
+
+        .login-kicker {
+
+            margin:
+                0 0 8px;
+
+            text-align:
+                center;
+
+            color:
+                var(--green);
+
+            font:
+                500 11px "Orbitron",
+                sans-serif;
+
+        }
+
+
+        .login-title {
+
+            margin:
+                0 0 32px;
+
+            text-align:
+                center;
+
+            color:
+                var(--green);
+
+            font:
+                600 48px/1
+                "Orbitron",
+                sans-serif;
+
+        }
+
+
+        /* ========================================
+           LOGIN CARD
+        ======================================== */
+
+        .login-card {
+
+            width:
+                100%;
+
+            border:
+                1px solid var(--green);
+
+            border-radius:
+                10px;
+
+            background:
+                rgba(0, 0, 0, .88);
+
+            padding:
+                38px 42px;
+
+            box-shadow:
+
+                0 0 18px
+                rgba(57, 255, 20, .08),
+
+                0 0 40px
+                rgba(57, 255, 20, .03);
+
+            box-sizing:
+                border-box;
+
+        }
+
+
+        /* ========================================
+           FORM
+        ======================================== */
+
+        .login-fields {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                1fr;
+
+            gap:
+                22px;
+
+        }
+
+
+        .login-fields label {
+
+            display:
+                grid;
+
+            gap:
+                8px;
+
+            color:
+                #eeeeee;
+
+            font:
+                700 11px
+                "Montserrat",
+                sans-serif;
+
+        }
+
+
+        .login-fields input {
+
+            width:
+                100%;
+
+            height:
+                48px;
+
+            padding:
+                0 15px;
+
+            border:
+                1px solid #333;
+
+            border-radius:
+                4px;
+
+            background:
+                #070707;
+
+            color:
+                #fff;
+
+            outline:
+                none;
+
+            box-sizing:
+                border-box;
+
+            font:
+                500 13px
+                "Montserrat",
+                sans-serif;
+
+            transition:
+                border-color .2s ease,
+                box-shadow .2s ease;
+
+        }
+
+
+        .login-fields input::placeholder {
+
+            color:
+                #777;
+
+        }
+
+
+        .login-fields input:focus {
+
+            border-color:
+                var(--green);
+
+            box-shadow:
+                0 0 10px
+                rgba(57, 255, 20, .18);
+
+        }
+
+
+        /* ========================================
+           PASSWORD
+        ======================================== */
+
+        .password-input-wrap {
+
+            position:
+                relative;
+
+            width:
+                100%;
+
+        }
+
+
+        .password-input-wrap input {
+
+            padding-right:
+                82px;
+
+        }
+
+
+        /* ========================================
+           SHOW / HIDE PASSWORD
+        ======================================== */
+
+        .show-password {
+
+            position:
+                absolute;
+
+            right:
+                10px;
+
+            top:
+                50%;
+
+            transform:
+                translateY(-50%);
+
+            border:
+                none;
+
+            background:
+                transparent;
+
+            color:
+                var(--green);
+
+            padding:
+                5px;
+
+            font:
+                800 8px
+                "Orbitron",
+                sans-serif;
+
+            line-height:
+                1;
+
+            cursor:
+                pointer;
+
+            z-index:
+                3;
+
+        }
+
+
+        .show-password:hover {
+
+            color:
+                #fff;
+
+        }
+
+
+        .show-password:focus {
+
+            outline:
+                none;
+
+        }
+
+
+        /* ========================================
+           LOGIN BUTTON
+        ======================================== */
+
+        .login-submit {
+
+            width:
+                100%;
+
+            height:
+                48px;
+
+            margin-top:
+                26px;
+
+            border:
+                1px solid var(--green);
+
+            border-radius:
+                4px;
+
+            background:
+                var(--green);
+
+            color:
+                #000;
+
+            font:
+                800 12px
+                "Orbitron",
+                sans-serif;
+
+            cursor:
+                pointer;
+
+            transition:
+                transform .2s ease,
+                box-shadow .2s ease;
+
+        }
+
+
+        .login-submit:hover {
+
+            background:
+                var(--green);
+
+            color:
+                #000;
+
+            transform:
+                translateY(-2px);
+
+            box-shadow:
+
+                0 0 12px
+                rgba(57, 255, 20, .55),
+
+                0 0 25px
+                rgba(57, 255, 20, .18);
+
+        }
+
+
+        .login-submit:focus,
+        .login-submit:active {
+
+            background:
+                var(--green);
+
+            color:
+                #000;
+
+        }
+
+
+        /* ========================================
+           REGISTER LINK
+        ======================================== */
+
+        .login-register {
+
+            margin:
+                22px 0 0;
+
+            text-align:
+                center;
+
+            color:
+                #ddd;
+
+            font:
+                12px
+                "Montserrat",
+                sans-serif;
+
+        }
+
+
+        .login-register a {
+
+            color:
+                var(--green);
+
+            font-weight:
+                700;
+
+        }
+
+
+        .login-register a:hover {
+
+            color:
+                var(--green);
+
+        }
+
+
+        /* ========================================
+           MESSAGE
+        ======================================== */
+
+        .login-message {
+
+            width:
+                100%;
+
+            margin:
+                0 0 18px;
+
+            box-sizing:
+                border-box;
+
+        }
+
+
+        /* ========================================
+           MOBILE
+        ======================================== */
+
+        @media (max-width: 600px) {
+
+            .login-page {
+
+                min-height:
+                    calc(100vh - 82px);
+
+                padding:
+                    40px 15px 60px;
+
+            }
+
+
+            .login-container {
+
+                max-width:
+                    100%;
+
+            }
+
+
+            .login-title {
+
+                font-size:
+                    36px;
+
+                margin-bottom:
+                    25px;
+
+            }
+
+
+            .login-card {
+
+                padding:
+                    28px 22px;
+
+            }
+
+
+            .login-fields {
+
+                gap:
+                    18px;
+
+            }
+
+        }
+
+    </style>
+
 </head>
 
 
 <body>
 
 
-    <!-- ========================================
-         HEADER
-    ======================================== -->
+<!-- ========================================
+     HEADER
+     LOGO ONLY
+======================================== -->
 
-    <header class="site-header">
+<header class="site-header">
 
-        <div class="container nav-container">
+    <div class="container nav-container">
 
+        <a
+            href="index.php"
+            class="brand"
+        >
 
-            <!-- LOGO -->
-
-            <a
-                href="index.php"
-                class="brand"
+            <img
+                src="assets/images/logo.png"
+                alt="Bais Rouilo Gaming Cafe"
             >
 
-                <img
-                    src="assets/images/logo.png"
-                    alt="Bais Rouilo Gaming Cafe"
-                >
+        </a>
 
-            </a>
+    </div>
+
+</header>
 
 
-            <!-- MOBILE MENU -->
+<!-- ========================================
+     LOGIN PAGE
+======================================== -->
 
-            <button
-                class="menu-toggle"
-                aria-label="Open menu"
-                aria-expanded="false"
-                type="button"
+<main class="login-page">
+
+    <div class="login-container">
+
+
+        <!-- LOGIN HEADING -->
+
+        <p class="login-kicker">
+            ACCOUNT
+        </p>
+
+
+        <h1 class="login-title">
+            LOGIN
+        </h1>
+
+
+        <!-- MESSAGE -->
+
+        <?php if ($message !== ""): ?>
+
+            <div
+                class="form-message <?= htmlspecialchars(
+                    $messageType,
+                    ENT_QUOTES,
+                    "UTF-8"
+                ) ?> login-message"
             >
 
-                <span></span>
-                <span></span>
-                <span></span>
+                <?= htmlspecialchars(
+                    $message,
+                    ENT_QUOTES,
+                    "UTF-8"
+                ) ?>
 
-            </button>
+            </div>
 
-
-            <!-- MAIN NAVIGATION -->
-
-            <nav
-                class="main-nav"
-                id="mainNav"
-            >
-
-                <a href="index.php#home">
-                    HOME
-                </a>
-
-                <a href="index.php#pcs">
-                    PCS
-                </a>
-
-                <a href="index.php#rates">
-                    RATES
-                </a>
-
-                <a href="index.php#tournaments">
-                    TOURNAMENTS
-                </a>
-
-                <a href="index.php#gallery">
-                    GALLERY
-                </a>
-
-                <a href="contact.php">
-                    CONTACT
-                </a>
-
-            </nav>
-
-        </div>
-
-    </header>
+        <?php endif; ?>
 
 
-    <!-- ========================================
-         LOGIN PAGE
-    ======================================== -->
+        <!-- LOGIN CARD -->
 
-    <main class="inner-page">
+        <div class="login-card">
 
-        <div class="container form-page">
-
-
-            <p class="section-kicker">
-                CUSTOMER ACCOUNT
-            </p>
-
-
-            <h1 class="page-title">
-
-                <span>
-                    LOGIN
-                </span>
-
-            </h1>
-
-
-            <!-- MESSAGE -->
-
-            <?php if ($message !== ""): ?>
-
-                <div
-                    class="form-message <?= htmlspecialchars(
-                        $messageType,
-                        ENT_QUOTES,
-                        "UTF-8"
-                    ) ?>"
-                >
-
-                    <?= htmlspecialchars(
-                        $message,
-                        ENT_QUOTES,
-                        "UTF-8"
-                    ) ?>
-
-                </div>
-
-            <?php endif; ?>
-
-
-            <!-- ========================================
-                 ONE LOGIN FORM
-            ======================================== -->
 
             <form
                 action="login.php"
                 method="POST"
-                class="booking-form"
             >
 
 
-                <!-- CSRF TOKEN -->
+                <!-- CSRF -->
 
                 <input
                     type="hidden"
@@ -549,7 +1049,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 >
 
 
-                <div class="form-row">
+                <!-- FIELDS -->
+
+                <div class="login-fields">
 
 
                     <!-- EMAIL -->
@@ -567,7 +1069,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 "UTF-8"
                             ) ?>"
                             placeholder="Enter your email"
-                            autocomplete="email"
+                            autocomplete="username"
+                            maxlength="160"
                             required
                         >
 
@@ -580,13 +1083,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         Password
 
-                        <input
-                            type="password"
-                            name="password"
-                            placeholder="Enter your password"
-                            autocomplete="current-password"
-                            required
+
+                        <div
+                            class="password-input-wrap"
                         >
+
+                            <input
+                                type="password"
+                                name="password"
+                                id="loginPassword"
+                                placeholder="Enter your password"
+                                autocomplete="current-password"
+                                required
+                            >
+
+
+                            <button
+                                type="button"
+                                class="show-password"
+                                id="showPasswordButton"
+                                aria-label="Show password"
+                                aria-pressed="false"
+                            >
+
+                                SHOW
+
+                            </button>
+
+                        </div>
 
                     </label>
 
@@ -598,77 +1122,116 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 <button
                     type="submit"
-                    class="green-button"
+                    class="login-submit"
                 >
+
                     LOGIN
+
                 </button>
 
 
             </form>
 
 
-            <!-- CREATE ACCOUNT -->
-
-            <p
-                style="
-                    text-align:center;
-                    margin-top:20px;
-                    font-size:12px;
-                "
-            >
-
-                Don't have an account?
-
-                <a
-                    href="register.php"
-                    style="color:#39FF14;"
-                >
-                    CREATE ACCOUNT
-                </a>
-
-            </p>
-
-
         </div>
 
-    </main>
+
+        <!-- CREATE ACCOUNT -->
+
+        <p class="login-register">
+
+            Don't have an account?
+
+            <a href="register.php">
+
+                CREATE ACCOUNT
+
+            </a>
+
+        </p>
 
 
-    <!-- ========================================
-         MOBILE MENU SCRIPT
-    ======================================== -->
+    </div>
 
-    <script>
-
-    const menuToggle =
-        document.querySelector(".menu-toggle");
-
-    const mainNav =
-        document.querySelector(".main-nav");
+</main>
 
 
-    if (menuToggle && mainNav) {
+<!-- ========================================
+     SHOW / HIDE PASSWORD
+======================================== -->
 
-        menuToggle.addEventListener(
-            "click",
-            function () {
+<script>
 
-                mainNav.classList.toggle("open");
+const loginPassword =
+    document.getElementById(
+        "loginPassword"
+    );
 
-                const isOpen =
-                    mainNav.classList.contains("open");
 
-                menuToggle.setAttribute(
-                    "aria-expanded",
-                    isOpen ? "true" : "false"
+const showPasswordButton =
+    document.getElementById(
+        "showPasswordButton"
+    );
+
+
+if (
+    loginPassword &&
+    showPasswordButton
+) {
+
+    showPasswordButton.addEventListener(
+        "click",
+        function () {
+
+            const isHidden =
+                loginPassword.type ===
+                "password";
+
+
+            if (isHidden) {
+
+                loginPassword.type =
+                    "text";
+
+                showPasswordButton.textContent =
+                    "HIDE";
+
+                showPasswordButton.setAttribute(
+                    "aria-label",
+                    "Hide password"
+                );
+
+                showPasswordButton.setAttribute(
+                    "aria-pressed",
+                    "true"
+                );
+
+            } else {
+
+                loginPassword.type =
+                    "password";
+
+                showPasswordButton.textContent =
+                    "SHOW";
+
+                showPasswordButton.setAttribute(
+                    "aria-label",
+                    "Show password"
+                );
+
+                showPasswordButton.setAttribute(
+                    "aria-pressed",
+                    "false"
                 );
 
             }
-        );
 
-    }
+        }
+    );
 
-    </script>
+}
+
+</script>
 
 
 </body>
