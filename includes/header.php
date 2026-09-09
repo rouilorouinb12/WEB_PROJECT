@@ -1,9 +1,7 @@
 <?php
 
 if (session_status() === PHP_SESSION_NONE) {
-
     session_start();
-
 }
 
 $currentPage = basename($_SERVER["PHP_SELF"]);
@@ -15,7 +13,6 @@ $userName = $_SESSION["user"]["name"] ?? "";
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -107,6 +104,8 @@ $userName = $_SESSION["user"]["name"] ?? "";
             id="mainNav"
         >
 
+            <!-- HOME -->
+
             <a
                 href="index.php#home"
                 class="<?= $currentPage === "index.php" ? "active" : "" ?>"
@@ -115,25 +114,35 @@ $userName = $_SESSION["user"]["name"] ?? "";
             </a>
 
 
+            <!-- PCS -->
+
             <a href="index.php#pcs">
                 PCS
             </a>
 
+
+            <!-- RATES -->
 
             <a href="index.php#rates">
                 RATES
             </a>
 
 
+            <!-- TOURNAMENTS -->
+
             <a href="index.php#tournaments">
                 TOURNAMENTS
             </a>
 
 
+            <!-- GALLERY -->
+
             <a href="index.php#gallery">
                 GALLERY
             </a>
 
+
+            <!-- CONTACT -->
 
             <a
                 href="contact.php"
@@ -143,9 +152,11 @@ $userName = $_SESSION["user"]["name"] ?? "";
             </a>
 
 
-            <!-- PROFILE / BOOK NOW -->
+            <!-- LOGIN / PROFILE -->
 
             <?php if ($isLoggedIn): ?>
+
+                <!-- ADMIN AND CUSTOMER -->
 
                 <a
                     href="profile.php"
@@ -155,6 +166,8 @@ $userName = $_SESSION["user"]["name"] ?? "";
                 </a>
 
             <?php else: ?>
+
+                <!-- GUEST -->
 
                 <a
                     href="login.php"

@@ -1,12 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 require_once "auth.php";
 
 /* ========================================
-   LOGOUT USER
+   USER LOGOUT
 ======================================== */
 
+// Clear all session data
 $_SESSION = [];
 
 /*
@@ -33,8 +35,9 @@ if (ini_get("session.use_cookies")) {
 session_destroy();
 
 /*
- * Return to the homepage.
+ * Return directly to the main homepage.
  */
 header("Location: index.php");
 exit;
+
 ?>

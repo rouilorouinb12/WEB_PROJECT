@@ -8,17 +8,12 @@ require_once "../auth.php";
 requireLogin();
 
 if (($_SESSION["user_role"] ?? "") !== "admin") {
-
     header("Location: ../index.php");
-
     exit;
-
 }
 
 $error = "";
-
 $success = "";
-
 
 /* ========================================
    HANDLE STATUS ACTION
@@ -71,23 +66,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             ======================================== */
 
             $check = $conn->prepare("
-
                 SELECT
                     tr.id,
                     tr.user_id,
                     tr.status,
                     tr.team_name,
                     t.title AS tournament_title
-
                 FROM tournament_registrations tr
-
                 INNER JOIN tournaments t
                     ON t.id = tr.tournament_id
-
                 WHERE tr.id = :id
-
                 LIMIT 1
-
             ");
 
             $check->execute([
@@ -96,11 +85,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $registration = $check->fetch();
 
-
             if (!$registration) {
 
-                $error =
-                    "Registration not found.";
+                $error = "Registration not found.";
 
             } elseif (
                 $registration["status"] !== "pending"
@@ -113,29 +100,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 try {
 
-                    /*
-                    ========================================
-                    TRANSACTION
-                    ========================================
-                    */
+                    /* ========================================
+                       START TRANSACTION
+                    ======================================== */
 
                     $conn->beginTransaction();
 
 
                     /* ========================================
-                       UPDATE REGISTRATION STATUS
+                       UPDATE REGISTRATION
                     ======================================== */
 
                     $update = $conn->prepare("
-
                         UPDATE tournament_registrations
-
                         SET status = :status
-
                         WHERE id = :id
-
                           AND status = 'pending'
-
                     ");
 
                     $update->execute([
@@ -144,9 +124,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     ]);
 
 
-                    if (
-                        $update->rowCount() !== 1
-                    ) {
+                    if ($update->rowCount() !== 1) {
 
                         throw new RuntimeException(
                             "Unable to update the tournament registration."
@@ -162,19 +140,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     if ($status === "accepted") {
 
-                        $userId =
-                            (int)$registration["user_id"];
-
+                        $userId = (int)$registration["user_id"];
 
                         $tournamentTitle =
-                            (string)$registration[
-                                "tournament_title"
-                            ];
-
+                            (string)$registration["tournament_title"];
 
                         $notificationTitle =
                             "TOURNAMENT APPROVED";
-
 
                         $notificationMessage =
                             "Your registration for "
@@ -182,31 +154,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             . " has been approved successfully.";
 
 
-                        /*
-                        ========================================
-                        PREVENT DUPLICATE NOTIFICATION
-                        ========================================
-                        */
+                        /* ========================================
+                           CHECK DUPLICATE NOTIFICATION
+                        ======================================== */
 
-                        $duplicateCheck =
-                            $conn->prepare("
-
-                                SELECT id
-
-                                FROM notifications
-
-                                WHERE user_id = ?
-
-                                  AND type = 'tournament'
-
-                                  AND title = ?
-
-                                  AND message = ?
-
-                                LIMIT 1
-
-                            ");
-
+                        $duplicateCheck = $conn->prepare("
+                            SELECT id
+                            FROM notifications
+                            WHERE user_id = ?
+                              AND type = 'tournament'
+                              AND title = ?
+                              AND message = ?
+                            LIMIT 1
+                        ");
 
                         $duplicateCheck->execute([
                             $userId,
@@ -214,38 +174,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             $notificationMessage
                         ]);
 
-
                         $existingNotification =
                             $duplicateCheck->fetchColumn();
 
 
-                        if (
-                            !$existingNotification
-                        ) {
+                        /* ========================================
+                           INSERT NOTIFICATION
+                        ======================================== */
 
-                            $notifyStmt =
-                                $conn->prepare("
+                        if (!$existingNotification) {
 
-                                    INSERT INTO notifications
-
-                                    (
-                                        user_id,
-                                        type,
-                                        title,
-                                        message
-                                    )
-
-                                    VALUES
-
-                                    (
-                                        ?,
-                                        'tournament',
-                                        ?,
-                                        ?
-                                    )
-
-                                ");
-
+                            $notifyStmt = $conn->prepare("
+                                INSERT INTO notifications
+                                (
+                                    user_id,
+                                    type,
+                                    title,
+                                    message
+                                )
+                                VALUES
+                                (
+                                    ?,
+                                    'tournament',
+                                    ?,
+                                    ?
+                                )
+                            ");
 
                             $notifyStmt->execute([
                                 $userId,
@@ -267,17 +221,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     }
 
 
-                    $conn->commit();
+                    /* ========================================
+                       COMMIT
+                    ======================================== */
 
+                    $conn->commit();
 
                 } catch (Throwable $e) {
 
                     if ($conn->inTransaction()) {
-
                         $conn->rollBack();
-
                     }
-
 
                     $error =
                         "Unable to process the tournament registration.";
@@ -298,67 +252,43 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 ======================================== */
 
 $stmt = $conn->query("
-
     SELECT
-
         tr.id,
-
         tr.user_id,
-
         tr.tournament_id,
-
         tr.team_name,
-
         tr.contact_number,
-
         tr.message,
-
         tr.status,
-
         tr.payment_method,
-
         tr.payment_reference,
-
         tr.payment_status,
-
         tr.created_at,
 
         u.name AS customer_name,
-
         u.email AS customer_email,
 
         t.title AS tournament_title,
-
         t.tournament_date
 
     FROM tournament_registrations tr
 
     INNER JOIN users u
-
         ON u.id = tr.user_id
 
     INNER JOIN tournaments t
-
         ON t.id = tr.tournament_id
 
     ORDER BY
-
         CASE
-
             WHEN tr.status = 'pending' THEN 0
-
             WHEN tr.status = 'accepted' THEN 1
-
             ELSE 2
-
         END,
-
         tr.created_at DESC
-
 ");
 
-$registrations =
-    $stmt->fetchAll();
+$registrations = $stmt->fetchAll();
 
 
 /* ========================================
@@ -366,45 +296,23 @@ $registrations =
 ======================================== */
 
 $countStmt = $conn->query("
-
     SELECT
-
-        SUM(status = 'pending')
-            AS pending_count,
-
-        SUM(status = 'accepted')
-            AS accepted_count,
-
-        SUM(status = 'rejected')
-            AS rejected_count
-
+        SUM(status = 'pending') AS pending_count,
+        SUM(status = 'accepted') AS accepted_count,
+        SUM(status = 'rejected') AS rejected_count
     FROM tournament_registrations
-
 ");
 
-$counts =
-    $countStmt->fetch();
-
+$counts = $countStmt->fetch();
 
 $pendingCount =
-    (int)(
-        $counts["pending_count"]
-        ?? 0
-    );
-
+    (int)($counts["pending_count"] ?? 0);
 
 $acceptedCount =
-    (int)(
-        $counts["accepted_count"]
-        ?? 0
-    );
-
+    (int)($counts["accepted_count"] ?? 0);
 
 $rejectedCount =
-    (int)(
-        $counts["rejected_count"]
-        ?? 0
-    );
+    (int)($counts["rejected_count"] ?? 0);
 
 
 $csrfToken = csrfToken();
@@ -417,1662 +325,1155 @@ $csrfToken = csrfToken();
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+<title>Tournament Registrations | Admin</title>
 
+<link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+>
 
-    <title>
-        Tournament Registrations | Admin
-    </title>
+<link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+>
 
+<link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+>
 
-    <link
-        rel="preconnect"
-        href="https://fonts.googleapis.com"
-    >
+<style>
 
+:root {
 
-    <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin
-    >
+    --green: #39ff14;
+    --black: #000;
+    --white: #fff;
+    --dark: #080808;
+    --border: rgba(57,255,20,.35);
+    --muted: #999;
 
+}
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-    >
+* {
+    box-sizing: border-box;
+}
 
+html,
+body {
 
-    <style>
+    margin: 0;
+    padding: 0;
 
-        :root {
+}
 
-            --green:
-                #39ff14;
+body {
 
-            --black:
-                #000;
+    background: var(--black);
+    color: var(--white);
+    font-family: "Rajdhani", sans-serif;
 
-            --white:
-                #fff;
+}
 
-            --dark:
-                #080808;
+body.modal-open {
+    overflow: hidden;
+}
 
-            --border:
-                rgba(57, 255, 20, .35);
+a {
 
-            --muted:
-                #999;
+    color: inherit;
+    text-decoration: none;
 
-        }
+}
 
+button {
 
-        * {
+    font-family: inherit;
 
-            box-sizing:
-                border-box;
+}
 
-        }
+.page {
 
+    width: min(1200px, 94%);
+    margin: 0 auto;
+    padding: 45px 0 60px;
 
-        html,
-        body {
+}
 
-            margin:
-                0;
+/* ========================================
+   TOPBAR
+======================================== */
 
-            padding:
-                0;
+.topbar {
 
-        }
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
 
+    margin-bottom: 35px;
+    padding-bottom: 18px;
 
-        body {
+    border-bottom:
+        1px solid rgba(57,255,20,.25);
 
-            background:
-                var(--black);
+}
 
-            color:
-                var(--white);
+.brand {
 
-            font-family:
-                "Rajdhani",
-                sans-serif;
+    color: var(--green);
 
-        }
+    font:
+        800 15px "Orbitron", sans-serif;
 
+    letter-spacing: .5px;
 
-        a {
+}
 
-            color:
-                inherit;
+.back-link {
 
-            text-decoration:
-                none;
+    border: 1px solid var(--green);
 
-        }
+    padding: 10px 16px;
 
+    border-radius: 4px;
 
-        button {
+    color: var(--green);
 
-            font-family:
-                inherit;
+    font:
+        700 11px "Orbitron", sans-serif;
 
-        }
+    transition: .2s ease;
 
+}
 
-        .page {
+.back-link:hover {
 
-            width:
-                min(1200px, 94%);
+    background: var(--green);
+    color: #000;
 
-            margin:
-                0 auto;
+}
 
-            padding:
-                45px 0 60px;
+/* ========================================
+   TITLE
+======================================== */
 
-        }
+.page-kicker {
 
+    margin: 0 0 10px;
 
-        .topbar {
+    color: var(--green);
 
-            display:
-                flex;
+    font:
+        700 12px "Orbitron", sans-serif;
 
-            justify-content:
-                space-between;
+}
 
-            align-items:
-                center;
+.page-title {
 
-            gap:
-                20px;
+    margin: 0 0 30px;
 
-            margin-bottom:
-                35px;
+    font:
+        800 clamp(30px,5vw,54px)
+        "Orbitron", sans-serif;
 
-            padding-bottom:
-                18px;
+    letter-spacing: -1px;
 
-            border-bottom:
-                1px solid
-                rgba(57, 255, 20, .25);
+}
 
-        }
+.page-title span {
 
+    color: var(--green);
 
-        .brand {
+}
 
-            color:
-                var(--green);
+/* ========================================
+   STATS
+======================================== */
 
-            font:
-                800 15px
-                "Orbitron",
-                sans-serif;
+.stats {
 
-            letter-spacing:
-                .5px;
+    display: grid;
 
-        }
+    grid-template-columns:
+        repeat(3,1fr);
 
+    gap: 18px;
 
-        .back-link {
+    margin-bottom: 28px;
 
-            border:
-                1px solid
-                var(--green);
+}
 
-            padding:
-                10px 16px;
+.stat {
 
-            border-radius:
-                4px;
+    border: 1px solid var(--border);
 
-            color:
-                var(--green);
+    border-radius: 5px;
 
-            font:
-                700 11px
-                "Orbitron",
-                sans-serif;
+    background: var(--dark);
 
-            transition:
-                .2s ease;
+    padding: 20px;
 
-        }
+}
 
+.stat-label {
 
-        .back-link:hover {
+    display: block;
 
-            background:
-                var(--green);
+    color: #bbb;
 
-            color:
-                #000;
+    font:
+        700 11px "Orbitron", sans-serif;
 
-        }
+    margin-bottom: 10px;
 
+}
 
-        .page-kicker {
+.stat-number {
 
-            margin:
-                0 0 10px;
+    color: var(--green);
 
-            color:
-                var(--green);
+    font:
+        800 30px "Orbitron", sans-serif;
 
-            font:
-                700 12px
-                "Orbitron",
-                sans-serif;
+}
 
-        }
+/* ========================================
+   ALERT
+======================================== */
 
+.alert {
 
-        .page-title {
+    padding: 14px 16px;
 
-            margin:
-                0 0 30px;
+    margin-bottom: 22px;
 
-            font:
-                800 clamp(30px, 5vw, 54px)
-                "Orbitron",
-                sans-serif;
+    border-radius: 4px;
 
-            letter-spacing:
-                -1px;
+    font-weight: 600;
 
-        }
+}
 
+.alert.success {
 
-        .page-title span {
+    border: 1px solid var(--green);
 
-            color:
-                var(--green);
+    color: var(--green);
 
-        }
+    background:
+        rgba(57,255,20,.05);
 
+}
 
-        .stats {
+.alert.error {
 
-            display:
-                grid;
+    border: 1px solid #ff4747;
 
-            grid-template-columns:
-                repeat(3, 1fr);
+    color: #ff6b6b;
 
-            gap:
-                18px;
+    background:
+        rgba(255,0,0,.05);
 
-            margin-bottom:
-                28px;
+}
 
-        }
+/* ========================================
+   REGISTRATIONS
+======================================== */
 
+.registrations {
 
-        .stat {
+    display: grid;
+    gap: 20px;
 
-            border:
-                1px solid
-                var(--border);
+}
 
-            border-radius:
-                5px;
+.registration-card {
 
-            background:
-                var(--dark);
+    border: 1px solid var(--border);
 
-            padding:
-                20px;
+    border-radius: 5px;
 
-        }
+    background: #050505;
 
+    padding: 24px;
 
-        .stat-label {
+}
 
-            display:
-                block;
+.registration-header {
 
-            color:
-                #bbb;
+    display: flex;
 
-            font:
-                700 11px
-                "Orbitron",
-                sans-serif;
+    justify-content: space-between;
+    align-items: flex-start;
 
-            margin-bottom:
-                10px;
+    gap: 20px;
 
-        }
+    margin-bottom: 20px;
 
+}
 
-        .stat-number {
+.registration-title h2 {
 
-            color:
-                var(--green);
+    margin: 0 0 7px;
 
-            font:
-                800 30px
-                "Orbitron",
-                sans-serif;
+    color: var(--green);
 
-        }
+    font:
+        800 18px "Orbitron", sans-serif;
 
+}
 
-        .alert {
+.registration-title p {
 
-            padding:
-                14px 16px;
+    margin: 0;
 
-            margin-bottom:
-                22px;
+    color: #bbb;
 
-            border-radius:
-                4px;
+    font-size: 15px;
 
-            font-weight:
-                600;
+}
 
-        }
+.status {
 
+    flex-shrink: 0;
 
-        .alert.success {
+    padding: 8px 12px;
 
-            border:
-                1px solid
-                var(--green);
+    border-radius: 4px;
 
-            color:
-                var(--green);
+    font:
+        800 10px "Orbitron", sans-serif;
 
-            background:
-                rgba(57, 255, 20, .05);
+    border: 1px solid;
 
-        }
+}
 
+.status.pending {
 
-        .alert.error {
+    color: #ffd84a;
+    border-color: #ffd84a;
 
-            border:
-                1px solid
-                #ff4747;
+}
 
-            color:
-                #ff6b6b;
+.status.accepted {
 
-            background:
-                rgba(255, 0, 0, .05);
+    color: var(--green);
+    border-color: var(--green);
 
-        }
+}
 
+.status.rejected {
 
-        .registrations {
+    color: #ff5757;
+    border-color: #ff5757;
 
-            display:
-                grid;
+}
 
-            gap:
-                20px;
+/* ========================================
+   DETAILS
+======================================== */
 
-        }
+.details {
 
+    display: grid;
 
-        .registration-card {
+    grid-template-columns:
+        repeat(2,minmax(0,1fr));
 
-            border:
-                1px solid
-                var(--border);
+    gap: 16px 22px;
 
-            border-radius:
-                5px;
+}
 
-            background:
-                #050505;
+.detail {
 
-            padding:
-                24px;
+    border: 1px solid #222;
 
-        }
+    border-radius: 4px;
 
+    background: #080808;
 
-        .registration-header {
+    padding: 14px;
 
-            display:
-                flex;
+}
 
-            justify-content:
-                space-between;
+.detail.full {
 
-            align-items:
-                flex-start;
+    grid-column: 1 / -1;
 
-            gap:
-                20px;
+}
 
-            margin-bottom:
-                20px;
+.detail-label {
 
-        }
+    display: block;
 
+    margin-bottom: 6px;
 
-        .registration-title h2 {
+    color: #888;
 
-            margin:
-                0 0 7px;
+    font:
+        700 10px "Orbitron", sans-serif;
 
-            color:
-                var(--green);
+}
 
-            font:
-                800 18px
-                "Orbitron",
-                sans-serif;
+.detail-value {
 
-        }
+    color: #fff;
 
+    font-size: 15px;
 
-        .registration-title p {
+    line-height: 1.4;
 
-            margin:
-                0;
+    white-space: pre-line;
 
-            color:
-                #bbb;
+    overflow-wrap: anywhere;
 
-            font-size:
-                15px;
+}
 
-        }
+/* ========================================
+   ACTIONS
+======================================== */
 
+.actions {
 
-        .status {
+    display: flex;
 
-            flex-shrink:
-                0;
+    gap: 10px;
 
-            padding:
-                8px 12px;
+    flex-wrap: wrap;
 
-            border-radius:
-                4px;
+    margin-top: 20px;
 
-            font:
-                800 10px
-                "Orbitron",
-                sans-serif;
+    padding-top: 18px;
 
-            border:
-                1px solid;
+    border-top: 1px solid #1a1a1a;
 
-        }
+}
 
+.action-form {
 
-        .status.pending {
+    margin: 0;
 
-            color:
-                #ffd84a;
+}
 
-            border-color:
-                #ffd84a;
+.action-button {
 
-        }
+    min-width: 110px;
+    min-height: 40px;
 
+    padding: 0 16px;
 
-        .status.accepted {
+    border-radius: 4px;
 
-            color:
-                var(--green);
+    font:
+        800 10px "Orbitron", sans-serif;
 
-            border-color:
-                var(--green);
+    cursor: pointer;
 
-        }
+    transition:
+        transform .2s ease,
+        box-shadow .2s ease,
+        background .2s ease,
+        color .2s ease;
 
+}
 
-        .status.rejected {
+.accept-button {
 
-            color:
-                #ff5757;
+    background: var(--green);
 
-            border-color:
-                #ff5757;
+    color: #000;
 
-        }
+    border: 1px solid var(--green);
 
+}
 
-        .details {
+.accept-button:hover {
 
-            display:
-                grid;
+    transform: translateY(-2px);
 
-            grid-template-columns:
-                repeat(
-                    2,
-                    minmax(0, 1fr)
-                );
+    box-shadow:
+        0 0 15px rgba(57,255,20,.35);
 
-            gap:
-                16px 22px;
+}
 
-        }
+.reject-button {
 
+    background: transparent;
 
-        .detail {
+    color: #ff5757;
 
-            border:
-                1px solid
-                #222;
+    border: 1px solid #ff5757;
 
-            border-radius:
-                4px;
+}
 
-            background:
-                #080808;
+.reject-button:hover {
 
-            padding:
-                14px;
+    background: #ff5757;
 
-        }
+    color: #000;
 
+    transform: translateY(-2px);
 
-        .detail.full {
+}
 
-            grid-column:
-                1 / -1;
+.view-receipt-button {
 
-        }
+    background: transparent;
 
+    color: var(--green);
 
-        .detail-label {
+    border: 1px solid var(--green);
 
-            display:
-                block;
+}
 
-            margin-bottom:
-                6px;
+.view-receipt-button:hover {
 
-            color:
-                #888;
+    background: var(--green);
 
-            font:
-                700 10px
-                "Orbitron",
-                sans-serif;
+    color: #000;
 
-        }
+    transform: translateY(-2px);
 
+    box-shadow:
+        0 0 15px rgba(57,255,20,.35);
 
-        .detail-value {
+}
 
-            color:
-                #fff;
+.date-added {
 
-            font-size:
-                15px;
+    margin-top: 16px;
 
-            line-height:
-                1.4;
+    color: #666;
 
-            white-space:
-                pre-line;
+    font-size: 12px;
 
-            overflow-wrap:
-                anywhere;
+}
 
-        }
+/* ========================================
+   EMPTY
+======================================== */
 
+.empty {
 
-        .actions {
+    border: 1px dashed #333;
 
-            display:
-                flex;
+    border-radius: 5px;
 
-            gap:
-                10px;
+    padding: 45px 20px;
 
-            flex-wrap:
-                wrap;
+    text-align: center;
 
-            margin-top:
-                20px;
+    color: var(--muted);
 
-            padding-top:
-                18px;
+}
 
-            border-top:
-                1px solid
-                #1a1a1a;
+.empty strong {
 
-        }
+    display: block;
 
+    color: var(--green);
 
-        .action-form {
+    font:
+        700 16px "Orbitron", sans-serif;
 
-            margin:
-                0;
+    margin-bottom: 8px;
 
-        }
+}
 
+/* ========================================
+   CONFIRMATION OVERLAY
+======================================== */
 
-        .action-button {
+.confirm-overlay {
 
-            min-width:
-                110px;
+    position: fixed;
 
-            min-height:
-                40px;
+    inset: 0;
 
-            padding:
-                0 16px;
+    z-index: 99999;
 
-            border-radius:
-                4px;
+    display: flex;
 
-            font:
-                800 10px
-                "Orbitron",
-                sans-serif;
+    align-items: center;
 
-            cursor:
-                pointer;
+    justify-content: center;
 
-            transition:
-                transform .2s ease,
-                box-shadow .2s ease,
-                background .2s ease,
-                color .2s ease;
+    padding: 20px;
 
-        }
+    background:
+        rgba(0,0,0,.84);
 
+    backdrop-filter: blur(4px);
 
-        .accept-button {
+}
 
-            background:
-                var(--green);
+.confirm-overlay[hidden] {
 
-            color:
-                #000;
+    display: none;
 
-            border:
-                1px solid
-                var(--green);
+}
 
-        }
+.confirm-modal {
 
+    width: min(430px,100%);
 
-        .accept-button:hover {
+    background: #050505;
 
-            transform:
-                translateY(-2px);
+    border: 1px solid var(--green);
 
-            box-shadow:
-                0 0 15px
-                rgba(
-                    57,
-                    255,
-                    20,
-                    .35
-                );
+    border-radius: 6px;
 
-        }
+    padding: 28px;
 
+    text-align: center;
 
-        .reject-button {
+    box-shadow:
+        0 0 35px rgba(57,255,20,.18);
 
-            background:
-                transparent;
+    animation:
+        confirmModalIn .18s ease;
 
-            color:
-                #ff5757;
+}
 
-            border:
-                1px solid
-                #ff5757;
+.confirm-modal h3 {
 
-        }
+    margin: 0 0 12px;
 
+    color: var(--green);
 
-        .reject-button:hover {
+    font:
+        800 16px "Orbitron", sans-serif;
 
-            background:
-                #ff5757;
+}
 
-            color:
-                #000;
+.confirm-modal p {
 
-            transform:
-                translateY(-2px);
+    margin: 0 0 24px;
 
-        }
+    color: #fff;
 
+    font-size: 13px;
 
-        .view-receipt-button {
+    line-height: 1.5;
 
-            background:
-                transparent;
+}
 
-            color:
-                var(--green);
+.confirm-actions {
 
-            border:
-                1px solid
-                var(--green);
+    display: flex;
 
-        }
+    justify-content: center;
 
+    gap: 10px;
 
-        .view-receipt-button:hover {
+}
 
-            background:
-                var(--green);
+.confirm-no,
+.confirm-yes {
 
-            color:
-                #000;
+    min-width: 110px;
 
-            transform:
-                translateY(-2px);
+    height: 42px;
 
-            box-shadow:
-                0 0 15px
-                rgba(
-                    57,
-                    255,
-                    20,
-                    .35
-                );
+    padding: 0 18px;
 
-        }
+    border-radius: 4px;
 
+    font:
+        800 10px "Orbitron", sans-serif;
 
-        .date-added {
+    cursor: pointer;
 
-            margin-top:
-                16px;
+    transition: .2s ease;
 
-            color:
-                #666;
+}
 
-            font-size:
-                12px;
+.confirm-no {
 
-        }
+    background: transparent;
 
+    color: #ff5757;
 
-        .empty {
+    border: 1px solid #ff5757;
 
-            border:
-                1px dashed
-                #333;
+}
 
-            border-radius:
-                5px;
+.confirm-no:hover {
 
-            padding:
-                45px 20px;
+    background: #ff5757;
+    color: #000;
 
-            text-align:
-                center;
+}
 
-            color:
-                var(--muted);
+.confirm-yes {
 
-        }
+    background: var(--green);
 
+    color: #000;
 
-        .empty strong {
+    border: 1px solid var(--green);
 
-            display:
-                block;
+}
 
-            color:
-                var(--green);
+.confirm-yes:hover {
 
-            font:
-                700 16px
-                "Orbitron",
-                sans-serif;
+    box-shadow:
+        0 0 15px rgba(57,255,20,.35);
 
-            margin-bottom:
-                8px;
+    transform: translateY(-2px);
 
-        }
+}
 
+@keyframes confirmModalIn {
 
-        /* ========================================
-           CENTER CONFIRMATION MODAL
-        ======================================== */
+    from {
 
-        .confirm-overlay {
+        opacity: 0;
 
-            position:
-                fixed;
+        transform:
+            scale(.96)
+            translateY(8px);
 
-            inset:
-                0;
+    }
 
-            z-index:
-                5000;
+    to {
 
-            display:
-                flex;
+        opacity: 1;
 
-            align-items:
-                center;
+        transform:
+            scale(1)
+            translateY(0);
 
-            justify-content:
-                center;
+    }
 
-            padding:
-                20px;
+}
 
-            background:
-                rgba(0, 0, 0, .82);
+/* ========================================
+   RECEIPT
+======================================== */
 
-            backdrop-filter:
-                blur(3px);
+.admin-receipt-overlay {
 
-        }
+    position: fixed;
 
+    inset: 0;
 
-        .confirm-overlay[hidden] {
+    z-index: 100000;
 
-            display:
-                none;
+    display: none;
 
-        }
+    align-items: center;
 
+    justify-content: center;
 
-        .confirm-modal {
+    padding: 20px;
 
-            width:
-                min(430px, 100%);
+    background:
+        rgba(0,0,0,.88);
 
-            background:
-                #050505;
+}
 
-            border:
-                1px solid
-                var(--green);
+.admin-receipt-overlay.open {
 
-            border-radius:
-                6px;
+    display: flex;
 
-            padding:
-                28px;
+}
 
-            text-align:
-                center;
+.admin-receipt-card {
 
-            box-shadow:
-                0 0 35px
-                rgba(
-                    57,
-                    255,
-                    20,
-                    .18
-                );
+    position: relative;
 
-            animation:
-                confirmModalIn
-                .18s
-                ease;
+    width: min(680px,100%);
 
-        }
+    max-height: 90vh;
 
+    overflow-y: auto;
 
-        .confirm-modal h3 {
+    background: #000;
 
-            margin:
-                0 0 12px;
+    border: 1px solid #39FF14;
 
-            color:
-                var(--green);
+    border-radius: 8px;
 
-            font:
-                800 16px
-                "Orbitron",
-                sans-serif;
+    box-shadow:
+        0 0 35px rgba(57,255,20,.15);
 
-        }
+}
 
+.admin-receipt-close {
 
-        .confirm-modal p {
+    position: absolute;
 
-            margin:
-                0 0 24px;
+    top: 12px;
+    right: 12px;
 
-            color:
-                #fff;
+    width: 32px;
+    height: 32px;
 
-            font-size:
-                13px;
+    border: 1px solid #555;
 
-            line-height:
-                1.5;
+    border-radius: 50%;
 
-        }
+    background: transparent;
 
+    color: #fff;
 
-        .confirm-actions {
+    font-size: 18px;
 
-            display:
-                flex;
+    cursor: pointer;
 
-            justify-content:
-                center;
+    z-index: 2;
 
-            gap:
-                10px;
+}
 
-        }
+.admin-receipt-close:hover {
 
+    border-color: #39FF14;
+    color: #39FF14;
 
-        .confirm-no,
-        .confirm-yes {
+}
 
-            min-width:
-                110px;
+.admin-receipt-header {
 
-            height:
-                42px;
+    padding: 30px;
 
-            padding:
-                0 18px;
+    text-align: center;
 
-            border-radius:
-                4px;
+    border-bottom:
+        1px solid rgba(57,255,20,.22);
 
-            font:
-                800 10px
-                "Orbitron",
-                sans-serif;
+}
 
-            cursor:
-                pointer;
+.admin-receipt-logo {
 
-            transition:
-                .2s ease;
+    width: 100px;
 
-        }
+    display: block;
 
+    margin: 0 auto 12px;
 
-        .confirm-no {
+}
 
-            background:
-                transparent;
+.admin-receipt-title {
 
-            color:
-                #ff5757;
+    margin: 0;
 
-            border:
-                1px solid
-                #ff5757;
+    color: #fff;
 
-        }
+    font:
+        700 20px "Orbitron", sans-serif;
 
+}
 
-        .confirm-no:hover {
+.admin-receipt-subtitle {
 
-            background:
-                #ff5757;
+    margin: 7px 0 0;
 
-            color:
-                #000;
+    color: #39FF14;
 
-        }
+    font:
+        600 9px "Orbitron", sans-serif;
 
+}
 
-        .confirm-yes {
+.admin-receipt-body {
 
-            background:
-                var(--green);
+    padding: 25px 30px 30px;
 
-            color:
-                #000;
+}
 
-            border:
-                1px solid
-                var(--green);
+.admin-receipt-row {
 
-        }
+    display: grid;
 
+    grid-template-columns: 1fr 1.2fr;
 
-        .confirm-yes:hover {
+    gap: 25px;
 
-            box-shadow:
-                0 0 15px
-                rgba(
-                    57,
-                    255,
-                    20,
-                    .35
-                );
+    padding: 12px 0;
 
-            transform:
-                translateY(-2px);
+    border-bottom:
+        1px solid rgba(255,255,255,.08);
 
-        }
+}
 
+.admin-receipt-label {
 
-        @keyframes confirmModalIn {
+    color:
+        rgba(255,255,255,.52);
 
-            from {
+    font-size: 10px;
+    font-weight: 700;
 
-                opacity:
-                    0;
+    text-transform: uppercase;
 
-                transform:
-                    scale(.96)
-                    translateY(8px);
+}
 
-            }
+.admin-receipt-value {
 
+    color: #fff;
 
-            to {
+    font-size: 12px;
+    font-weight: 600;
 
-                opacity:
-                    1;
+    text-align: right;
 
-                transform:
-                    scale(1)
-                    translateY(0);
+    overflow-wrap: anywhere;
 
-            }
+    white-space: pre-line;
 
-        }
+}
 
+.admin-receipt-status {
 
-        /* ========================================
-           TOURNAMENT RECEIPT MODAL
-        ======================================== */
+    color: #39FF14;
 
-        .admin-receipt-overlay {
+}
 
-            position:
-                fixed;
+.admin-receipt-actions {
 
-            inset:
-                0;
+    display: flex;
 
-            z-index:
-                6000;
+    justify-content: center;
 
-            display:
-                none;
+    margin-top: 20px;
 
-            align-items:
-                center;
+}
 
-            justify-content:
-                center;
+.admin-receipt-print {
 
-            padding:
-                20px;
+    min-height: 42px;
 
-            background:
-                rgba(
-                    0,
-                    0,
-                    0,
-                    .88
-                );
+    padding: 0 18px;
 
-        }
+    border: 1px solid #39FF14;
 
+    background: #39FF14;
 
-        .admin-receipt-overlay.open {
+    color: #000;
 
-            display:
-                flex;
+    border-radius: 4px;
 
-        }
+    font:
+        800 9px "Orbitron", sans-serif;
 
+    cursor: pointer;
 
-        .admin-receipt-card {
+    transition: .2s ease;
 
-            position:
-                relative;
+}
 
-            width:
-                min(
-                    680px,
-                    100%
-                );
+.admin-receipt-print:hover {
 
-            max-height:
-                90vh;
+    background: transparent;
+    color: #39FF14;
 
-            overflow-y:
-                auto;
+}
 
-            background:
-                #000;
+/* ========================================
+   RESPONSIVE
+======================================== */
 
-            border:
-                1px solid
-                #39FF14;
+@media (max-width: 800px) {
 
-            border-radius:
-                8px;
+    .stats {
 
-            box-shadow:
-                0 0 35px
-                rgba(
-                    57,
-                    255,
-                    20,
-                    .15
-                );
+        grid-template-columns: 1fr;
 
-        }
+    }
 
+    .registration-header {
 
-        .admin-receipt-close {
+        flex-direction: column;
 
-            position:
-                absolute;
+    }
 
-            top:
-                12px;
+    .details {
 
-            right:
-                12px;
+        grid-template-columns: 1fr;
 
-            width:
-                32px;
+    }
 
-            height:
-                32px;
+    .detail.full {
 
-            border:
-                1px solid
-                #555;
+        grid-column: auto;
 
-            border-radius:
-                50%;
+    }
 
-            background:
-                transparent;
+}
 
-            color:
-                #fff;
+@media (max-width: 600px) {
 
-            font-size:
-                18px;
+    .confirm-modal {
 
-            cursor:
-                pointer;
+        padding: 22px 18px;
 
-            z-index:
-                2;
+    }
 
-        }
+    .confirm-actions {
 
+        flex-direction: column;
 
-        .admin-receipt-close:hover {
+    }
 
-            border-color:
-                #39FF14;
+    .confirm-no,
+    .confirm-yes {
 
-            color:
-                #39FF14;
+        width: 100%;
 
-        }
+    }
 
+    .admin-receipt-card {
 
-        .admin-receipt-header {
+        max-height: 94vh;
 
-            padding:
-                30px;
+    }
 
-            text-align:
-                center;
+    .admin-receipt-header {
 
-            border-bottom:
-                1px solid
-                rgba(
-                    57,
-                    255,
-                    20,
-                    .22
-                );
+        padding: 25px 18px;
 
-        }
+    }
 
+    .admin-receipt-body {
 
-        .admin-receipt-logo {
+        padding: 20px;
 
-            width:
-                100px;
+    }
 
-            display:
-                block;
+    .admin-receipt-row {
 
-            margin:
-                0 auto 12px;
+        grid-template-columns: 1fr;
 
-        }
+        gap: 5px;
 
+    }
 
-        .admin-receipt-title {
+    .admin-receipt-value {
 
-            margin:
-                0;
+        text-align: left;
 
-            color:
-                #fff;
+    }
 
-            font:
-                700 20px
-                "Orbitron",
-                sans-serif;
+}
 
-        }
+/* ========================================
+   PRINT
+======================================== */
 
+@media print {
 
-        .admin-receipt-subtitle {
+    @page {
 
-            margin:
-                7px 0 0;
+        margin: 0;
 
-            color:
-                #39FF14;
+    }
 
-            font:
-                600 9px
-                "Orbitron",
-                sans-serif;
+    * {
 
-        }
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
 
+    }
 
-        .admin-receipt-body {
+    html,
+    body {
 
-            padding:
-                25px 30px 30px;
+        margin: 0 !important;
+        padding: 0 !important;
 
-        }
+        background: #000 !important;
+        color: #fff !important;
 
+    }
 
-        .admin-receipt-row {
+    body > * {
 
-            display:
-                grid;
+        display: none !important;
 
-            grid-template-columns:
-                1fr 1.2fr;
+    }
 
-            gap:
-                25px;
+    .admin-receipt-overlay {
 
-            padding:
-                12px 0;
+        display: flex !important;
 
-            border-bottom:
-                1px solid
-                rgba(
-                    255,
-                    255,
-                    255,
-                    .08
-                );
+        position: static !important;
 
-        }
+        width: 100% !important;
+        height: auto !important;
 
+        padding: 0 !important;
 
-        .admin-receipt-label {
+        background: #000 !important;
 
-            color:
-                rgba(
-                    255,
-                    255,
-                    255,
-                    .52
-                );
+    }
 
-            font-size:
-                10px;
+    .admin-receipt-card {
 
-            font-weight:
-                700;
+        display: block !important;
 
-            text-transform:
-                uppercase;
+        width: 100% !important;
 
-        }
+        max-width: 850px !important;
 
+        max-height: none !important;
 
-        .admin-receipt-value {
+        margin: 0 auto !important;
 
-            color:
-                #fff;
+        overflow: visible !important;
 
-            font-size:
-                12px;
+        border: 1px solid #39FF14 !important;
 
-            font-weight:
-                600;
+        border-radius: 0 !important;
 
-            text-align:
-                right;
+        box-shadow: none !important;
 
-            overflow-wrap:
-                anywhere;
+    }
 
-            white-space:
-                pre-line;
+    .admin-receipt-close,
+    .admin-receipt-print {
 
-        }
+        display: none !important;
 
+    }
 
-        .admin-receipt-status {
+    .admin-receipt-title,
+    .admin-receipt-value {
 
-            color:
-                #39FF14;
+        color: #fff !important;
 
-        }
+    }
 
+    .admin-receipt-label {
 
-        .admin-receipt-actions {
+        color:
+            rgba(255,255,255,.65) !important;
 
-            display:
-                flex;
+    }
 
-            justify-content:
-                center;
+    .admin-receipt-status {
 
-            margin-top:
-                20px;
+        color: #39FF14 !important;
 
-        }
+    }
 
+}
 
-        .admin-receipt-print {
-
-            min-height:
-                42px;
-
-            padding:
-                0 18px;
-
-            border:
-                1px solid
-                #39FF14;
-
-            background:
-                #39FF14;
-
-            color:
-                #000;
-
-            border-radius:
-                4px;
-
-            font:
-                800 9px
-                "Orbitron",
-                sans-serif;
-
-            cursor:
-                pointer;
-
-            transition:
-                .2s ease;
-
-        }
-
-
-        .admin-receipt-print:hover {
-
-            background:
-                transparent;
-
-            color:
-                #39FF14;
-
-        }
-
-
-        /* ========================================
-           RESPONSIVE
-        ======================================== */
-
-        @media (max-width: 800px) {
-
-            .stats {
-
-                grid-template-columns:
-                    1fr;
-
-            }
-
-
-            .registration-header {
-
-                flex-direction:
-                    column;
-
-            }
-
-
-            .details {
-
-                grid-template-columns:
-                    1fr;
-
-            }
-
-
-            .detail.full {
-
-                grid-column:
-                    auto;
-
-            }
-
-        }
-
-
-        @media (max-width: 600px) {
-
-            .confirm-modal {
-
-                padding:
-                    22px 18px;
-
-            }
-
-
-            .confirm-actions {
-
-                flex-direction:
-                    column;
-
-            }
-
-
-            .confirm-no,
-            .confirm-yes {
-
-                width:
-                    100%;
-
-            }
-
-
-            .admin-receipt-card {
-
-                max-height:
-                    94vh;
-
-            }
-
-
-            .admin-receipt-header {
-
-                padding:
-                    25px 18px;
-
-            }
-
-
-            .admin-receipt-body {
-
-                padding:
-                    20px;
-
-            }
-
-
-            .admin-receipt-row {
-
-                grid-template-columns:
-                    1fr;
-
-                gap:
-                    5px;
-
-            }
-
-
-            .admin-receipt-value {
-
-                text-align:
-                    left;
-
-            }
-
-        }
-
-
-        /* ========================================
-           PRINT RECEIPT
-        ======================================== */
-
-        @media print {
-
-            @page {
-
-                margin:
-                    0;
-
-            }
-
-
-            * {
-
-                -webkit-print-color-adjust:
-                    exact !important;
-
-                print-color-adjust:
-                    exact !important;
-
-            }
-
-
-            html,
-            body {
-
-                margin:
-                    0 !important;
-
-                padding:
-                    0 !important;
-
-                background:
-                    #000 !important;
-
-                color:
-                    #fff !important;
-
-            }
-
-
-            body > * {
-
-                display:
-                    none !important;
-
-            }
-
-
-            .admin-receipt-overlay {
-
-                display:
-                    flex !important;
-
-                position:
-                    static !important;
-
-                width:
-                    100% !important;
-
-                height:
-                    auto !important;
-
-                padding:
-                    0 !important;
-
-                background:
-                    #000 !important;
-
-            }
-
-
-            .admin-receipt-card {
-
-                display:
-                    block !important;
-
-                width:
-                    100% !important;
-
-                max-width:
-                    850px !important;
-
-                max-height:
-                    none !important;
-
-                margin:
-                    0 auto !important;
-
-                overflow:
-                    visible !important;
-
-                border:
-                    1px solid
-                    #39FF14 !important;
-
-                border-radius:
-                    0 !important;
-
-                box-shadow:
-                    none !important;
-
-            }
-
-
-            .admin-receipt-close,
-            .admin-receipt-print {
-
-                display:
-                    none !important;
-
-            }
-
-
-            .admin-receipt-title,
-            .admin-receipt-value {
-
-                color:
-                    #fff !important;
-
-            }
-
-
-            .admin-receipt-label {
-
-                color:
-                    rgba(
-                        255,
-                        255,
-                        255,
-                        .65
-                    ) !important;
-
-            }
-
-
-            .admin-receipt-status {
-
-                color:
-                    #39FF14 !important;
-
-            }
-
-        }
-
-    </style>
+</style>
 
 </head>
 
-
 <body>
 
-
 <div class="page">
-
 
     <!-- ========================================
          TOP BAR
@@ -2080,48 +1481,31 @@ $csrfToken = csrfToken();
 
     <div class="topbar">
 
-
         <div class="brand">
-
             BR GAMING CAFE ADMIN
-
         </div>
-
 
         <a
             href="dashboard.php"
             class="back-link"
         >
-
             BACK TO DASHBOARD
-
         </a>
-
 
     </div>
 
 
     <!-- ========================================
-         PAGE TITLE
+         TITLE
     ======================================== -->
 
     <p class="page-kicker">
-
         ADMIN MANAGEMENT
-
     </p>
 
-
     <h1 class="page-title">
-
         TOURNAMENT
-
-        <span>
-
-            REGISTRATIONS
-
-        </span>
-
+        <span>REGISTRATIONS</span>
     </h1>
 
 
@@ -2131,20 +1515,14 @@ $csrfToken = csrfToken();
 
     <div class="stats">
 
-
         <div class="stat">
 
             <span class="stat-label">
-
                 PENDING
-
             </span>
 
-
             <div class="stat-number">
-
                 <?= $pendingCount ?>
-
             </div>
 
         </div>
@@ -2153,16 +1531,11 @@ $csrfToken = csrfToken();
         <div class="stat">
 
             <span class="stat-label">
-
                 ACCEPTED
-
             </span>
 
-
             <div class="stat-number">
-
                 <?= $acceptedCount ?>
-
             </div>
 
         </div>
@@ -2171,20 +1544,14 @@ $csrfToken = csrfToken();
         <div class="stat">
 
             <span class="stat-label">
-
                 REJECTED
-
             </span>
 
-
             <div class="stat-number">
-
                 <?= $rejectedCount ?>
-
             </div>
 
         </div>
-
 
     </div>
 
@@ -2229,73 +1596,46 @@ $csrfToken = csrfToken();
 
     <?php if (!$registrations): ?>
 
-
         <div class="empty">
 
-
             <strong>
-
                 NO REGISTRATIONS YET
-
             </strong>
-
 
             There are currently no tournament registrations.
 
-
         </div>
-
 
     <?php else: ?>
 
-
         <div class="registrations">
 
+            <?php foreach ($registrations as $registration): ?>
 
-            <?php foreach (
-                $registrations
-                as $registration
-            ): ?>
-
-
-                <article
-                    class="registration-card"
-                >
-
+                <article class="registration-card">
 
                     <!-- HEADER -->
 
-                    <div
-                        class="registration-header"
-                    >
+                    <div class="registration-header">
 
-
-                        <div
-                            class="registration-title"
-                        >
-
+                        <div class="registration-title">
 
                             <h2>
 
                                 <?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "tournament_title"
-                                    ],
+                                    $registration["tournament_title"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
 
                             </h2>
 
-
                             <p>
 
                                 <?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "customer_name"
-                                    ],
+                                    $registration["customer_name"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
@@ -2304,46 +1644,31 @@ $csrfToken = csrfToken();
 
                                 <?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "customer_email"
-                                    ],
+                                    $registration["customer_email"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
 
                             </p>
 
-
                         </div>
 
 
                         <span
-                            class="
-                                status
-                                <?= htmlspecialchars(
-                                    (string)
-                                    $registration[
-                                        "status"
-                                    ],
-                                    ENT_QUOTES,
-                                    "UTF-8"
-                                ) ?>
-                            "
+                            class="status <?= htmlspecialchars(
+                                (string)
+                                $registration["status"],
+                                ENT_QUOTES,
+                                "UTF-8"
+                            ) ?>"
                         >
 
                             <?= strtoupper(
-                                htmlspecialchars(
-                                    (string)
-                                    $registration[
-                                        "status"
-                                    ],
-                                    ENT_QUOTES,
-                                    "UTF-8"
-                                )
+                                (string)
+                                $registration["status"]
                             ) ?>
 
                         </span>
-
 
                     </div>
 
@@ -2352,29 +1677,19 @@ $csrfToken = csrfToken();
 
                     <div class="details">
 
-
                         <div class="detail">
 
-                            <span
-                                class="detail-label"
-                            >
-
+                            <span class="detail-label">
                                 TOURNAMENT DATE
-
                             </span>
 
-
-                            <div
-                                class="detail-value"
-                            >
+                            <div class="detail-value">
 
                                 <?= date(
                                     "F d, Y",
                                     strtotime(
                                         (string)
-                                        $registration[
-                                            "tournament_date"
-                                        ]
+                                        $registration["tournament_date"]
                                     )
                                 ) ?>
 
@@ -2385,24 +1700,15 @@ $csrfToken = csrfToken();
 
                         <div class="detail">
 
-                            <span
-                                class="detail-label"
-                            >
-
+                            <span class="detail-label">
                                 TEAM NAME
-
                             </span>
 
-
-                            <div
-                                class="detail-value"
-                            >
+                            <div class="detail-value">
 
                                 <?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "team_name"
-                                    ],
+                                    $registration["team_name"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
@@ -2414,24 +1720,15 @@ $csrfToken = csrfToken();
 
                         <div class="detail">
 
-                            <span
-                                class="detail-label"
-                            >
-
+                            <span class="detail-label">
                                 CONTACT NUMBER
-
                             </span>
 
-
-                            <div
-                                class="detail-value"
-                            >
+                            <div class="detail-value">
 
                                 <?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "contact_number"
-                                    ],
+                                    $registration["contact_number"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
@@ -2443,24 +1740,15 @@ $csrfToken = csrfToken();
 
                         <div class="detail">
 
-                            <span
-                                class="detail-label"
-                            >
-
+                            <span class="detail-label">
                                 CUSTOMER EMAIL
-
                             </span>
 
-
-                            <div
-                                class="detail-value"
-                            >
+                            <div class="detail-value">
 
                                 <?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "customer_email"
-                                    ],
+                                    $registration["customer_email"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
@@ -2472,24 +1760,15 @@ $csrfToken = csrfToken();
 
                         <div class="detail full">
 
-                            <span
-                                class="detail-label"
-                            >
-
+                            <span class="detail-label">
                                 TEAM MEMBERS / MESSAGE
-
                             </span>
 
-
-                            <div
-                                class="detail-value"
-                            >
+                            <div class="detail-value">
 
                                 <?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "message"
-                                    ],
+                                    $registration["message"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>
@@ -2497,7 +1776,6 @@ $csrfToken = csrfToken();
                             </div>
 
                         </div>
-
 
                     </div>
 
@@ -2512,9 +1790,7 @@ $csrfToken = csrfToken();
                             "M d, Y h:i A",
                             strtotime(
                                 (string)
-                                $registration[
-                                    "created_at"
-                                ]
+                                $registration["created_at"]
                             )
                         ) ?>
 
@@ -2526,25 +1802,18 @@ $csrfToken = csrfToken();
                     ======================================== -->
 
                     <?php if (
-                        $registration["status"]
-                        === "pending"
+                        $registration["status"] === "pending"
                     ): ?>
 
-
                         <div class="actions">
-
 
                             <!-- ACCEPT -->
 
                             <form
                                 method="POST"
                                 class="action-form"
-                                id="
-                                    acceptForm
-                                    <?= (int)$registration["id"] ?>
-                                "
+                                id="acceptForm<?= (int)$registration["id"] ?>"
                             >
-
 
                                 <input
                                     type="hidden"
@@ -2556,13 +1825,11 @@ $csrfToken = csrfToken();
                                     ) ?>"
                                 >
 
-
                                 <input
                                     type="hidden"
                                     name="registration_id"
                                     value="<?= (int)$registration["id"] ?>"
                                 >
-
 
                                 <input
                                     type="hidden"
@@ -2570,27 +1837,16 @@ $csrfToken = csrfToken();
                                     value="accepted"
                                 >
 
-
                                 <button
                                     type="button"
-                                    class="
-                                        action-button
-                                        accept-button
-                                    "
-                                    onclick="
-                                        openTournamentConfirm(
-                                            document.getElementById(
-                                                'acceptForm<?= (int)$registration["id"] ?>'
-                                            ),
-                                            'Accept this tournament registration?'
-                                        )
-                                    "
+                                    class="action-button accept-button"
+                                    onclick="openTournamentConfirm(
+                                        'acceptForm<?= (int)$registration["id"] ?>',
+                                        'Accept this tournament registration?'
+                                    )"
                                 >
-
                                     ACCEPT
-
                                 </button>
-
 
                             </form>
 
@@ -2600,12 +1856,8 @@ $csrfToken = csrfToken();
                             <form
                                 method="POST"
                                 class="action-form"
-                                id="
-                                    rejectForm
-                                    <?= (int)$registration["id"] ?>
-                                "
+                                id="rejectForm<?= (int)$registration["id"] ?>"
                             >
-
 
                                 <input
                                     type="hidden"
@@ -2617,13 +1869,11 @@ $csrfToken = csrfToken();
                                     ) ?>"
                                 >
 
-
                                 <input
                                     type="hidden"
                                     name="registration_id"
                                     value="<?= (int)$registration["id"] ?>"
                                 >
-
 
                                 <input
                                     type="hidden"
@@ -2631,33 +1881,20 @@ $csrfToken = csrfToken();
                                     value="rejected"
                                 >
 
-
                                 <button
                                     type="button"
-                                    class="
-                                        action-button
-                                        reject-button
-                                    "
-                                    onclick="
-                                        openTournamentConfirm(
-                                            document.getElementById(
-                                                'rejectForm<?= (int)$registration["id"] ?>'
-                                            ),
-                                            'Reject this tournament registration?'
-                                        )
-                                    "
+                                    class="action-button reject-button"
+                                    onclick="openTournamentConfirm(
+                                        'rejectForm<?= (int)$registration["id"] ?>',
+                                        'Reject this tournament registration?'
+                                    )"
                                 >
-
                                     REJECT
-
                                 </button>
-
 
                             </form>
 
-
                         </div>
-
 
                     <?php endif; ?>
 
@@ -2667,130 +1904,113 @@ $csrfToken = csrfToken();
                     ======================================== -->
 
                     <?php if (
-                        $registration["status"]
-                        === "accepted"
+                        $registration["status"] === "accepted"
                     ): ?>
-
 
                         <div class="actions">
 
-
                             <button
                                 type="button"
-                                class="
-                                    action-button
-                                    view-receipt-button
-                                "
+                                class="action-button view-receipt-button"
+
                                 onclick="openTournamentReceipt(this)"
+
                                 data-registration-id="<?= (int)$registration["id"] ?>"
-                                data-tournament-id="<?= (int)$registration["tournament_id"] ?>"
+
                                 data-tournament="<?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "tournament_title"
-                                    ],
+                                    $registration["tournament_title"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-tournament-date="<?= htmlspecialchars(
                                     date(
                                         "F d, Y",
                                         strtotime(
                                             (string)
-                                            $registration[
-                                                "tournament_date"
-                                            ]
+                                            $registration["tournament_date"]
                                         )
                                     ),
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-customer="<?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "customer_name"
-                                    ],
+                                    $registration["customer_name"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-email="<?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "customer_email"
-                                    ],
+                                    $registration["customer_email"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-team="<?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "team_name"
-                                    ],
+                                    $registration["team_name"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-contact="<?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "contact_number"
-                                    ],
+                                    $registration["contact_number"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-message="<?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "message"
-                                    ],
+                                    $registration["message"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-payment-method="<?= htmlspecialchars(
                                     (string)(
-                                        $registration[
-                                            "payment_method"
-                                        ]
+                                        $registration["payment_method"]
                                         ?? "Cash"
                                     ),
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-payment-reference="<?= htmlspecialchars(
                                     (string)(
-                                        $registration[
-                                            "payment_reference"
-                                        ]
+                                        $registration["payment_reference"]
                                         ?? ""
                                     ),
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-payment-status="<?= htmlspecialchars(
                                     (string)(
-                                        $registration[
-                                            "payment_status"
-                                        ]
+                                        $registration["payment_status"]
                                         ?? ""
                                     ),
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-status="<?= htmlspecialchars(
                                     (string)
-                                    $registration[
-                                        "status"
-                                    ],
+                                    $registration["status"],
                                     ENT_QUOTES,
                                     "UTF-8"
                                 ) ?>"
+
                                 data-created="<?= htmlspecialchars(
                                     date(
                                         "F d, Y h:i A",
                                         strtotime(
                                             (string)
-                                            $registration[
-                                                "created_at"
-                                            ]
+                                            $registration["created_at"]
                                         )
                                     ),
                                     ENT_QUOTES,
@@ -2802,30 +2022,23 @@ $csrfToken = csrfToken();
 
                             </button>
 
-
                         </div>
-
 
                     <?php endif; ?>
 
-
                 </article>
-
 
             <?php endforeach; ?>
 
-
         </div>
 
-
     <?php endif; ?>
-
 
 </div>
 
 
 <!-- ========================================
-     CENTER CONFIRMATION MODAL
+     CONFIRM MODAL
 ======================================== -->
 
 <div
@@ -2834,7 +2047,6 @@ $csrfToken = csrfToken();
     hidden
 >
 
-
     <div
         class="confirm-modal"
         role="dialog"
@@ -2842,52 +2054,33 @@ $csrfToken = csrfToken();
         aria-labelledby="tournamentConfirmTitle"
     >
 
-
-        <h3
-            id="tournamentConfirmTitle"
-        >
-
+        <h3 id="tournamentConfirmTitle">
             CONFIRM TOURNAMENT
-
         </h3>
 
-
-        <p
-            id="tournamentConfirmMessage"
-        >
-
-            Accept this tournament registration?
-
+        <p id="tournamentConfirmMessage">
+            Are you sure?
         </p>
 
-
         <div class="confirm-actions">
-
 
             <button
                 type="button"
                 class="confirm-no"
                 id="tournamentConfirmCancel"
             >
-
                 CANCEL
-
             </button>
-
 
             <button
                 type="button"
                 class="confirm-yes"
                 id="tournamentConfirmOkay"
             >
-
                 OK
-
             </button>
 
-
         </div>
-
 
     </div>
 
@@ -2895,7 +2088,7 @@ $csrfToken = csrfToken();
 
 
 <!-- ========================================
-     ADMIN TOURNAMENT RECEIPT
+     RECEIPT MODAL
 ======================================== -->
 
 <div
@@ -2903,13 +2096,7 @@ $csrfToken = csrfToken();
     id="adminReceiptOverlay"
 >
 
-
-    <div
-        class="admin-receipt-card"
-    >
-
-
-        <!-- CLOSE -->
+    <div class="admin-receipt-card">
 
         <button
             type="button"
@@ -2917,18 +2104,13 @@ $csrfToken = csrfToken();
             onclick="closeTournamentReceipt()"
             aria-label="Close tournament receipt"
         >
-
             ×
-
         </button>
 
 
-        <!-- RECEIPT HEADER -->
+        <!-- HEADER -->
 
-        <div
-            class="admin-receipt-header"
-        >
-
+        <div class="admin-receipt-header">
 
             <img
                 src="../assets/images/logo.png"
@@ -2936,230 +2118,143 @@ $csrfToken = csrfToken();
                 class="admin-receipt-logo"
             >
 
-
-            <h2
-                class="admin-receipt-title"
-            >
-
-                BAIS ROUILO
-                GAMING CAFE
-
+            <h2 class="admin-receipt-title">
+                BAIS ROUILO GAMING CAFE
             </h2>
 
-
-            <p
-                class="admin-receipt-subtitle"
-            >
-
+            <p class="admin-receipt-subtitle">
                 TOURNAMENT REGISTRATION RECEIPT
-
             </p>
-
 
         </div>
 
 
-        <!-- RECEIPT BODY -->
+        <!-- BODY -->
 
-        <div
-            class="admin-receipt-body"
-        >
+        <div class="admin-receipt-body">
 
+            <div class="admin-receipt-row">
 
-            <div
-                class="admin-receipt-row"
-            >
-
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Registration ID
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptRegistrationId"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Tournament
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptTournament"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Tournament Date
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptTournamentDate"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Customer
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptCustomer"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Email
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptEmail"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Team Name
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptTeam"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Team Members
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptMembers"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Contact Number
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptContact"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Mode of Payment
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptPaymentMethod"
                 ></span>
-
 
             </div>
 
@@ -3169,128 +2264,84 @@ $csrfToken = csrfToken();
                 id="receiptReferenceRow"
             >
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     GCash Reference Number
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptPaymentReference"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Payment Status
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptPaymentStatus"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Registration Status
-
                 </span>
 
-
                 <span
-                    class="
-                        admin-receipt-value
-                        admin-receipt-status
-                    "
+                    class="admin-receipt-value admin-receipt-status"
                     id="receiptRegistrationStatus"
                 ></span>
 
-
             </div>
 
 
-            <div
-                class="admin-receipt-row"
-            >
+            <div class="admin-receipt-row">
 
-                <span
-                    class="admin-receipt-label"
-                >
-
+                <span class="admin-receipt-label">
                     Date Registered
-
                 </span>
-
 
                 <span
                     class="admin-receipt-value"
                     id="receiptCreated"
                 ></span>
 
-
             </div>
 
 
-            <!-- PRINT -->
-
-            <div
-                class="
-                    admin-receipt-actions
-                "
-            >
+            <div class="admin-receipt-actions">
 
                 <button
                     type="button"
                     class="admin-receipt-print"
                     onclick="window.print()"
                 >
-
                     PRINT RECEIPT
-
                 </button>
 
             </div>
 
-
         </div>
 
-
     </div>
-
 
 </div>
 
 
-<!-- ========================================
-     JAVASCRIPT
-======================================== -->
-
 <script>
+
+/* ========================================
+   GLOBAL CONFIRMATION FORM
+======================================== */
 
 let tournamentFormToSubmit = null;
 
@@ -3300,19 +2351,17 @@ let tournamentFormToSubmit = null;
 ======================================== */
 
 function openTournamentConfirm(
-    form,
+    formId,
     message
 ) {
 
-    tournamentFormToSubmit =
-        form;
-
+    const form =
+        document.getElementById(formId);
 
     const overlay =
         document.getElementById(
             "tournamentConfirmOverlay"
         );
-
 
     const messageElement =
         document.getElementById(
@@ -3320,11 +2369,33 @@ function openTournamentConfirm(
         );
 
 
-    if (!overlay) {
+    /* IMPORTANT FIX */
+
+    if (!form) {
+
+        console.error(
+            "Tournament form not found:",
+            formId
+        );
 
         return;
 
     }
+
+
+    if (!overlay) {
+
+        console.error(
+            "Confirmation overlay not found."
+        );
+
+        return;
+
+    }
+
+
+    tournamentFormToSubmit =
+        form;
 
 
     if (messageElement) {
@@ -3335,12 +2406,11 @@ function openTournamentConfirm(
     }
 
 
-    overlay.hidden =
-        false;
+    overlay.hidden = false;
 
-
-    document.body.style.overflow =
-        "hidden";
+    document.body.classList.add(
+        "modal-open"
+    );
 
 }
 
@@ -3359,24 +2429,24 @@ function closeTournamentConfirm() {
 
     if (overlay) {
 
-        overlay.hidden =
-            true;
+        overlay.hidden = true;
 
     }
-
-
-    document.body.style.overflow =
-        "";
 
 
     tournamentFormToSubmit =
         null;
 
+
+    document.body.classList.remove(
+        "modal-open"
+    );
+
 }
 
 
 /* ========================================
-   OPEN TOURNAMENT RECEIPT
+   OPEN RECEIPT
 ======================================== */
 
 function openTournamentReceipt(button) {
@@ -3393,12 +2463,6 @@ function openTournamentReceipt(button) {
 
     }
 
-
-    /*
-    ========================================
-    BASIC INFORMATION
-    ========================================
-    */
 
     document.getElementById(
         "receiptRegistrationId"
@@ -3443,15 +2507,12 @@ function openTournamentReceipt(button) {
         button.dataset.contact || "";
 
 
-    /*
-    ========================================
-    EXTRACT TEAM MEMBERS
-    ========================================
-    */
+    /* ========================================
+       TEAM MEMBERS
+    ======================================== */
 
     const savedMessage =
         button.dataset.message || "";
-
 
     let teamMembers =
         savedMessage;
@@ -3477,16 +2538,13 @@ function openTournamentReceipt(button) {
         teamMembers;
 
 
-    /*
-    ========================================
-    PAYMENT METHOD
-    ========================================
-    */
+    /* ========================================
+       PAYMENT METHOD
+    ======================================== */
 
     const paymentMethod =
         button.dataset.paymentMethod ||
         "Cash";
-
 
     const normalizedPaymentMethod =
         paymentMethod.trim();
@@ -3498,22 +2556,18 @@ function openTournamentReceipt(button) {
         normalizedPaymentMethod.toUpperCase();
 
 
-    /*
-    ========================================
-    GCASH REFERENCE
-    ========================================
-    */
+    /* ========================================
+       GCASH REFERENCE
+    ======================================== */
 
     const paymentReference =
         button.dataset.paymentReference ||
         "";
 
-
     const referenceRow =
         document.getElementById(
             "receiptReferenceRow"
         );
-
 
     const referenceValue =
         document.getElementById(
@@ -3523,13 +2577,13 @@ function openTournamentReceipt(button) {
 
     if (
         normalizedPaymentMethod.toLowerCase()
-            === "gcash" &&
+            === "gcash"
+        &&
         paymentReference.trim() !== ""
     ) {
 
         referenceRow.style.display =
             "grid";
-
 
         referenceValue.textContent =
             paymentReference;
@@ -3539,18 +2593,15 @@ function openTournamentReceipt(button) {
         referenceRow.style.display =
             "none";
 
-
         referenceValue.textContent =
             "";
 
     }
 
 
-    /*
-    ========================================
-    PAYMENT STATUS
-    ========================================
-    */
+    /* ========================================
+       PAYMENT STATUS
+    ======================================== */
 
     const paymentStatus =
         button.dataset.paymentStatus ||
@@ -3563,11 +2614,9 @@ function openTournamentReceipt(button) {
         paymentStatus.toUpperCase();
 
 
-    /*
-    ========================================
-    REGISTRATION STATUS
-    ========================================
-    */
+    /* ========================================
+       REGISTRATION STATUS
+    ======================================== */
 
     const registrationStatus =
         button.dataset.status ||
@@ -3580,11 +2629,9 @@ function openTournamentReceipt(button) {
         registrationStatus.toUpperCase();
 
 
-    /*
-    ========================================
-    CREATED DATE
-    ========================================
-    */
+    /* ========================================
+       CREATED DATE
+    ======================================== */
 
     document.getElementById(
         "receiptCreated"
@@ -3592,25 +2639,21 @@ function openTournamentReceipt(button) {
         button.dataset.created || "";
 
 
-    /*
-    ========================================
-    SHOW MODAL
-    ========================================
-    */
+    /* ========================================
+       SHOW RECEIPT
+    ======================================== */
 
-    overlay.classList.add(
-        "open"
+    overlay.classList.add("open");
+
+    document.body.classList.add(
+        "modal-open"
     );
-
-
-    document.body.style.overflow =
-        "hidden";
 
 }
 
 
 /* ========================================
-   CLOSE TOURNAMENT RECEIPT
+   CLOSE RECEIPT
 ======================================== */
 
 function closeTournamentReceipt() {
@@ -3630,8 +2673,9 @@ function closeTournamentReceipt() {
     }
 
 
-    document.body.style.overflow =
-        "";
+    document.body.classList.remove(
+        "modal-open"
+    );
 
 }
 
@@ -3643,7 +2687,6 @@ function closeTournamentReceipt() {
 document.addEventListener(
     "DOMContentLoaded",
     function () {
-
 
         const confirmOverlay =
             document.getElementById(
@@ -3663,11 +2706,9 @@ document.addEventListener(
             );
 
 
-        /*
-        ========================================
-        CANCEL
-        ========================================
-        */
+        /* ========================================
+           CANCEL
+        ======================================== */
 
         if (cancelButton) {
 
@@ -3683,11 +2724,9 @@ document.addEventListener(
         }
 
 
-        /*
-        ========================================
-        OK
-        ========================================
-        */
+        /* ========================================
+           OK
+        ======================================== */
 
         if (okayButton) {
 
@@ -3697,13 +2736,18 @@ document.addEventListener(
 
                     if (
                         tournamentFormToSubmit
+                        &&
+                        tournamentFormToSubmit instanceof HTMLFormElement
                     ) {
 
                         /*
-                        Submit the actual form.
+                        IMPORTANT:
+                        requestSubmit() properly submits
+                        the form and triggers normal browser
+                        form behavior.
                         */
 
-                        tournamentFormToSubmit.submit();
+                        tournamentFormToSubmit.requestSubmit();
 
                     }
 
@@ -3713,11 +2757,9 @@ document.addEventListener(
         }
 
 
-        /*
-        ========================================
-        CLICK OUTSIDE CONFIRM MODAL
-        ========================================
-        */
+        /* ========================================
+           CLICK OUTSIDE
+        ======================================== */
 
         if (confirmOverlay) {
 
@@ -3740,19 +2782,16 @@ document.addEventListener(
         }
 
 
-        /*
-        ========================================
-        ESCAPE
-        ========================================
-        */
+        /* ========================================
+           ESCAPE
+        ======================================== */
 
         document.addEventListener(
             "keydown",
             function (event) {
 
                 if (
-                    event.key ===
-                    "Escape"
+                    event.key === "Escape"
                 ) {
 
                     closeTournamentConfirm();
@@ -3765,11 +2804,9 @@ document.addEventListener(
         );
 
 
-        /*
-        ========================================
-        RECEIPT CLICK OUTSIDE
-        ========================================
-        */
+        /* ========================================
+           RECEIPT OUTSIDE CLICK
+        ======================================== */
 
         const receiptOverlay =
             document.getElementById(
@@ -3801,7 +2838,6 @@ document.addEventListener(
 );
 
 </script>
-
 
 </body>
 

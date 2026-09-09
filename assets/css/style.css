@@ -1500,6 +1500,37 @@ button {
 
     .setups-container {
         scroll-margin-top: 95px;
+
+        width: 100%;
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .setup-grid {
+        grid-template-columns: 1fr;
+        gap: 22px;
+    }
+
+    .setup-image {
+        height: 200px;
+    }
+
+    .setup-content {
+        padding: 22px 20px 25px;
+    }
+
+    .setup-content h3 {
+        font-size: 14px;
+        margin-bottom: 16px;
+    }
+
+    .setup-content p {
+        font-size: 12px;
+    }
+
+    .setup-content strong {
+        margin-top: 20px;
+        padding-top: 14px;
     }
 
 }:root {
@@ -2420,114 +2451,80 @@ button {
    GAMING SETUPS
 ======================================== */
 
+.setups-container {
+    width: calc(100% - 72px);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-left: 36px;
+    padding-right: 36px;
+    box-sizing: border-box;
+}
+
 .setup-grid {
-
     display: grid;
-
-    grid-template-columns:
-        repeat(4, 1fr);
-
-    gap: 18px;
-
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px;
+    margin-top: 35px;
 }
 
 .setup-card {
-
-    border:
-        1px solid var(--green);
-
-    border-radius: 9px;
-
+    background: #050505;
+    border: 1px solid rgba(57, 255, 20, 0.35);
+    border-radius: 6px;
     overflow: hidden;
-
-    background: #000;
-
-    transition:
-        transform .25s ease,
-        box-shadow .25s ease;
-
-}
-
-.setup-card:hover {
-
-    transform: translateY(-7px);
-
-    box-shadow:
-
-        0 0 15px
-        rgba(57, 255, 20, .35),
-
-        0 0 35px
-        rgba(57, 255, 20, .12);
-
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .setup-image {
-
-    height: 180px;
-
-    overflow: hidden;
-
-}
-
-.setup-image img {
-
     width: 100%;
-
-    height: 100%;
-
-    object-fit: cover;
-
-    transition:
-        transform .35s ease;
-
+    height: 190px;
+    overflow: hidden;
 }
 
-.setup-card:hover
 .setup-image img {
-
-    transform: scale(1.06);
-
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .setup-content {
-
-    padding: 14px;
-
+    padding: 25px 26px 28px;
+    box-sizing: border-box;
 }
 
 .setup-content h3 {
-
-    margin:
-        0 0 8px;
-
-    font-size: 12px;
-
-    font-weight: 600;
-
+    margin: 0 0 18px;
+    color: #fff;
+    font-family: "Orbitron", sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.3;
 }
 
 .setup-content p {
-
-    margin: 0;
-
-    font-size: 10px;
-
-    line-height: 1.5;
-
+    margin: 0 0 8px;
+    color: #fff;
+    font-family: "Rajdhani", sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
 }
 
 .setup-content strong {
-
     display: block;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(57, 255, 20, 0.2);
 
-    margin-top: 10px;
-
-    color: var(--green);
-
+    color: #39FF14;
+    font-family: "Orbitron", sans-serif;
     font-size: 12px;
-
+    font-weight: 800;
+    line-height: 1.3;
 }
+
 
 
 /* ========================================
@@ -3631,38 +3628,18 @@ button {
 
 @media (max-width: 1100px) {
 
-    .container {
-
-        width:
-            calc(100% - 50px);
-
-    }
-
-    .brand img {
-
-        width: 225px;
-
-    }
-
-    .main-nav {
-
-        gap: 20px;
-
-    }
-
-    .hero-grid {
-
-        grid-template-columns:
-            42% 58%;
-
+    .setups-container {
+        width: calc(100% - 40px);
+        padding-left: 20px;
+        padding-right: 20px;
     }
 
     .setup-grid {
-
-        grid-template-columns:
-            repeat(2, 1fr);
-
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
     }
+
+}
 
     .feature-grid {
 
@@ -4089,4 +4066,172 @@ button {
 
     }
 
+}
+
+/* ========================================
+   WHY CHOOSE US
+======================================== */
+.why-choose-section {
+    padding: 55px 0 70px;
+}
+
+.why-choose-section .section-heading {
+    margin-bottom: 35px;
+}
+
+.feature-card {
+    transition: transform .25s ease, filter .25s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+}
+
+.feature-card:hover .feature-icon img {
+    filter: drop-shadow(0 0 8px rgba(57, 255, 20, .45));
+}
+
+
+/* ========================================
+   GAMING SETUPS - DESKTOP FINAL FIX
+   Wider cards + full webpage fit + green price line
+======================================== */
+@media (min-width: 601px) {
+
+    #pcs .setups-container {
+        width: calc(100% - 80px) !important;
+        max-width: none !important;
+        margin: 0 auto !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    #pcs .setup-grid {
+        width: 100% !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 30px !important;
+        margin-top: 35px !important;
+        box-sizing: border-box !important;
+    }
+
+    #pcs .setup-card {
+        width: 100% !important;
+        min-width: 0 !important;
+        min-height: 420px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        box-sizing: border-box !important;
+        border: 1px solid #39FF14 !important;
+        border-radius: 9px !important;
+        background: #050505 !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+    }
+
+    #pcs .setup-image {
+        width: 100% !important;
+        height: 205px !important;
+        flex: 0 0 205px !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+    }
+
+    #pcs .setup-image img {
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+    }
+
+    #pcs .setup-content {
+        flex: 1 1 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 25px 28px 24px !important;
+        box-sizing: border-box !important;
+        text-align: left !important;
+    }
+
+    #pcs .setup-content h3 {
+        margin: 0 0 16px !important;
+        padding: 0 !important;
+        font-size: 17px !important;
+        line-height: 1.25 !important;
+        font-weight: 800 !important;
+    }
+
+    #pcs .setup-content p {
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 14px !important;
+        line-height: 1.45 !important;
+        font-weight: 500 !important;
+    }
+
+    #pcs .setup-content strong {
+        display: block !important;
+        width: 100% !important;
+        margin: auto 0 0 !important;
+        padding: 17px 0 0 !important;
+        border-top: 1px solid #39FF14 !important;
+        color: #39FF14 !important;
+        font-size: 14px !important;
+        line-height: 1.25 !important;
+        font-weight: 800 !important;
+        box-sizing: border-box !important;
+    }
+}
+
+/* ========================================
+   GAMING SETUPS - MOBILE FINAL FIX
+======================================== */
+@media (max-width: 600px) {
+
+    #pcs .setups-container {
+        width: 100% !important;
+        max-width: none !important;
+        padding-left: 18px !important;
+        padding-right: 18px !important;
+        box-sizing: border-box !important;
+    }
+
+    #pcs .setup-grid {
+        grid-template-columns: 1fr !important;
+        gap: 22px !important;
+        width: 100% !important;
+    }
+
+    #pcs .setup-card {
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 0 !important;
+    }
+
+    #pcs .setup-image {
+        height: 200px !important;
+        flex: 0 0 200px !important;
+    }
+
+    #pcs .setup-content {
+        flex: 1 1 auto !important;
+        padding: 22px 20px 25px !important;
+    }
+
+    #pcs .setup-content h3 {
+        font-size: 14px !important;
+        margin-bottom: 16px !important;
+    }
+
+    #pcs .setup-content p {
+        font-size: 12px !important;
+        line-height: 1.45 !important;
+    }
+
+    #pcs .setup-content strong {
+        margin-top: 20px !important;
+        padding-top: 14px !important;
+        border-top: 1px solid #39FF14 !important;
+    }
 }

@@ -15,7 +15,6 @@ if (isLoggedIn()) {
     $role = currentUserRole();
 
     if ($role === "admin") {
-
         header("Location: admin/dashboard.php");
         exit;
     }
@@ -36,14 +35,11 @@ $email = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-
     /* ========================================
        CSRF CHECK
     ======================================== */
 
-    $csrfToken =
-        $_POST["csrf_token"] ?? null;
-
+    $csrfToken = $_POST["csrf_token"] ?? null;
 
     if (
         !verifyCsrfToken(
@@ -61,7 +57,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     } else {
 
-
         /* ========================================
            GET INPUT
         ======================================== */
@@ -74,7 +69,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     )
                 )
             );
-
 
         $password =
             (string)(
@@ -97,7 +91,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $messageType =
                 "error";
 
-
         } elseif (
             !filter_var(
                 $email,
@@ -111,11 +104,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $messageType =
                 "error";
 
-
         } else {
 
             try {
-
 
                 /* ========================================
                    RATE LIMIT CHECK
@@ -133,9 +124,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $messageType =
                         "error";
 
-
                 } else {
-
 
                     /* ========================================
                        FIND USER
@@ -155,11 +144,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             LIMIT 1
                         ");
 
-
                     $stmt->execute([
                         $email
                     ]);
-
 
                     $user =
                         $stmt->fetch(
@@ -181,6 +168,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                      * Perform password verification even
                      * when account does not exist.
                      */
+
                     if ($passwordHash === "") {
 
                         $passwordHash =
@@ -206,7 +194,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $user &&
                         $passwordValid
                     ) {
-
 
                         $role =
                             (string)(
@@ -246,14 +233,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     PASSWORD_DEFAULT
                                 );
 
-
                             $update =
                                 $conn->prepare("
                                     UPDATE users
                                     SET password = ?
                                     WHERE id = ?
                                 ");
-
 
                             $update->execute([
                                 $newHash,
@@ -305,7 +290,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     } else {
 
-
                         /* ========================================
                            FAILED LOGIN
                         ======================================== */
@@ -313,7 +297,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         registerFailedLogin(
                             $email
                         );
-
 
                         $message =
                             "Incorrect email or password.";
@@ -323,12 +306,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     }
                 }
 
-
             } catch (PDOException $e) {
 
                 /*
                  * Do not expose database details.
                  */
+
                 $message =
                     "Unable to process your login right now. Please try again.";
 
@@ -411,7 +394,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             background:
                 #000;
-
         }
 
 
@@ -422,9 +404,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             backdrop-filter:
                 none;
-
         }
 
+
+        /* ========================================
+           LOGIN PAGE
+        ======================================== */
 
         .login-page {
 
@@ -448,7 +433,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             padding:
                 55px 20px 80px;
-
         }
 
 
@@ -474,9 +458,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ),
 
                 url("assets/images/account-bg.png")
-                center center / cover
-                no-repeat;
 
+                center center / cover
+
+                no-repeat;
         }
 
 
@@ -494,7 +479,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             margin:
                 0 auto;
-
         }
 
 
@@ -516,7 +500,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             font:
                 500 11px "Orbitron",
                 sans-serif;
-
         }
 
 
@@ -535,7 +518,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 600 48px/1
                 "Orbitron",
                 sans-serif;
-
         }
 
 
@@ -570,7 +552,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             box-sizing:
                 border-box;
-
         }
 
 
@@ -588,7 +569,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             gap:
                 22px;
-
         }
 
 
@@ -607,7 +587,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 700 11px
                 "Montserrat",
                 sans-serif;
-
         }
 
 
@@ -646,9 +625,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 sans-serif;
 
             transition:
-                border-color .2s ease,
-                box-shadow .2s ease;
 
+                border-color .2s ease,
+
+                box-shadow .2s ease;
         }
 
 
@@ -656,7 +636,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             color:
                 #777;
-
         }
 
 
@@ -666,9 +645,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 var(--green);
 
             box-shadow:
+
                 0 0 10px
                 rgba(57, 255, 20, .18);
-
         }
 
 
@@ -683,7 +662,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             width:
                 100%;
-
         }
 
 
@@ -691,7 +669,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             padding-right:
                 82px;
-
         }
 
 
@@ -738,7 +715,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             z-index:
                 3;
-
         }
 
 
@@ -746,7 +722,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             color:
                 #fff;
-
         }
 
 
@@ -754,7 +729,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             outline:
                 none;
-
         }
 
 
@@ -794,9 +768,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 pointer;
 
             transition:
-                transform .2s ease,
-                box-shadow .2s ease;
 
+                transform .2s ease,
+
+                box-shadow .2s ease;
         }
 
 
@@ -818,7 +793,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 0 0 25px
                 rgba(57, 255, 20, .18);
-
         }
 
 
@@ -830,7 +804,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             color:
                 #000;
-
         }
 
 
@@ -853,7 +826,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 12px
                 "Montserrat",
                 sans-serif;
-
         }
 
 
@@ -865,14 +837,64 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             font-weight:
                 700;
 
+            text-decoration:
+                none;
         }
 
 
         .login-register a:hover {
 
             color:
+                #fff;
+        }
+
+
+        /* ========================================
+           BACK TO HOMEPAGE
+        ======================================== */
+
+        .back-home {
+
+            margin:
+                18px 0 0;
+
+            text-align:
+                center;
+        }
+
+
+        .back-home a {
+
+            display:
+                inline-block;
+
+            color:
+                #fff;
+
+            text-decoration:
+                none;
+
+            font:
+                700 11px
+                "Orbitron",
+                sans-serif;
+
+            letter-spacing:
+                .5px;
+
+            transition:
+                color .2s ease,
+                transform .2s ease;
+        }
+
+
+        .back-home a:hover {
+
+            color:
                 var(--green);
 
+            transform:
+                translateY(-1px);
         }
 
 
@@ -890,7 +912,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             box-sizing:
                 border-box;
-
         }
 
 
@@ -907,7 +928,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 padding:
                     40px 15px 60px;
-
             }
 
 
@@ -915,7 +935,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 max-width:
                     100%;
-
             }
 
 
@@ -926,7 +945,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 margin-bottom:
                     25px;
-
             }
 
 
@@ -934,7 +952,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 padding:
                     28px 22px;
-
             }
 
 
@@ -942,7 +959,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 gap:
                     18px;
+            }
 
+
+            .back-home a {
+
+                font-size:
+                    10px;
             }
 
         }
@@ -1029,7 +1052,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <div class="login-card">
 
-
             <form
                 action="login.php"
                 method="POST"
@@ -1083,7 +1105,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         Password
 
-
                         <div
                             class="password-input-wrap"
                         >
@@ -1105,15 +1126,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 aria-label="Show password"
                                 aria-pressed="false"
                             >
-
                                 SHOW
-
                             </button>
 
                         </div>
 
                     </label>
-
 
                 </div>
 
@@ -1124,14 +1142,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     type="submit"
                     class="login-submit"
                 >
-
                     LOGIN
-
                 </button>
 
-
             </form>
-
 
         </div>
 
@@ -1143,12 +1157,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             Don't have an account?
 
             <a href="register.php">
-
                 CREATE ACCOUNT
-
             </a>
 
         </p>
+
+
+        <!-- BACK TO HOMEPAGE -->
+
+        <div class="back-home">
+
+            <a href="index.php">
+                ← BACK TO HOMEPAGE
+            </a>
+
+        </div>
 
 
     </div>

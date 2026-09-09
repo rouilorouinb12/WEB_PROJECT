@@ -179,6 +179,29 @@ $rejectedBookings =
 
 
 /* ========================================
+   CALCULATE TOTAL INCOME
+   Only completed bookings are counted.
+   Income = booked hours × setup price/hour.
+======================================== */
+$totalIncomeStmt = $conn->query("
+    SELECT
+        COALESCE(
+            SUM(b.hours * COALESCE(gs.price_per_hour, 0)),
+            0
+        ) AS total_income
+    FROM bookings b
+    LEFT JOIN gaming_setups gs
+        ON gs.id = b.setup_id
+    WHERE b.status = 'completed'
+");
+
+$totalIncome = (float)(
+    $totalIncomeStmt->fetchColumn()
+    ?? 0
+);
+
+
+/* ========================================
    GET CONTACT MESSAGES
    CUSTOMER -> CONTACT -> ADMIN
 ======================================== */
@@ -383,7 +406,7 @@ $unreadContactCount =
                 grid;
 
             grid-template-columns:
-                repeat(4, 1fr);
+                repeat(5, minmax(0, 1fr));
 
             gap:
                 20px;
@@ -424,6 +447,18 @@ $unreadContactCount =
 
             font-size:
                 30px;
+        }
+
+
+        /* Keep the income amount inside the card */
+        .admin-stat.income-stat h3 {
+
+            font-size: 22px;
+            line-height: 1.15;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: -0.5px;
         }
 
 
@@ -1408,18 +1443,34 @@ $unreadContactCount =
         }
 
 
+        @media (max-width: 1100px) {
+
+            .admin-stats {
+
+                grid-template-columns:
+                    repeat(3, minmax(0, 1fr));
+            }
+
+        }
+
+
         @media (max-width: 800px) {
 
             .admin-stats {
 
                 grid-template-columns:
-                    repeat(2, 1fr);
+                    repeat(2, minmax(0, 1fr));
             }
 
         }
 
 
         @media (max-width: 500px) {
+
+            .admin-stat.income-stat h3 {
+                font-size: 24px;
+            }
+
 
             .admin-stats {
 
@@ -1883,6 +1934,24 @@ $unreadContactCount =
                 <p>
 
                     REJECTED
+
+                </p>
+
+            </div>
+
+
+            <!-- TOTAL INCOME -->
+            <div class="admin-stat income-stat">
+
+                <h3>
+
+                    ₱<?= number_format($totalIncome, 2) ?>
+
+                </h3>
+
+                <p>
+
+                    TOTAL INCOME
 
                 </p>
 

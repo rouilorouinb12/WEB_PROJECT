@@ -9,16 +9,94 @@ requireLogin();
 
 $userId = currentUserId();
 
+if (!$userId) {
+    header("Location: login.php");
+    exit;
+}
+
+
+/*
+========================================
+GET CURRENT USER
+========================================
+*/
+
+$userStmt = $conn->prepare("
+
+    SELECT
+
+        id,
+        name,
+        email,
+        phone,
+        role
+
+    FROM users
+
+    WHERE id = :id
+
+    LIMIT 1
+
+");
+
+$userStmt->execute([
+    ":id" => $userId
+]);
+
+$user = $userStmt->fetch();
+
+
+if (!$user) {
+
+    header("Location: logout.php");
+    exit;
+
+}
+
+
+/*
+========================================
+CHECK ADMIN
+========================================
+*/
+
+$userRole = strtolower(
+    trim(
+        (string)($user["role"] ?? "")
+    )
+);
+
+
+/*
+========================================
+ADMIN IS NOT ALLOWED TO JOIN
+========================================
+*/
+
+if ($userRole === "admin") {
+
+    header("Location: index.php#tournaments");
+    exit;
+
+}
+
+
+/*
+========================================
+GET TOURNAMENT ID
+========================================
+*/
+
 $tournamentId = filter_input(
     INPUT_GET,
     "id",
     FILTER_VALIDATE_INT
 );
 
+
 if (!$tournamentId) {
 
     header("Location: index.php#tournaments");
-
     exit;
 
 }
@@ -58,45 +136,6 @@ $tournament = $stmt->fetch();
 if (!$tournament) {
 
     header("Location: index.php#tournaments");
-
-    exit;
-
-}
-
-
-/*
-========================================
-GET CURRENT CUSTOMER
-========================================
-*/
-
-$userStmt = $conn->prepare("
-
-    SELECT
-
-        name,
-        email,
-        phone
-
-    FROM users
-
-    WHERE id = :id
-
-    LIMIT 1
-
-");
-
-$userStmt->execute([
-    ":id" => $userId
-]);
-
-$user = $userStmt->fetch();
-
-
-if (!$user) {
-
-    header("Location: logout.php");
-
     exit;
 
 }
@@ -186,355 +225,197 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     /*
     ========================================
-    CSRF
+    EXTRA ADMIN PROTECTION
     ========================================
     */
 
-    $csrfToken =
-        $_POST["csrf_token"] ?? "";
-
-    if (
-        !is_string($csrfToken) ||
-        !verifyCsrfToken($csrfToken)
-    ) {
+    if ($userRole === "admin") {
 
         $error =
-            "Invalid request. Please try again.";
+            "Admin accounts are not allowed to join tournaments.";
 
     } else {
 
         /*
         ========================================
-        GET FORM VALUES
+        CSRF
         ========================================
         */
 
-        $teamName =
-            trim(
-                (string)(
-                    $_POST["team_name"] ?? ""
-                )
-            );
+        $csrfToken =
+            $_POST["csrf_token"] ?? "";
 
 
-        $teamMembers =
-            trim(
-                (string)(
-                    $_POST["team_members"] ?? ""
-                )
-            );
-
-
-        $contactNumber =
-            trim(
-                (string)(
-                    $_POST["contact_number"] ?? ""
-                )
-            );
-
-
-        $message =
-            trim(
-                (string)(
-                    $_POST["message"] ?? ""
-                )
-            );
-
-
-        $paymentMethod =
-            trim(
-                (string)(
-                    $_POST["payment_method"] ?? ""
-                )
-            );
-
-
-        $paymentReference =
-            trim(
-                (string)(
-                    $_POST["payment_reference"] ?? ""
-                )
-            );
-
-
-        /*
-        ========================================
-        VALIDATION
-        ========================================
-        */
-
-        if ($teamName === "") {
-
-            $error =
-                "Please enter your team name.";
-
-        } elseif (
-            mb_strlen($teamName) > 120
+        if (
+            !is_string($csrfToken) ||
+            !verifyCsrfToken($csrfToken)
         ) {
 
             $error =
-                "Team name is too long.";
-
-        } elseif (
-            $teamMembers === ""
-        ) {
-
-            $error =
-                "Please enter your team members.";
-
-        } elseif (
-            mb_strlen($teamMembers) > 500
-        ) {
-
-            $error =
-                "Team members information is too long.";
-
-        } elseif (
-            $contactNumber === ""
-        ) {
-
-            $error =
-                "Please enter your contact number.";
-
-        } elseif (
-            !preg_match(
-                '/^[0-9+\-\s()]{7,40}$/',
-                $contactNumber
-            )
-        ) {
-
-            $error =
-                "Please enter a valid contact number.";
-
-        } elseif (
-            $message !== "" &&
-            mb_strlen($message) > 500
-        ) {
-
-            $error =
-                "Message is too long.";
-
-        } elseif (
-            $paymentMethod !== "GCash" &&
-            $paymentMethod !== "Cash"
-        ) {
-
-            $error =
-                "Please select a valid payment method.";
-
-        } elseif (
-            $paymentMethod === "GCash" &&
-            $paymentReference === ""
-        ) {
-
-            $error =
-                "Please enter your GCash reference number.";
-
-        } elseif (
-            mb_strlen($paymentReference) > 100
-        ) {
-
-            $error =
-                "Payment reference number is too long.";
+                "Invalid request. Please try again.";
 
         } else {
 
             /*
             ========================================
-            CHECK DUPLICATE REGISTRATION
+            GET FORM VALUES
             ========================================
             */
 
-            $check = $conn->prepare("
-
-                SELECT
-
-                    id,
-                    status
-
-                FROM tournament_registrations
-
-                WHERE tournament_id = :tournament_id
-
-                  AND user_id = :user_id
-
-                LIMIT 1
-
-            ");
-
-            $check->execute([
-
-                ":tournament_id" =>
-                    $tournamentId,
-
-                ":user_id" =>
-                    $userId
-
-            ]);
+            $teamName =
+                trim(
+                    (string)(
+                        $_POST["team_name"] ?? ""
+                    )
+                );
 
 
-            $existingRegistration =
-                $check->fetch();
+            $teamMembers =
+                trim(
+                    (string)(
+                        $_POST["team_members"] ?? ""
+                    )
+                );
 
 
-            if ($existingRegistration) {
+            $contactNumber =
+                trim(
+                    (string)(
+                        $_POST["contact_number"] ?? ""
+                    )
+                );
 
-                $existingStatus =
-                    (string)$existingRegistration["status"];
+
+            $message =
+                trim(
+                    (string)(
+                        $_POST["message"] ?? ""
+                    )
+                );
 
 
-                if (
-                    $existingStatus === "pending"
-                ) {
+            $paymentMethod =
+                trim(
+                    (string)(
+                        $_POST["payment_method"] ?? ""
+                    )
+                );
 
-                    $error =
-                        "You have already registered for this tournament.";
 
-                } elseif (
-                    $existingStatus === "accepted"
-                ) {
+            $paymentReference =
+                trim(
+                    (string)(
+                        $_POST["payment_reference"] ?? ""
+                    )
+                );
 
-                    $error =
-                        "You are already registered for this tournament.";
 
-                } else {
+            /*
+            ========================================
+            VALIDATION
+            ========================================
+            */
 
-                    $error =
-                        "Your registration for this tournament has already been processed.";
+            if ($teamName === "") {
 
-                }
+                $error =
+                    "Please enter your team name.";
+
+            } elseif (
+                mb_strlen($teamName) > 120
+            ) {
+
+                $error =
+                    "Team name is too long.";
+
+            } elseif (
+                $teamMembers === ""
+            ) {
+
+                $error =
+                    "Please enter your team members.";
+
+            } elseif (
+                mb_strlen($teamMembers) > 500
+            ) {
+
+                $error =
+                    "Team members information is too long.";
+
+            } elseif (
+                $contactNumber === ""
+            ) {
+
+                $error =
+                    "Please enter your contact number.";
+
+            } elseif (
+                !preg_match(
+                    '/^[0-9+\-\s()]{7,40}$/',
+                    $contactNumber
+                )
+            ) {
+
+                $error =
+                    "Please enter a valid contact number.";
+
+            } elseif (
+                $message !== "" &&
+                mb_strlen($message) > 500
+            ) {
+
+                $error =
+                    "Message is too long.";
+
+            } elseif (
+                $paymentMethod !== "GCash" &&
+                $paymentMethod !== "Cash"
+            ) {
+
+                $error =
+                    "Please select a valid payment method.";
+
+            } elseif (
+                $paymentMethod === "GCash" &&
+                $paymentReference === ""
+            ) {
+
+                $error =
+                    "Please enter your GCash reference number.";
+
+            } elseif (
+                mb_strlen($paymentReference) > 100
+            ) {
+
+                $error =
+                    "Payment reference number is too long.";
 
             } else {
 
                 /*
                 ========================================
-                STORE TEAM MEMBERS
+                CHECK DUPLICATE REGISTRATION
                 ========================================
                 */
 
-                $registrationMessage =
-                    "Team Members:\n"
-                    . $teamMembers;
+                $check = $conn->prepare("
 
+                    SELECT
 
-                if ($message !== "") {
+                        id,
+                        status
 
-                    $registrationMessage .=
-                        "\n\nAdditional Message:\n"
-                        . $message;
+                    FROM tournament_registrations
 
-                }
+                    WHERE tournament_id = :tournament_id
 
+                      AND user_id = :user_id
 
-                $registrationMessageValue =
-                    $registrationMessage;
-
-
-                /*
-                ========================================
-                PAYMENT STATUS
-                ========================================
-                */
-
-                $paymentStatus =
-                    $paymentMethod === "GCash"
-                        ? "pending"
-                        : "unpaid";
-
-
-                /*
-                ========================================
-                INSERT REGISTRATION
-                ========================================
-                */
-
-                $insert = $conn->prepare("
-
-                    INSERT INTO tournament_registrations
-
-                    (
-
-                        tournament_id,
-                        user_id,
-                        team_name,
-                        contact_number,
-                        message,
-                        status,
-                        payment_method,
-                        payment_reference,
-                        payment_status
-
-                    )
-
-                    VALUES
-
-                    (
-
-                        :tournament_id,
-                        :user_id,
-                        :team_name,
-                        :contact_number,
-                        :message,
-                        'pending',
-                        :payment_method,
-                        :payment_reference,
-                        :payment_status
-
-                    )
+                    LIMIT 1
 
                 ");
 
-
-                $insert->execute([
-
-                    ":tournament_id" =>
-                        $tournamentId,
-
-                    ":user_id" =>
-                        $userId,
-
-                    ":team_name" =>
-                        $teamName,
-
-                    ":contact_number" =>
-                        $contactNumber,
-
-                    ":message" =>
-                        $registrationMessage,
-
-                    ":payment_method" =>
-                        $paymentMethod,
-
-                    ":payment_reference" =>
-                        $paymentReference !== ""
-                            ? $paymentReference
-                            : null,
-
-                    ":payment_status" =>
-                        $paymentStatus
-
-                ]);
-
-
-                /*
-                ========================================
-                SUCCESS
-                ========================================
-                */
-
-                $success =
-                    "Tournament registration submitted successfully.";
-
-                $_POST = [];
-
-
-                /*
-                ========================================
-                REFRESH CURRENT REGISTRATION DATA
-                ========================================
-                */
-
-                $currentRegistrationStmt->execute([
+                $check->execute([
 
                     ":tournament_id" =>
                         $tournamentId,
@@ -545,8 +426,182 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ]);
 
 
-                $currentRegistration =
-                    $currentRegistrationStmt->fetch();
+                $existingRegistration =
+                    $check->fetch();
+
+
+                if ($existingRegistration) {
+
+                    $existingStatus =
+                        (string)$existingRegistration["status"];
+
+
+                    if (
+                        $existingStatus === "pending"
+                    ) {
+
+                        $error =
+                            "You have already registered for this tournament.";
+
+                    } elseif (
+                        $existingStatus === "accepted"
+                    ) {
+
+                        $error =
+                            "You are already registered for this tournament.";
+
+                    } else {
+
+                        $error =
+                            "Your registration for this tournament has already been processed.";
+
+                    }
+
+                } else {
+
+                    /*
+                    ========================================
+                    STORE TEAM MEMBERS
+                    ========================================
+                    */
+
+                    $registrationMessage =
+                        "Team Members:\n"
+                        . $teamMembers;
+
+
+                    if ($message !== "") {
+
+                        $registrationMessage .=
+                            "\n\nAdditional Message:\n"
+                            . $message;
+
+                    }
+
+
+                    $registrationMessageValue =
+                        $registrationMessage;
+
+
+                    /*
+                    ========================================
+                    PAYMENT STATUS
+                    ========================================
+                    */
+
+                    $paymentStatus =
+                        $paymentMethod === "GCash"
+                            ? "pending"
+                            : "unpaid";
+
+
+                    /*
+                    ========================================
+                    INSERT REGISTRATION
+                    ========================================
+                    */
+
+                    $insert = $conn->prepare("
+
+                        INSERT INTO tournament_registrations
+
+                        (
+
+                            tournament_id,
+                            user_id,
+                            team_name,
+                            contact_number,
+                            message,
+                            status,
+                            payment_method,
+                            payment_reference,
+                            payment_status
+
+                        )
+
+                        VALUES
+
+                        (
+
+                            :tournament_id,
+                            :user_id,
+                            :team_name,
+                            :contact_number,
+                            :message,
+                            'pending',
+                            :payment_method,
+                            :payment_reference,
+                            :payment_status
+
+                        )
+
+                    ");
+
+
+                    $insert->execute([
+
+                        ":tournament_id" =>
+                            $tournamentId,
+
+                        ":user_id" =>
+                            $userId,
+
+                        ":team_name" =>
+                            $teamName,
+
+                        ":contact_number" =>
+                            $contactNumber,
+
+                        ":message" =>
+                            $registrationMessage,
+
+                        ":payment_method" =>
+                            $paymentMethod,
+
+                        ":payment_reference" =>
+                            $paymentReference !== ""
+                                ? $paymentReference
+                                : null,
+
+                        ":payment_status" =>
+                            $paymentStatus
+
+                    ]);
+
+
+                    /*
+                    ========================================
+                    SUCCESS
+                    ========================================
+                    */
+
+                    $success =
+                        "Tournament registration submitted successfully.";
+
+                    $_POST = [];
+
+
+                    /*
+                    ========================================
+                    REFRESH CURRENT REGISTRATION
+                    ========================================
+                    */
+
+                    $currentRegistrationStmt->execute([
+
+                        ":tournament_id" =>
+                            $tournamentId,
+
+                        ":user_id" =>
+                            $userId
+
+                    ]);
+
+
+                    $currentRegistration =
+                        $currentRegistrationStmt->fetch();
+
+                }
 
             }
 
@@ -1015,9 +1070,6 @@ include "includes/header.php";
 
     min-height:
         44px;
-
-    box-sizing:
-        border-box;
 
 }
 
@@ -1891,34 +1943,45 @@ include "includes/header.php";
 
                 <div class="tournament-date">
 
+                    <?php
+
+                    $tournamentTimestamp =
+                        strtotime(
+                            (string)
+                            $tournament[
+                                "tournament_date"
+                            ]
+                        );
+
+                    ?>
+
+
                     <span>
 
-                        <?= date(
-                            "d",
-                            strtotime(
-                                (string)
-                                $tournament[
-                                    "tournament_date"
-                                ]
+                        <?= $tournamentTimestamp !== false
+                            ? date(
+                                "d",
+                                $tournamentTimestamp
                             )
-                        ) ?>
+                            : "--"
+                        ?>
 
                     </span>
 
 
+                    <!-- DYNAMIC MONTH -->
+
                     <small>
 
-                        <?= strtoupper(
-                            date(
-                                "M",
-                                strtotime(
-                                    (string)
-                                    $tournament[
-                                        "tournament_date"
-                                    ]
+                        <?= $tournamentTimestamp !== false
+                            ? strtoupper(
+                                date(
+                                    "M",
+                                    $tournamentTimestamp
                                 )
                             )
-                        ) ?>
+                            : "---"
+                        ?>
 
                     </small>
 
@@ -2088,7 +2151,8 @@ include "includes/header.php";
             ========================================= -->
 
             <?php if (
-                !$currentRegistration
+                !$currentRegistration &&
+                $userRole !== "admin"
             ): ?>
 
                 <form
@@ -2098,13 +2162,11 @@ include "includes/header.php";
                 >
 
 
-                    <!-- CSRF -->
-
                     <input
                         type="hidden"
                         name="csrf_token"
                         value="<?= htmlspecialchars(
-                            csrfToken(),
+                            $csrfToken,
                             ENT_QUOTES,
                             "UTF-8"
                         ) ?>"
@@ -2373,9 +2435,7 @@ include "includes/header.php";
                         </div>
 
 
-                        <!-- ========================================
-                             PAYMENT
-                        ========================================= -->
+                        <!-- PAYMENT -->
 
                         <div
                             class="tournament-payment"
@@ -2395,27 +2455,20 @@ include "includes/header.php";
                             >
 
                                 <strong>
-
                                     GCash:
-
                                 </strong>
 
                                 Send your tournament payment
                                 to the gaming cafe GCash account,
                                 then enter your
-
                                 <strong>
-
                                     reference number
-
                                 </strong>.
 
                                 <br><br>
 
                                 <strong>
-
                                     Cash:
-
                                 </strong>
 
                                 Select Cash if you will pay
@@ -2454,9 +2507,7 @@ include "includes/header.php";
                                         required
                                     >
 
-                                        <option
-                                            value=""
-                                        >
+                                        <option value="">
 
                                             SELECT PAYMENT METHOD
 
@@ -2533,9 +2584,7 @@ include "includes/header.php";
                     </div>
 
 
-                    <!-- ========================================
-                         BUTTONS
-                    ========================================= -->
+                    <!-- BUTTONS -->
 
                     <div
                         class="
@@ -2598,9 +2647,6 @@ include "includes/header.php";
             "
         >
 
-
-            <!-- CLOSE -->
-
             <div
                 class="
                     tournament-receipt-close
@@ -2618,8 +2664,6 @@ include "includes/header.php";
 
             </div>
 
-
-            <!-- RECEIPT HEADER -->
 
             <div
                 class="
@@ -2661,16 +2705,11 @@ include "includes/header.php";
             </div>
 
 
-            <!-- RECEIPT BODY -->
-
             <div
                 class="
                     tournament-receipt-body
                 "
             >
-
-
-                <!-- REGISTRATION ID -->
 
                 <div
                     class="
@@ -2701,8 +2740,6 @@ include "includes/header.php";
 
                 </div>
 
-
-                <!-- TOURNAMENT -->
 
                 <div
                     class="
@@ -2738,8 +2775,6 @@ include "includes/header.php";
                 </div>
 
 
-                <!-- TOURNAMENT DATE -->
-
                 <div
                     class="
                         tournament-receipt-row
@@ -2773,8 +2808,6 @@ include "includes/header.php";
 
                 </div>
 
-
-                <!-- CUSTOMER -->
 
                 <div
                     class="
@@ -2810,8 +2843,6 @@ include "includes/header.php";
                 </div>
 
 
-                <!-- EMAIL -->
-
                 <div
                     class="
                         tournament-receipt-row
@@ -2845,8 +2876,6 @@ include "includes/header.php";
 
                 </div>
 
-
-                <!-- TEAM NAME -->
 
                 <div
                     class="
@@ -2882,8 +2911,6 @@ include "includes/header.php";
                 </div>
 
 
-                <!-- TEAM MEMBERS -->
-
                 <div
                     class="
                         tournament-receipt-row
@@ -2918,8 +2945,6 @@ include "includes/header.php";
                 </div>
 
 
-                <!-- CONTACT NUMBER -->
-
                 <div
                     class="
                         tournament-receipt-row
@@ -2953,8 +2978,6 @@ include "includes/header.php";
 
                 </div>
 
-
-                <!-- MODE OF PAYMENT -->
 
                 <div
                     class="
@@ -2991,8 +3014,6 @@ include "includes/header.php";
 
                 </div>
 
-
-                <!-- GCASH REFERENCE -->
 
                 <?php if (
                     strcasecmp(
@@ -3038,8 +3059,6 @@ include "includes/header.php";
                 <?php endif; ?>
 
 
-                <!-- PAYMENT STATUS -->
-
                 <?php if (
                     $receiptPaymentStatus !== ""
                 ): ?>
@@ -3082,8 +3101,6 @@ include "includes/header.php";
                 <?php endif; ?>
 
 
-                <!-- REGISTRATION STATUS -->
-
                 <div
                     class="
                         tournament-receipt-row
@@ -3119,8 +3136,6 @@ include "includes/header.php";
                 </div>
 
 
-                <!-- DATE REGISTERED -->
-
                 <div
                     class="
                         tournament-receipt-row
@@ -3154,8 +3169,6 @@ include "includes/header.php";
 
                 </div>
 
-
-                <!-- PRINT -->
 
                 <div
                     class="
@@ -3316,7 +3329,6 @@ if (
 
 /* ========================================
    ESCAPE KEY
-   RECEIPT -> CUSTOMER HISTORY
 ======================================== */
 
 const tournamentReceiptOverlay =
@@ -3343,6 +3355,3 @@ document.addEventListener(
 );
 
 </script>
-
-
-<?php include "includes/footer.php"; ?>

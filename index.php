@@ -5,8 +5,6 @@ declare(strict_types=1);
 require_once "database.php";
 require_once "auth.php";
 
-requireLogin();
-
 /*
 ========================================
 CURRENT LOGGED-IN USER
@@ -15,13 +13,20 @@ CURRENT LOGGED-IN USER
 
 $currentUserId = currentUserId();
 
-if (!$currentUserId) {
+$currentUserRole = $_SESSION["user_role"] ?? "";
 
-    header("Location: login.php");
+$isCustomer = (
+    $currentUserId &&
+    $currentUserRole !== "admin"
+);
 
-    exit;
-
-}
+/*
+ * INDEX.PHP IS PUBLIC.
+ *
+ * Guests are allowed to view the homepage.
+ * Login is required only by protected pages/actions such as
+ * booking and tournament registration.
+ */
 
 $error = "";
 $success = "";
@@ -33,7 +38,7 @@ HANDLE NOTIFICATION ACTIONS
 ========================================
 */
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
+if ($isCustomer && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     $postAction = $_POST["notification_action"] ?? "";
 
@@ -131,55 +136,46 @@ NOTIFICATIONS
 ========================================
 */
 
-$notificationStmt = $conn->prepare("
-
-    SELECT
-
-        id,
-
-        type,
-
-        title,
-
-        message,
-
-        is_read,
-
-        created_at
-
-    FROM notifications
-
-    WHERE user_id = ?
-
-    ORDER BY
-
-        is_read ASC,
-
-        created_at DESC
-
-");
-
-$notificationStmt->execute([
-    $currentUserId
-]);
-
-$notifications =
-    $notificationStmt->fetchAll();
-
+$notifications = [];
 $unreadCount = 0;
 
-foreach ($notifications as $notification) {
+if ($isCustomer) {
 
-    if (
-        (int)$notification["is_read"] === 0
-    ) {
+    $notificationStmt = $conn->prepare("
+        SELECT
+            id,
+            type,
+            title,
+            message,
+            is_read,
+            created_at
+        FROM notifications
+        WHERE user_id = ?
+        ORDER BY
+            is_read ASC,
+            created_at DESC
+    ");
 
-        $unreadCount++;
+    $notificationStmt->execute([
+        $currentUserId
+    ]);
+
+    $notifications =
+        $notificationStmt->fetchAll();
+
+    foreach ($notifications as $notification) {
+
+        if (
+            (int)$notification["is_read"] === 0
+        ) {
+
+            $unreadCount++;
+
+        }
 
     }
 
 }
-
 
 /*
 ========================================
@@ -196,6 +192,7 @@ $receiptId = filter_var(
 );
 
 if (
+    $isCustomer &&
     $receiptId !== false &&
     $receiptId !== null &&
     $receiptId > 0
@@ -685,7 +682,7 @@ if ($selectedReceipt) {
 
 }
 
-$csrfToken = csrfToken();
+$csrfToken = $isCustomer ? csrfToken() : "";
 
 ?>
 
@@ -1632,6 +1629,130 @@ $csrfToken = csrfToken();
 
         }
 
+        /* ========================================
+           WHY CHOOSE BR
+        ======================================== */
+
+        .why-choose-section {
+            padding: 70px 0;
+        }
+
+        .why-heading {
+            text-align: center;
+            margin-bottom: 42px;
+        }
+
+        .why-heading h2 {
+            margin: 8px 0 0;
+            font-family: "Orbitron", sans-serif;
+            font-weight: 800;
+            line-height: 1.15;
+        }
+
+        .why-heading h2 span {
+            color: #39FF14;
+        }
+
+        .why-choose-section .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 22px;
+        }
+
+        .why-choose-section .feature-card {
+            text-align: center;
+            padding: 8px 5px;
+        }
+
+        .why-choose-section .feature-icon svg {
+            width: 54px;
+            height: 54px;
+            fill: none;
+            stroke: #39FF14;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .why-choose-section .feature-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 14px;
+            display: grid;
+            place-items: center;
+            color: #39FF14;
+            border: 1px solid rgba(57,255,20,.35);
+            border-radius: 50%;
+            font-size: 28px;
+            line-height: 1;
+            box-shadow: 0 0 18px rgba(57,255,20,.08);
+        }
+
+        .why-choose-section .feature-card h3 {
+            margin: 0 0 9px;
+            color: #fff;
+            font-family: "Orbitron", sans-serif;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.25;
+        }
+
+        .why-choose-section .feature-card p {
+            margin: 0;
+            color: #ddd;
+            font-size: 10px;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 1100px) {
+            .why-choose-section .feature-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 600px) {
+            .why-choose-section {
+                padding: 55px 0;
+            }
+
+            .why-choose-section .feature-grid {
+                grid-template-columns: 1fr;
+                gap: 28px;
+            }
+        }
+
+
+        /* ========================================
+           SNACKS & DRINKS - DRINK CUP ICON
+        ======================================== */
+
+        .why-choose-section .drink-feature-icon {
+            position: relative;
+            overflow: visible;
+        }
+
+        .why-choose-section .drink-feature-icon svg {
+            width: 54px;
+            height: 54px;
+            overflow: visible;
+            filter:
+                drop-shadow(0 0 3px rgba(57,255,20,.8))
+                drop-shadow(0 0 6px rgba(57,255,20,.35));
+        }
+
+        .why-choose-section .drink-feature-icon svg path {
+            fill: none;
+            stroke: #39FF14;
+            stroke-width: 2.3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .why-choose-section .drink-feature-icon svg circle {
+            fill: #39FF14;
+            stroke: none;
+        }
+
     </style>
 
 </head>
@@ -1641,6 +1762,8 @@ $csrfToken = csrfToken();
 
 <?php include "includes/header.php"; ?>
 
+
+<?php if ($isCustomer): ?>
 
 <!-- =========================================
      CUSTOMER NOTIFICATION BUTTON
@@ -1938,6 +2061,9 @@ $csrfToken = csrfToken();
 </div>
 
 
+<?php endif; ?>
+
+
 <!-- =====================================
      HOME PAGE CONTENT
 ====================================== -->
@@ -1991,14 +2117,21 @@ $csrfToken = csrfToken();
                 <div class="hero-buttons">
 
 
-                    <a
-                        href="book.php"
-                        class="outline-button"
-                    >
+                    <?php if (
+                        !$currentUserId ||
+                        ($_SESSION["user_role"] ?? "") !== "admin"
+                    ): ?>
 
-                        BOOK A PC
+                        <a
+                            href="book.php"
+                            class="outline-button"
+                        >
 
-                    </a>
+                            BOOK A PC
+
+                        </a>
+
+                    <?php endif; ?>
 
 
                     <a
@@ -2205,6 +2338,201 @@ $csrfToken = csrfToken();
 
             </div>
 
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================
+         WHY CHOOSE BR
+    ====================================== -->
+
+    <section
+        class="section why-choose-section"
+        id="why-choose-br"
+    >
+
+        <div class="container">
+
+            <div class="why-heading">
+
+                <p class="section-kicker">
+                    WHY CHOOSE BR?
+                </p>
+
+                <h2>
+                    BUILT FOR GAMERS.<br>
+                    DESIGNED TO <span>WIN.</span>
+                </h2>
+
+            </div>
+
+
+            <div class="feature-grid">
+
+                <article class="feature-card reveal">
+
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <rect x="10" y="14" width="44" height="30" rx="2"></rect>
+                            <path d="M22 54h20"></path>
+                            <path d="M32 44v10"></path>
+                        </svg>
+                    </div>
+
+                    <h3>
+                        HIGH-END PCS
+                    </h3>
+
+                    <p>
+                        Powerful specs for<br>
+                        smooth gameplay.
+                    </p>
+
+                </article>
+
+
+                <article class="feature-card reveal">
+
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <path d="M12 24c11-11 29-11 40 0"></path>
+                            <path d="M20 33c7-7 17-7 24 0"></path>
+                            <path d="M28 42c2-2 6-2 8 0"></path>
+                            <circle cx="32" cy="50" r="2"></circle>
+                        </svg>
+                    </div>
+
+                    <h3>
+                        ULTRA-FAST<br>
+                        INTERNET
+                    </h3>
+
+                    <p>
+                        Low ping. No lag.<br>
+                        Just pure speed.
+                    </p>
+
+                </article>
+
+
+                <article class="feature-card reveal">
+
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <path d="M32 8v48"></path>
+                            <path d="M8 32h48"></path>
+                            <path d="M15 15l34 34"></path>
+                            <path d="M49 15L15 49"></path>
+                            <circle cx="32" cy="32" r="19"></circle>
+                        </svg>
+                    </div>
+
+                    <h3>
+                        AIR<br>
+                        CONDITIONED
+                    </h3>
+
+                    <p>
+                        Stay cool and<br>
+                        focused always.
+                    </p>
+
+                </article>
+
+
+                <article class="feature-card reveal">
+
+                    <div class="feature-icon drink-feature-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+
+                            <!-- STRAW -->
+                            <path d="M29 25 L33 13 L43 9"></path>
+
+                            <!-- CUP LID -->
+                            <path d="M20 27 Q32 22 44 27"></path>
+                            <path d="M19 27 H45"></path>
+
+                            <!-- CUP -->
+                            <path d="M21 28 L25 50 Q25.5 53 29 53 H35 Q38.5 53 39 50 L43 28"></path>
+
+                            <!-- DRINK -->
+                            <path d="M23 37 Q28 33 32 37 Q36 41 41 37"></path>
+
+                            <!-- BUBBLES -->
+                            <circle cx="28" cy="43" r="2" fill="#39FF14" stroke="none"></circle>
+                            <circle cx="36" cy="43" r="2" fill="#39FF14" stroke="none"></circle>
+                            <circle cx="32" cy="48" r="2" fill="#39FF14" stroke="none"></circle>
+
+                        </svg>
+                    </div>
+
+                    <h3>
+                        SNACKS &amp;<br>
+                        DRINKS
+                    </h3>
+
+                    <p>
+                        Fuel your game<br>
+                        with our menu.
+                    </p>
+
+                </article>
+
+
+                <article class="feature-card reveal">
+
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <path d="M14 30c0-8 6-14 14-14h8c8 0 14 6 14 14v13c0 4-3 7-7 7h-4V35H25v15h-4c-4 0-7-3-7-7z"></path>
+                            <path d="M25 35h-7"></path>
+                            <path d="M46 35h-7"></path>
+                            <path d="M29 25h6"></path>
+                        </svg>
+                    </div>
+
+                    <h3>
+                        PREMIUM<br>
+                        PERIPHERALS
+                    </h3>
+
+                    <p>
+                        Comfortable &amp;<br>
+                        high-quality gears.
+                    </p>
+
+                </article>
+
+
+                <article class="feature-card reveal">
+
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 64 64" aria-hidden="true">
+                            <path d="M20 54h24"></path>
+                            <path d="M24 54V22h16v32"></path>
+                            <path d="M19 22h26"></path>
+                            <path d="M24 16h16"></path>
+                            <path d="M28 10h8"></path>
+                            <path d="M32 6v4"></path>
+                            <path d="M18 38h28"></path>
+                        </svg>
+                    </div>
+
+                    <h3>
+                        TOURNAMENT<br>
+                        READY
+                    </h3>
+
+                    <p>
+                        Join weekly events<br>
+                        and claim prices.
+                    </p>
+
+                </article>
+
+            </div>
 
         </div>
 
@@ -2644,14 +2972,21 @@ $csrfToken = csrfToken();
                 </div>
 
 
-                <a
-                    href="book.php"
-                    class="green-button cta-button"
-                >
+                <?php if (
+                    !$currentUserId ||
+                    ($_SESSION["user_role"] ?? "") !== "admin"
+                ): ?>
 
-                    BOOK NOW
+                    <a
+                        href="book.php"
+                        class="green-button cta-button"
+                    >
 
-                </a>
+                        BOOK NOW
+
+                    </a>
+
+                <?php endif; ?>
 
 
             </div>
@@ -2750,14 +3085,21 @@ $csrfToken = csrfToken();
                 </div>
 
 
-                <a
-                    href="tournament.php?id=1"
-                    class="outline-button"
-                >
+                <?php if (
+                    !$currentUserId ||
+                    ($_SESSION["user_role"] ?? "") !== "admin"
+                ): ?>
 
-                    JOIN NOW
+                    <a
+                        href="tournament.php?id=1"
+                        class="outline-button"
+                    >
 
-                </a>
+                        JOIN NOW
+
+                    </a>
+
+                <?php endif; ?>
 
 
             </article>
@@ -2813,14 +3155,21 @@ $csrfToken = csrfToken();
                 </div>
 
 
-                <a
-                    href="tournament.php?id=2"
-                    class="outline-button"
-                >
+                <?php if (
+                    !$currentUserId ||
+                    ($_SESSION["user_role"] ?? "") !== "admin"
+                ): ?>
 
-                    JOIN NOW
+                    <a
+                        href="tournament.php?id=2"
+                        class="outline-button"
+                    >
 
-                </a>
+                        JOIN NOW
+
+                    </a>
+
+                <?php endif; ?>
 
 
             </article>
@@ -2876,14 +3225,21 @@ $csrfToken = csrfToken();
                 </div>
 
 
-                <a
-                    href="tournament.php?id=3"
-                    class="outline-button"
-                >
+                <?php if (
+                    !$currentUserId ||
+                    ($_SESSION["user_role"] ?? "") !== "admin"
+                ): ?>
 
-                    JOIN NOW
+                    <a
+                        href="tournament.php?id=3"
+                        class="outline-button"
+                    >
 
-                </a>
+                        JOIN NOW
+
+                    </a>
+
+                <?php endif; ?>
 
 
             </article>
@@ -2900,7 +3256,7 @@ $csrfToken = csrfToken();
      DIGITAL RECEIPT
 ====================================== -->
 
-<?php if ($selectedReceipt): ?>
+<?php if ($isCustomer && $selectedReceipt): ?>
 
     <div
         class="digital-receipt-overlay open"
@@ -3606,6 +3962,15 @@ document.addEventListener(
 
             }
 
+            else if (target === "why-choose-br") {
+
+                activeLink =
+                    mainNav.querySelector(
+                        'a[href="index.php#why-choose-br"], a[href="#why-choose-br"]'
+                    );
+
+            }
+
 
             if (activeLink) {
 
@@ -3778,6 +4143,18 @@ document.addEventListener(
         }
 
 
+        else if (
+            currentHash ===
+            "#why-choose-br"
+        ) {
+
+            showHomeSection(
+                "why-choose-br"
+            );
+
+        }
+
+
         else {
 
             showHome();
@@ -3924,7 +4301,9 @@ document.addEventListener(
                 'a[href="index.php#rates"],' +
                 'a[href="#rates"],' +
                 'a[href="index.php#gallery"],' +
-                'a[href="#gallery"]'
+                'a[href="#gallery"],' +
+                'a[href="index.php#why-choose-br"],' +
+                'a[href="#why-choose-br"]'
             );
 
 
