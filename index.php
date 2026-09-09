@@ -2338,7 +2338,14 @@ $csrfToken = csrfToken();
         <div class="container">
 
 
-            <p class="section-kicker">
+            <p
+                class="section-kicker"
+                style="
+                    position: relative;
+                    top: -35px;
+                    z-index: 2;
+                "
+            >
 
                 OUR RATES
 
@@ -2471,7 +2478,14 @@ $csrfToken = csrfToken();
         <div class="container">
 
 
-            <p class="section-kicker">
+            <p
+                class="section-kicker"
+                style="
+                    position: relative;
+                    top: -35px;
+                    z-index: 2;
+                "
+            >
 
                 WHAT GAMERS SAY
 
