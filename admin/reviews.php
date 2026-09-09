@@ -497,31 +497,27 @@ $csrfToken = csrfToken();
 
         <!-- NAVIGATION -->
 
-        <nav
-            class="main-nav"
-            id="mainNav"
-        >
+<nav
+    class="main-nav"
+    id="mainNav"
+>
+    <a href="dashboard.php">
+        DASHBOARD
+    </a>
 
-            <a href="dashboard.php">
-                DASHBOARD
-            </a>
+    <a href="bookings.php">
+        BOOKINGS
+    </a>
 
-            <a href="bookings.php">
-                BOOKINGS
-            </a>
+    <a href="rates.php">
+        RATES
+    </a>
 
-            <a
-                href="reviews.php"
-                class="nav-button"
-            >
-                REVIEWS
-            </a>
-
-            <a href="logout.php">
-                LOGOUT
-            </a>
-
-        </nav>
+    <a  href="../profile.php"
+        class="nav-button">
+        PROFILE
+    </a>
+</nav>
 
     </div>
 

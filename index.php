@@ -20,6 +20,11 @@ $isCustomer = (
     $currentUserRole !== "admin"
 );
 
+$isAdmin = (
+    $currentUserId &&
+    $currentUserRole === "admin"
+);
+
 /*
  * INDEX.PHP IS PUBLIC.
  *
@@ -400,27 +405,33 @@ try {
 
         if ($rawSpecs !== "") {
 
-            $setupSpecs =
-                preg_split(
-                    '/\r\n|\r|\n/',
-                    $rawSpecs
-                );
+            /*
+             * Accept both formats from the database:
+             *
+             * RTX 4060\n             * Ryzen 5 5600\n             * 16GB RAM\n             * 24*165Hz Monitor
+             *
+             * and the older single-line format:
+             * RTX 4060 • Ryzen 5 5600 • 16GB RAM • 24*165Hz Monitor
+             */
+            $setupSpecs = preg_split(
+                '/(?:\r\n|\r|\n|\s*•\s*)/',
+                $rawSpecs
+            );
 
-
-            $setupSpecs =
-                array_values(
-                    array_filter(
-                        array_map(
-                            "trim",
-                            $setupSpecs
-                        ),
+            $setupSpecs = array_values(
+                array_filter(
+                    array_map(
                         static function ($spec) {
-
-                            return $spec !== "";
-
-                        }
-                    )
-                );
+                            // Remove an existing dash so the HTML adds exactly one.
+                            return ltrim(trim((string)$spec), "- \t");
+                        },
+                        $setupSpecs
+                    ),
+                    static function ($spec) {
+                        return $spec !== "";
+                    }
+                )
+            );
 
         }
 
@@ -682,7 +693,26 @@ if ($selectedReceipt) {
 
 }
 
-$csrfToken = $isCustomer ? csrfToken() : "";
+/*
+========================================
+TOURNAMENTS
+========================================
+*/
+
+$tournamentStmt = $conn->query("
+    SELECT
+        id,
+        title,
+        description,
+        tournament_date,
+        status
+    FROM tournaments
+    ORDER BY tournament_date ASC, id DESC
+");
+
+$tournaments = $tournamentStmt->fetchAll();
+
+$csrfToken = $isCustomer || $isAdmin ? csrfToken() : "";
 
 ?>
 
@@ -1753,6 +1783,506 @@ $csrfToken = $isCustomer ? csrfToken() : "";
             stroke: none;
         }
 
+
+
+        /* ========================================
+           TOURNAMENT ADMIN CONTROLS
+        ======================================== */
+
+        /* ========================================
+           TOURNAMENT PAGE ALIGNMENT
+           - kicker centered
+           - main title centered
+           - add button cleanly anchored to the right
+        ======================================== */
+
+        .tournaments-section .section-kicker {
+            width: 100%;
+            margin: 0 0 12px;
+            text-align: center;
+        }
+
+        .tournament-heading-row {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 72px;
+            margin-bottom: 34px;
+        }
+
+        .tournament-heading-row .page-title {
+            margin: 0;
+            text-align: center;
+        }
+
+        .tournament-admin-add {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0 20px;
+            border: 1px solid #39FF14;
+            border-radius: 4px;
+            background: #39FF14;
+            color: #000;
+            font: 800 10px "Orbitron", sans-serif;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: .2s ease;
+        }
+
+        .tournament-admin-add:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(57,255,20,.35);
+        }
+
+        .tournament-card-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .tournament-delete-form {
+            margin: 0;
+            padding: 0;
+        }
+
+        .tournament-edit-button,
+        .tournament-delete-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 78px;
+            min-height: 38px;
+            padding: 0 13px;
+            border-radius: 4px;
+            font: 800 9px "Orbitron", sans-serif;
+            text-decoration: none;
+            transition: .2s ease;
+        }
+
+        .tournament-edit-button {
+            border: 1px solid #39FF14;
+            background: transparent;
+            color: #39FF14;
+        }
+
+        .tournament-edit-button:hover {
+            background: #39FF14;
+            color: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px rgba(57,255,20,.30);
+        }
+
+        .tournament-delete-button {
+            border: 1px solid #ff5757;
+            background: transparent;
+            color: #ff5757;
+        }
+
+        .tournament-delete-button:hover {
+            background: #ff5757;
+            color: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px rgba(255,87,87,.30);
+        }
+
+        .tournament-empty {
+            border: 1px dashed rgba(57,255,20,.35);
+            padding: 55px 25px;
+            text-align: center;
+        }
+
+        .tournament-empty strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #39FF14;
+            font: 800 16px "Orbitron", sans-serif;
+        }
+
+        .tournament-empty p {
+            margin: 0;
+            color: #999;
+            font-size: 15px;
+        }
+
+
+        /* ========================================
+           TOURNAMENT ADMIN MODALS
+        ======================================== */
+
+        .tournament-admin-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0,0,0,.86);
+            backdrop-filter: blur(5px);
+        }
+
+        .tournament-admin-modal-overlay[hidden] {
+            display: none;
+        }
+
+        .tournament-admin-modal {
+            width: min(520px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 28px;
+            border: 1px solid #39FF14;
+            border-radius: 6px;
+            background: #050505;
+            box-shadow: 0 0 35px rgba(57,255,20,.18);
+            animation: tournamentModalIn .18s ease;
+        }
+
+        .tournament-admin-modal h2 {
+            margin: 0 0 22px;
+            color: #39FF14;
+            text-align: center;
+            font: 800 17px "Orbitron", sans-serif;
+        }
+
+        .tournament-admin-form {
+            display: grid;
+            gap: 15px;
+        }
+
+        .tournament-admin-form label {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            color: #aaa;
+            font: 700 10px "Orbitron", sans-serif;
+        }
+
+        .tournament-admin-form input,
+        .tournament-admin-form textarea,
+        .tournament-admin-form select {
+            width: 100%;
+            border: 1px solid #292929;
+            border-radius: 4px;
+            outline: none;
+            background: #0b0b0b;
+            color: #fff;
+            padding: 12px 13px;
+            font: 500 14px "Rajdhani", sans-serif;
+        }
+
+        .tournament-admin-form textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .tournament-admin-form input:focus,
+        .tournament-admin-form textarea:focus,
+        .tournament-admin-form select:focus {
+            border-color: #39FF14;
+            box-shadow: 0 0 12px rgba(57,255,20,.08);
+        }
+
+        .tournament-admin-modal-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 7px;
+        }
+
+        .tournament-modal-cancel,
+        .tournament-modal-save,
+        .tournament-modal-delete {
+            min-width: 120px;
+            min-height: 42px;
+            padding: 0 18px;
+            border-radius: 4px;
+            font: 800 9px "Orbitron", sans-serif;
+            transition: .2s ease;
+        }
+
+        .tournament-modal-cancel {
+            border: 1px solid #777;
+            background: transparent;
+            color: #aaa;
+        }
+
+        .tournament-modal-cancel:hover {
+            border-color: #fff;
+            color: #fff;
+        }
+
+        .tournament-modal-save {
+            border: 1px solid #39FF14;
+            background: #39FF14;
+            color: #000;
+        }
+
+        .tournament-modal-save:hover,
+        .tournament-modal-delete:hover {
+            transform: translateY(-2px);
+        }
+
+        .tournament-modal-save:hover {
+            box-shadow: 0 0 15px rgba(57,255,20,.35);
+        }
+
+        .tournament-modal-delete {
+            border: 1px solid #ff5757;
+            background: #ff5757;
+            color: #000;
+        }
+
+        .tournament-modal-delete:hover {
+            box-shadow: 0 0 15px rgba(255,87,87,.30);
+        }
+
+        .tournament-delete-modal p {
+            margin: 0 0 25px;
+            color: #ddd;
+            text-align: center;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        @keyframes tournamentModalIn {
+            from {
+                opacity: 0;
+                transform: scale(.96) translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        body.tournament-modal-open {
+            overflow: hidden;
+        }
+
+        @media (max-width: 900px) {
+            .tournament-heading-row {
+                min-height: 0;
+                flex-direction: column;
+                gap: 18px;
+                margin-bottom: 30px;
+            }
+
+            .tournament-admin-add {
+                position: static;
+                transform: none;
+                width: auto;
+            }
+
+            .tournament-card {
+                grid-template-columns: 90px 1fr;
+            }
+
+            .tournament-card-actions {
+                grid-column: 1 / -1;
+                justify-content: flex-end;
+            }
+        }
+
+        /* ========================================
+           PCS / GAMING SETUPS - FINAL LAYOUT
+        ======================================== */
+
+        #pcs {
+            width: 100%;
+            padding: 56px 0 82px;
+        }
+
+        #pcs .setups-container {
+            width: min(100% - 80px, 1450px);
+            max-width: 1450px;
+            margin: 0 auto;
+            padding: 0;
+        }
+
+        #pcs .setups-kicker {
+            margin: 0 0 38px;
+            text-align: center;
+            font-family: "Orbitron", sans-serif;
+            font-size: 14px;
+            line-height: 1.2;
+            color: #39FF14;
+            letter-spacing: .02em;
+        }
+
+        #pcs .setup-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 32px;
+            align-items: stretch;
+        }
+
+        #pcs .setup-card {
+            width: 100%;
+            min-width: 0;
+            height: 450px;
+            min-height: 450px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0;
+            background: #050505;
+            border: 1px solid #39FF14;
+            border-radius: 14px;
+            box-sizing: border-box;
+            box-shadow: none;
+        }
+
+        #pcs .setup-image {
+            width: 100%;
+            height: 220px;
+            min-height: 220px;
+            flex: 0 0 220px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #pcs .setup-image img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            margin: 0;
+            border: 0;
+            transition: transform .25s ease;
+        }
+
+        #pcs .setup-card:hover .setup-image img {
+            transform: scale(1.03);
+        }
+
+        #pcs .setup-content {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 25px 28px 27px;
+            box-sizing: border-box;
+        }
+
+        #pcs .setup-content h3 {
+            margin: 0 0 16px;
+            color: #fff;
+            font-family: "Orbitron", sans-serif;
+            font-size: 18px;
+            line-height: 1.25;
+            font-weight: 700;
+        }
+
+        #pcs .setup-content p {
+            margin: 0 0 4px;
+            color: #fff;
+            font-family: "Montserrat", sans-serif;
+            font-size: 14px;
+            line-height: 1.55;
+        }
+
+        #pcs .setup-content strong {
+            display: block;
+            margin-top: auto;
+            padding-top: 18px;
+            border-top: 1px solid rgba(57,255,20,.8);
+            color: #39FF14;
+            font-family: "Orbitron", sans-serif;
+            font-size: 16px;
+            line-height: 1.2;
+            font-weight: 700;
+        }
+
+        @media (max-width: 1100px) {
+            #pcs .setup-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            #pcs {
+                padding: 45px 0 65px;
+            }
+
+            #pcs .setups-container {
+                width: min(100% - 32px, 1450px);
+            }
+
+            #pcs .setups-kicker {
+                margin-bottom: 28px;
+                font-size: 12px;
+            }
+
+            #pcs .setup-grid {
+                grid-template-columns: 1fr;
+                gap: 22px;
+            }
+
+            #pcs .setup-card {
+                height: auto;
+                min-height: 0;
+            }
+
+            #pcs .setup-image {
+                height: auto;
+                min-height: 0;
+                aspect-ratio: 16 / 9;
+                flex-basis: auto;
+            }
+        }
+
+        @media (min-width: 701px) and (max-width: 1100px) {
+            #pcs .setup-card {
+                height: 440px;
+                min-height: 440px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .tournaments-section .section-kicker {
+                margin-bottom: 8px;
+            }
+
+            .tournament-heading-row .page-title {
+                line-height: 1.05;
+            }
+
+            .tournament-admin-add {
+                width: 100%;
+            }
+
+            .tournament-card {
+                grid-template-columns: 1fr;
+                gap: 18px;
+            }
+
+            .tournament-date {
+                border-right: none;
+                border-bottom: 1px solid rgba(57,255,20,.25);
+                padding-bottom: 15px;
+            }
+
+            .tournament-card-actions {
+                width: 100%;
+            }
+
+            .tournament-edit-button,
+            .tournament-delete-button,
+            .tournament-card-actions .outline-button {
+                flex: 1;
+            }
+        }
+
     </style>
 
 </head>
@@ -2616,9 +3146,7 @@ $csrfToken = $isCustomer ? csrfToken() : "";
 
                                 <p>
 
-                                    -
-
-                                    <?= htmlspecialchars(
+                                    -<?= htmlspecialchars(
                                         $spec,
                                         ENT_QUOTES,
                                         "UTF-8"
@@ -3011,245 +3539,307 @@ $csrfToken = $isCustomer ? csrfToken() : "";
 
     <div class="container">
 
-
         <p class="section-kicker">
-
             TOURNAMENTS
-
         </p>
 
-
-        <h1 class="page-title">
-
-            COMPETE.
-
-            <span>
-
-                WIN.
-
-            </span>
-
-        </h1>
-
-
-        <div class="tournament-grid">
-
-
-            <!-- TOURNAMENT 1 -->
-
-            <article
-                class="tournament-card reveal"
-            >
-
-
-                <div class="tournament-date">
-
-                    <span>
-
-                        15
-
-                    </span>
-
-                    <small>
-
-                        SEP
-
-                    </small>
-
-                </div>
-
-
-                <div class="tournament-info">
-
-                    <h3>
-
-                        WEEKLY GAMING TOURNAMENT
-
-                    </h3>
-
-
-                    <p>
-
-                        Join our exciting weekly tournament
-                        and compete with other gamers.
-
-                    </p>
-
-
-                    <span>
-
-                        PRIZES AVAILABLE
-
-                    </span>
-
-                </div>
-
-
-                <?php if (
-                    !$currentUserId ||
-                    ($_SESSION["user_role"] ?? "") !== "admin"
-                ): ?>
-
-                    <a
-                        href="tournament.php?id=1"
-                        class="outline-button"
-                    >
-
-                        JOIN NOW
-
-                    </a>
-
-                <?php endif; ?>
-
-
-            </article>
-
-
-            <!-- TOURNAMENT 2 -->
-
-            <article
-                class="tournament-card reveal"
-            >
-
-
-                <div class="tournament-date">
-
-                    <span>
-
-                        22
-
-                    </span>
-
-                    <small>
-
-                        NOV
-
-                    </small>
-
-                </div>
-
-
-                <div class="tournament-info">
-
-                    <h3>
-
-                        VALORANT TOURNAMENT
-
-                    </h3>
-
-
-                    <p>
-
-                        Form your team and battle
-                        against the best players.
-
-                    </p>
-
-
-                    <span>
-
-                        TEAM REGISTRATION OPEN
-
-                    </span>
-
-                </div>
-
-
-                <?php if (
-                    !$currentUserId ||
-                    ($_SESSION["user_role"] ?? "") !== "admin"
-                ): ?>
-
-                    <a
-                        href="tournament.php?id=2"
-                        class="outline-button"
-                    >
-
-                        JOIN NOW
-
-                    </a>
-
-                <?php endif; ?>
-
-
-            </article>
-
-
-            <!-- TOURNAMENT 3 -->
-
-            <article
-                class="tournament-card reveal"
-            >
-
-
-                <div class="tournament-date">
-
-                    <span>
-
-                        29
-
-                    </span>
-
-                    <small>
-
-                        DEC
-
-                    </small>
-
-                </div>
-
-
-                <div class="tournament-info">
-
-                    <h3>
-
-                        MOBILE LEGENDS TOURNAMENT
-
-                    </h3>
-
-
-                    <p>
-
-                        Gather your squad and compete
-                        for exciting prizes.
-
-                    </p>
-
-
-                    <span>
-
-                        CASH PRIZES AVAILABLE
-
-                    </span>
-
-                </div>
-
-
-                <?php if (
-                    !$currentUserId ||
-                    ($_SESSION["user_role"] ?? "") !== "admin"
-                ): ?>
-
-                    <a
-                        href="tournament.php?id=3"
-                        class="outline-button"
-                    >
-
-                        JOIN NOW
-
-                    </a>
-
-                <?php endif; ?>
-
-
-            </article>
-
+        <div class="tournament-heading-row">
+
+            <h1 class="page-title">
+                COMPETE.
+                <span>WIN.</span>
+            </h1>
+
+            <?php if ($isAdmin): ?>
+
+                <a
+                    href="admin/tournaments.php"
+                    class="tournament-admin-add"
+                >
+                    + ADD TOURNAMENT
+                </a>
+
+            <?php endif; ?>
 
         </div>
+
+        <?php if (!$tournaments): ?>
+
+            <div class="tournament-empty">
+                <strong>NO TOURNAMENTS YET</strong>
+                <p>
+                    <?php if ($isAdmin): ?>
+                        Add your first tournament using the button above.
+                    <?php else: ?>
+                        Check back soon for upcoming tournaments.
+                    <?php endif; ?>
+                </p>
+            </div>
+
+        <?php else: ?>
+
+            <div class="tournament-grid">
+
+                <?php foreach ($tournaments as $tournament): ?>
+
+                    <?php
+                    $timestamp = strtotime((string)$tournament["tournament_date"]);
+                    $day = date("d", $timestamp);
+                    $month = strtoupper(date("M", $timestamp));
+                    $tournamentId = (int)$tournament["id"];
+                    $title = (string)$tournament["title"];
+                    $description = trim((string)($tournament["description"] ?? ""));
+                    $status = (string)$tournament["status"];
+                    ?>
+
+                    <article class="tournament-card reveal">
+
+                        <div class="tournament-date">
+                            <span>
+                                <?= htmlspecialchars($day, ENT_QUOTES, "UTF-8") ?>
+                            </span>
+                            <small>
+                                <?= htmlspecialchars($month, ENT_QUOTES, "UTF-8") ?>
+                            </small>
+                        </div>
+
+                        <div class="tournament-info">
+                            <h3>
+                                <?= htmlspecialchars($title, ENT_QUOTES, "UTF-8") ?>
+                            </h3>
+
+                            <p>
+                                <?= htmlspecialchars(
+                                    $description !== "" ? $description : "No description provided.",
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>
+                            </p>
+
+                            <span>
+                                <?= htmlspecialchars($status, ENT_QUOTES, "UTF-8") ?>
+                            </span>
+                        </div>
+
+                        <div class="tournament-card-actions">
+
+                            <?php if ($isAdmin): ?>
+
+                                <button
+                                    type="button"
+                                    class="tournament-edit-button"
+                                    onclick="openTournamentEdit(
+                                        <?= $tournamentId ?>,
+                                        <?= htmlspecialchars(json_encode($title, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, "UTF-8") ?>,
+                                        <?= htmlspecialchars(json_encode($description, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, "UTF-8") ?>,
+                                        <?= htmlspecialchars(json_encode((string)$tournament["tournament_date"], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, "UTF-8") ?>,
+                                        <?= htmlspecialchars(json_encode($status, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, "UTF-8") ?>
+                                    )"
+                                >
+                                    EDIT
+                                </button>
+
+                                <form
+                                    method="POST"
+                                    action="admin/tournaments.php"
+                                    class="tournament-delete-form"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, "UTF-8") ?>"
+                                    >
+                                    <input
+                                        type="hidden"
+                                        name="action"
+                                        value="delete"
+                                    >
+                                    <input
+                                        type="hidden"
+                                        name="tournament_id"
+                                        value="<?= $tournamentId ?>"
+                                    >
+                                    <button
+                                        type="button"
+                                        class="tournament-delete-button"
+                                        onclick="openTournamentDelete(this.form, <?= htmlspecialchars(json_encode($title, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES, "UTF-8") ?>)"
+                                    >
+                                        DELETE
+                                    </button>
+                                </form>
+
+                            <?php else: ?>
+
+                                <a
+                                    href="tournament.php?id=<?= $tournamentId ?>"
+                                    class="outline-button"
+                                >
+                                    JOIN NOW
+                                </a>
+
+                            <?php endif; ?>
+
+                        </div>
+
+                    </article>
+
+                <?php endforeach; ?>
+
+            </div>
+
+        <?php endif; ?>
 
     </div>
 
 </section>
+
+
+<!-- =====================================
+     ADMIN TOURNAMENT EDIT MODAL
+====================================== -->
+
+<?php if ($isAdmin): ?>
+
+<div
+    class="tournament-admin-modal-overlay"
+    id="tournamentEditModal"
+    hidden
+>
+    <div class="tournament-admin-modal" role="dialog" aria-modal="true" aria-labelledby="tournamentEditModalTitle">
+
+        <h2 id="tournamentEditModalTitle">
+            EDIT TOURNAMENT
+        </h2>
+
+        <form
+            method="POST"
+            action="admin/tournaments.php"
+            class="tournament-admin-form"
+        >
+
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, "UTF-8") ?>"
+            >
+
+            <input
+                type="hidden"
+                name="action"
+                value="edit"
+            >
+
+            <input
+                type="hidden"
+                name="tournament_id"
+                id="tournamentEditId"
+            >
+
+            <label>
+                TOURNAMENT TITLE
+                <input
+                    type="text"
+                    name="title"
+                    id="tournamentEditTitle"
+                    maxlength="150"
+                    required
+                >
+            </label>
+
+            <label>
+                DESCRIPTION
+                <textarea
+                    name="description"
+                    id="tournamentEditDescription"
+                    maxlength="500"
+                ></textarea>
+            </label>
+
+            <label>
+                TOURNAMENT DATE
+                <input
+                    type="date"
+                    name="tournament_date"
+                    id="tournamentEditDate"
+                    required
+                >
+            </label>
+
+            <label>
+                STATUS
+                <select
+                    name="status"
+                    id="tournamentEditStatus"
+                >
+                    <option value="Registration Open">Registration Open</option>
+                    <option value="Team Registration Open">Team Registration Open</option>
+                    <option value="Cash Prizes Available">Cash Prizes Available</option>
+                    <option value="Coming Soon">Coming Soon</option>
+                    <option value="Registration Closed">Registration Closed</option>
+                </select>
+            </label>
+
+            <div class="tournament-admin-modal-actions">
+                <button
+                    type="button"
+                    class="tournament-modal-cancel"
+                    id="tournamentEditCancel"
+                >
+                    CANCEL
+                </button>
+                <button
+                    type="submit"
+                    class="tournament-modal-save"
+                >
+                    SAVE CHANGES
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+
+<!-- =====================================
+     ADMIN TOURNAMENT DELETE MODAL
+====================================== -->
+
+<div
+    class="tournament-admin-modal-overlay"
+    id="tournamentDeleteModal"
+    hidden
+>
+    <div class="tournament-admin-modal tournament-delete-modal" role="dialog" aria-modal="true" aria-labelledby="tournamentDeleteModalTitle">
+
+        <h2 id="tournamentDeleteModalTitle">
+            DELETE TOURNAMENT
+        </h2>
+
+        <p id="tournamentDeleteMessage">
+            Are you sure you want to delete this tournament?
+        </p>
+
+        <div class="tournament-admin-modal-actions">
+            <button
+                type="button"
+                class="tournament-modal-cancel"
+                id="tournamentDeleteCancel"
+            >
+                CANCEL
+            </button>
+            <button
+                type="button"
+                class="tournament-modal-delete"
+                id="tournamentDeleteConfirm"
+            >
+                DELETE
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<?php endif; ?>
 
 
 <!-- =====================================
@@ -4498,6 +5088,120 @@ document.addEventListener(
 );
 
 </script>
+
+
+<?php if ($isAdmin): ?>
+<script>
+
+let tournamentDeleteForm = null;
+
+function openTournamentEdit(id, title, description, tournamentDate, status) {
+    const modal = document.getElementById("tournamentEditModal");
+    const idInput = document.getElementById("tournamentEditId");
+    const titleInput = document.getElementById("tournamentEditTitle");
+    const descriptionInput = document.getElementById("tournamentEditDescription");
+    const dateInput = document.getElementById("tournamentEditDate");
+    const statusInput = document.getElementById("tournamentEditStatus");
+
+    if (!modal) return;
+
+    idInput.value = id;
+    titleInput.value = title;
+    descriptionInput.value = description;
+    dateInput.value = tournamentDate;
+    statusInput.value = status || "Registration Open";
+
+    modal.hidden = false;
+    document.body.classList.add("tournament-modal-open");
+
+    setTimeout(function () {
+        titleInput.focus();
+    }, 50);
+}
+
+function closeTournamentEdit() {
+    const modal = document.getElementById("tournamentEditModal");
+    if (modal) modal.hidden = true;
+
+    if (document.getElementById("tournamentDeleteModal")?.hidden !== false) {
+        document.body.classList.remove("tournament-modal-open");
+    }
+}
+
+function openTournamentDelete(form, title) {
+    const modal = document.getElementById("tournamentDeleteModal");
+    const message = document.getElementById("tournamentDeleteMessage");
+
+    if (!modal || !form) return;
+
+    tournamentDeleteForm = form;
+
+    if (message) {
+        message.textContent = 'Are you sure you want to delete "' + title + '"?';
+    }
+
+    modal.hidden = false;
+    document.body.classList.add("tournament-modal-open");
+}
+
+function closeTournamentDelete() {
+    const modal = document.getElementById("tournamentDeleteModal");
+    if (modal) modal.hidden = true;
+
+    tournamentDeleteForm = null;
+
+    if (document.getElementById("tournamentEditModal")?.hidden !== false) {
+        document.body.classList.remove("tournament-modal-open");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const editModal = document.getElementById("tournamentEditModal");
+    const editCancel = document.getElementById("tournamentEditCancel");
+    const deleteModal = document.getElementById("tournamentDeleteModal");
+    const deleteCancel = document.getElementById("tournamentDeleteCancel");
+    const deleteConfirm = document.getElementById("tournamentDeleteConfirm");
+
+    if (editCancel) {
+        editCancel.addEventListener("click", closeTournamentEdit);
+    }
+
+    if (editModal) {
+        editModal.addEventListener("click", function (event) {
+            if (event.target === editModal) closeTournamentEdit();
+        });
+    }
+
+    if (deleteCancel) {
+        deleteCancel.addEventListener("click", closeTournamentDelete);
+    }
+
+    if (deleteConfirm) {
+        deleteConfirm.addEventListener("click", function () {
+            if (tournamentDeleteForm instanceof HTMLFormElement) {
+                tournamentDeleteForm.submit();
+            }
+        });
+    }
+
+    if (deleteModal) {
+        deleteModal.addEventListener("click", function (event) {
+            if (event.target === deleteModal) closeTournamentDelete();
+        });
+    }
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+            closeTournamentEdit();
+            closeTournamentDelete();
+        }
+    });
+
+});
+
+</script>
+<?php endif; ?>
 
 
 <?php

@@ -1094,8 +1094,11 @@ $rates =
                 TOURNAMENTS
             </a>
 
-            <a href="logout.php">
-                LOGOUT
+            <a href="../profile.php"
+                class="nav-button">
+                
+                PROFILE
+                
             </a>
 
         </nav>

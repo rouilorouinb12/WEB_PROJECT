@@ -1573,36 +1573,27 @@ $unreadContactCount =
         <!-- ====================================
              ADMIN HEADER NAVIGATION
         ==================================== -->
+<nav 
 
-        <nav
-            class="main-nav"
-            id="mainNav"
-        >
+    class="main-nav" id="mainNav">
 
-            <a href="../index.php">
+    <a href="bookings.php">
+        BOOKINGS
+    </a>
 
-                WEBSITE
+    <a href="dashboard.php" class="active">
+        DASHBOARD
+    </a>
 
-            </a>
+    <a href="../index.php">
+        WEBSITE
+    </a>
 
+    <a href="../profile.php" class="nav-button">
+        PROFILE
+    </a>
 
-            <a
-                href="dashboard.php"
-                class="active"
-            >
-
-                DASHBOARD
-
-            </a>
-
-
-            <a href="bookings.php">
-
-                BOOKINGS
-
-            </a>
-
-        </nav>
+</nav>
 
     </div>
 

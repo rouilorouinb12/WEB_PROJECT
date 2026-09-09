@@ -1641,11 +1641,11 @@ $setups =
 
             </a>
 
-            <a href="../logout.php">
-
-                LOGOUT
-
-            </a>
+            <a  href="../profile.php"
+                class="nav-button">
+                
+                PROFILE
+    </a>
 
         </nav>
 

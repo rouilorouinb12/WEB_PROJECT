@@ -33,6 +33,24 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- ========================================
+-- TOURNAMENTS
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS tournaments (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    title VARCHAR(150) NOT NULL,
+
+    description VARCHAR(500) DEFAULT NULL,
+
+    tournament_date DATE NOT NULL,
+
+    status VARCHAR(50) NOT NULL DEFAULT 'Registration Open',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
 -- GAMING SETUPS
 -- ========================================
 
