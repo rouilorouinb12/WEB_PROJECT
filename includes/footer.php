@@ -164,64 +164,55 @@ $hideFooterOnContact = (
 <?php endif; ?>
 
 
-<script>
-
-/* 
-   HIDE FOOTER ON TOURNAMENT PAGE
- */
-
-function updateFooterVisibility() {
-
-    const footer =
-        document.getElementById("siteFooter");
-
-    if (!footer) {
-        return;
-    }
-
-
-    if (window.location.hash === "#tournaments") {
-
-        footer.style.display = "none";
-
-    } else {
-
-        footer.style.display = "";
-
-    }
-
+<style>
+/* Hide footer on the customer Tournaments section. */
+#siteFooter.footer-hidden {
+    display: none !important;
 }
+</style>
 
+<script>
+(function () {
 
-/* 
-   CHECK ON PAGE LOAD
- */
+    function updateFooterVisibility() {
 
-document.addEventListener(
-    "DOMContentLoaded",
-    updateFooterVisibility
-);
+        const footer = document.getElementById("siteFooter");
 
+        if (!footer) {
+            return;
+        }
 
-/* 
-   CHECK WHEN HASH CHANGES
- */
+        const isTournamentSection =
+            window.location.hash.toLowerCase() === "#tournaments";
 
-window.addEventListener(
-    "hashchange",
-    updateFooterVisibility
-);
+        footer.classList.toggle(
+            "footer-hidden",
+            isTournamentSection
+        );
+    }
 
+    // Run immediately.
+    updateFooterVisibility();
 
-/* 
-   CHECK BROWSER BACK / FORWARD
- */
+    // Run after the page loads.
+    document.addEventListener(
+        "DOMContentLoaded",
+        updateFooterVisibility
+    );
 
-window.addEventListener(
-    "popstate",
-    updateFooterVisibility
-);
+    // Handle section navigation.
+    window.addEventListener(
+        "hashchange",
+        updateFooterVisibility
+    );
 
+    // Handle browser Back / Forward.
+    window.addEventListener(
+        "popstate",
+        updateFooterVisibility
+    );
+
+})();
 </script>
 
 
