@@ -505,52 +505,57 @@ try {
 /*
 ========================================
 RATES
+LOAD DIRECTLY FROM DATABASE
 ========================================
 */
 
-$rates = [
+$rates = [];
 
-    [
+try {
 
-        "time" => "1 HOUR",
+    $rateStmt = $conn->query("
+        SELECT
+            id,
+            duration,
+            price,
+            label
+        FROM rates
+        ORDER BY id ASC
+    ");
 
-        "price" => "35 PHP",
+    $dbRates = $rateStmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
 
-        "label" => "PER HOUR"
+    foreach ($dbRates as $rate) {
 
-    ],
+        $rates[] = [
 
-    [
+            "time" =>
+                trim(
+                    (string)$rate["duration"]
+                ),
 
-        "time" => "3 HOURS",
+            "price" =>
+                number_format(
+                    (float)$rate["price"],
+                    0
+                ) . " PHP",
 
-        "price" => "90 PHP",
+            "label" =>
+                trim(
+                    (string)$rate["label"]
+                )
 
-        "label" => "PER SESSION"
+        ];
 
-    ],
+    }
 
-    [
+} catch (Throwable $e) {
 
-        "time" => "5 HOURS",
+    $rates = [];
 
-        "price" => "140 PHP",
-
-        "label" => "PER SESSION"
-
-    ],
-
-    [
-
-        "time" => "WHOLE DAY",
-
-        "price" => "250 PHP",
-
-        "label" => "ALL DAY PASS"
-
-    ]
-
-];
+}
 
 
 /*

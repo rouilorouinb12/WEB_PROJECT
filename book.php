@@ -67,6 +67,32 @@ $phone = trim(
 $paymentMethod = "";
 $paymentReference = "";
 
+
+/* ========================================
+   LOAD GAMING STATIONS
+======================================== */
+
+$availableSetups = [];
+
+try {
+
+    $setupListStmt = $conn->query("
+        SELECT
+            id,
+            name
+        FROM gaming_setups
+        ORDER BY id ASC
+    ");
+
+    $availableSetups =
+        $setupListStmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (Throwable $e) {
+
+    $availableSetups = [];
+
+}
+
 /* ========================================
    HANDLE BOOKING
 ======================================== */
@@ -145,19 +171,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $message =
                 "Please complete all required booking fields.";
-
-            $messageType = "error";
-
-        } elseif (
-            !in_array(
-                (int)$setupId,
-                [1, 2, 3, 4],
-                true
-            )
-        ) {
-
-            $message =
-                "Please select a valid gaming station.";
 
             $messageType = "error";
 
@@ -848,53 +861,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             Select a station
                         </option>
 
-                        <option
-                            value="1"
-                            <?= (
-                                (string)$setupId === "1"
-                            )
-                                ? "selected"
-                                : ""
-                            ?>
-                        >
-                            RTX Gaming PC
-                        </option>
+                        <?php foreach ($availableSetups as $setup): ?>
 
-                        <option
-                            value="2"
-                            <?= (
-                                (string)$setupId === "2"
-                            )
-                                ? "selected"
-                                : ""
-                            ?>
-                        >
-                            Premium Gaming PC
-                        </option>
+                            <option
+                                value="<?= (int)$setup["id"] ?>"
+                                <?= (
+                                    (string)$setupId ===
+                                    (string)$setup["id"]
+                                )
+                                    ? "selected"
+                                    : ""
+                                ?>
+                            >
+                                <?= htmlspecialchars(
+                                    (string)$setup["name"],
+                                    ENT_QUOTES,
+                                    "UTF-8"
+                                ) ?>
+                            </option>
 
-                        <option
-                            value="3"
-                            <?= (
-                                (string)$setupId === "3"
-                            )
-                                ? "selected"
-                                : ""
-                            ?>
-                        >
-                            Streamer Setup
-                        </option>
-
-                        <option
-                            value="4"
-                            <?= (
-                                (string)$setupId === "4"
-                            )
-                                ? "selected"
-                                : ""
-                            ?>
-                        >
-                            VIP Room
-                        </option>
+                        <?php endforeach; ?>
 
                     </select>
 
