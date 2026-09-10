@@ -2292,7 +2292,7 @@ $csrfToken = $isCustomer || $isAdmin ? csrfToken() : "";
 
 </head>
 
-<body>
+<body class="<?= ($isCustomer || $isAdmin) ? "logged-in-user" : "" ?>">
 
 
 <?php include "includes/header.php"; ?>
@@ -3215,55 +3215,31 @@ $csrfToken = $isCustomer || $isAdmin ? csrfToken() : "";
 
             <div class="rates-grid">
 
+    <article class="rate-card reveal">
+        <h3>1 HOUR</h3>
+        <strong>₱45</strong>
+        <span>DEPENDING ON SETUP</span>
+    </article>
 
-                <?php foreach ($rates as $rate): ?>
+    <article class="rate-card reveal">
+        <h3>3 HOURS</h3>
+        <strong>₱135</strong>
+        <span>DEPENDING ON SETUP</span>
+    </article>
 
-                    <article
-                        class="rate-card reveal"
-                    >
+    <article class="rate-card reveal">
+        <h3>5 HOURS</h3>
+        <strong>₱225</strong>
+        <span>DEPENDING ON SETUP</span>
+    </article>
 
+    <article class="rate-card reveal">
+        <h3>WHOLE DAY</h3>
+        <strong>₱360</strong>
+        <span>DEPENDING ON SETUP</span>
+    </article>
 
-                        <h3>
-
-                            <?= htmlspecialchars(
-                                $rate["time"],
-                                ENT_QUOTES,
-                                "UTF-8"
-                            ) ?>
-
-                        </h3>
-
-
-                        <strong>
-
-                            <?= htmlspecialchars(
-                                $rate["price"],
-                                ENT_QUOTES,
-                                "UTF-8"
-                            ) ?>
-
-                        </strong>
-
-
-                        <span>
-
-                            <?= htmlspecialchars(
-                                $rate["label"],
-                                ENT_QUOTES,
-                                "UTF-8"
-                            ) ?>
-
-                        </span>
-
-
-                    </article>
-
-                <?php endforeach; ?>
-
-
-            </div>
-
-        </div>
+</div>
 
     </section>
 
@@ -5208,6 +5184,25 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 <?php endif; ?>
 
+
+<script>
+(function () {
+    function updateTournamentFooter() {
+        const isTournamentView = window.location.hash === "#tournaments";
+        const isLoggedInUser = document.body.classList.contains("logged-in-user");
+        document.body.classList.toggle("tournament-view", isTournamentView && isLoggedInUser);
+    }
+
+    updateTournamentFooter();
+    window.addEventListener("hashchange", updateTournamentFooter);
+})();
+</script>
+
+<style>
+    body.tournament-view .site-footer {
+        display: none;
+    }
+</style>
 
 <?php
 

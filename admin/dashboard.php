@@ -32,53 +32,132 @@ $csrfToken = csrfToken();
 
 
 /* ========================================
-   HANDLE ADMIN CONTACT NOTIFICATIONS
+   HANDLE ADMIN CONTACT NOTIFICATIONS / REPLIES
 ======================================== */
 
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST"
-) {
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $notificationAction =
-        $_POST["notification_action"] ?? "";
+    $notificationAction = $_POST["notification_action"] ?? "";
+    $postedCsrf = $_POST["csrf_token"] ?? "";
 
-    if (
-        $notificationAction
-        === "mark_contact_read"
-    ) {
+    if (is_string($postedCsrf) && verifyCsrfToken($postedCsrf)) {
 
-        $postedCsrf =
-            $_POST["csrf_token"] ?? "";
-
-        if (
-            is_string($postedCsrf) &&
-            verifyCsrfToken($postedCsrf)
-        ) {
-
-            $markContactStmt =
-                $conn->prepare("
-                    UPDATE notifications n
-
-                    INNER JOIN users u
-                        ON u.id = n.user_id
-
-                    SET n.is_read = 1
-
-                    WHERE n.type = 'contact'
-
-                      AND n.is_read = 0
-
-                      AND u.role = 'admin'
-                ");
-
+        if ($notificationAction === "mark_contact_read") {
+            $markContactStmt = $conn->prepare("
+                UPDATE notifications n
+                INNER JOIN users u ON u.id = n.user_id
+                SET n.is_read = 1
+                WHERE n.type = 'contact'
+                  AND n.is_read = 0
+                  AND u.role = 'admin'
+            ");
             $markContactStmt->execute();
-
         }
 
-    }
+        if ($notificationAction === "reply_contact") {
+            $contactId = (int)($_POST["contact_id"] ?? 0);
+            $replyMessage = trim((string)($_POST["reply_message"] ?? ""));
 
+            if ($contactId <= 0 || $replyMessage === "") {
+                $_SESSION["dashboard_message"] = "Please enter a valid reply.";
+                header("Location: dashboard.php#contact-messages");
+                exit;
+            }
+
+            if (mb_strlen($replyMessage) > 2000) {
+                $_SESSION["dashboard_message"] = "Reply is too long. Please keep it under 2000 characters.";
+                header("Location: dashboard.php#contact-messages");
+                exit;
+            }
+
+            try {
+                $conn->beginTransaction();
+
+                $contactLookup = $conn->prepare("
+                    SELECT id, user_id, email, name
+                    FROM contacts
+                    WHERE id = ?
+                    LIMIT 1
+                ");
+                $contactLookup->execute([$contactId]);
+                $contactRow = $contactLookup->fetch(PDO::FETCH_ASSOC);
+
+                if (!$contactRow) {
+                    throw new RuntimeException("Contact message not found.");
+                }
+
+                $customerId = !empty($contactRow["user_id"]) ? (int)$contactRow["user_id"] : null;
+
+                /* Link older messages by their email when possible. */
+                if ($customerId === null && !empty($contactRow["email"])) {
+                    $customerLookup = $conn->prepare("
+                        SELECT id
+                        FROM users
+                        WHERE email = ?
+                          AND role = 'customer'
+                        LIMIT 1
+                    ");
+                    $customerLookup->execute([strtolower(trim((string)$contactRow["email"]))]);
+                    $matchedCustomer = $customerLookup->fetch(PDO::FETCH_ASSOC);
+
+                    if ($matchedCustomer) {
+                        $customerId = (int)$matchedCustomer["id"];
+                        $linkContact = $conn->prepare("
+                            UPDATE contacts
+                            SET user_id = ?
+                            WHERE id = ?
+                        ");
+                        $linkContact->execute([$customerId, $contactId]);
+                    }
+                }
+
+                if ($customerId === null) {
+                    throw new RuntimeException("This message is not linked to a customer account.");
+                }
+
+                $adminId = (int)($_SESSION["user_id"] ?? 0);
+                if ($adminId <= 0) {
+                    throw new RuntimeException("Invalid admin session.");
+                }
+
+                $insertReply = $conn->prepare("
+                    INSERT INTO contact_replies
+                    (contact_id, admin_id, message)
+                    VALUES (?, ?, ?)
+                ");
+                $insertReply->execute([$contactId, $adminId, $replyMessage]);
+
+                $notifyCustomer = $conn->prepare("
+                    INSERT INTO notifications
+                    (user_id, type, title, message, is_read)
+                    VALUES (?, 'contact_reply', ?, ?, 0)
+                ");
+                $notifyCustomer->execute([
+                    $customerId,
+                    "ADMIN REPLIED",
+                    "The admin replied to your contact message."
+                ]);
+
+                $conn->commit();
+
+                $_SESSION["dashboard_message"] =
+                    "Reply sent successfully to " . (string)$contactRow["name"] . ".";
+
+            } catch (Throwable $e) {
+                if ($conn->inTransaction()) {
+                    $conn->rollBack();
+                }
+                $_SESSION["dashboard_message"] = "Reply could not be sent. Please try again.";
+            }
+
+            header("Location: dashboard.php#contact-messages");
+            exit;
+        }
+    }
 }
 
+$dashboardMessage = (string)($_SESSION["dashboard_message"] ?? "");
+unset($_SESSION["dashboard_message"]);
 
 /* ========================================
    GET RECENT BOOKINGS
@@ -207,31 +286,45 @@ $totalIncome = (float)(
 ======================================== */
 
 $contactStmt = $conn->query("
-
     SELECT
-
-        id,
-
-        name,
-
-        email,
-
-        phone,
-
-        message,
-
-        created_at
-
-    FROM contacts
-
-    ORDER BY created_at DESC
-
+        c.id,
+        c.user_id,
+        c.name,
+        c.email,
+        c.phone,
+        c.message,
+        c.created_at
+    FROM contacts c
+    ORDER BY c.created_at DESC
 ");
 
 $contactMessages =
     $contactStmt->fetchAll(
         PDO::FETCH_ASSOC
     );
+
+/* ========================================
+   GET ADMIN REPLIES FOR CONTACT MESSAGES
+======================================== */
+
+$contactReplies = [];
+
+$replyStmt = $conn->query("
+    SELECT
+        r.id,
+        r.contact_id,
+        r.admin_id,
+        r.message,
+        r.created_at,
+        u.name AS admin_name
+    FROM contact_replies r
+    LEFT JOIN users u ON u.id = r.admin_id
+    ORDER BY r.created_at ASC
+");
+
+foreach ($replyStmt->fetchAll(PDO::FETCH_ASSOC) as $reply) {
+    $contactReplies[(int)$reply["contact_id"]][] = $reply;
+}
 
 
 /* ========================================
@@ -1428,6 +1521,22 @@ $unreadContactCount =
 
 
         /* ========================================
+           ADMIN REPLY UI
+        ======================================== */
+
+        .contact-reply-box { margin-top:18px; padding-top:18px; border-top:1px solid rgba(57,255,20,.16); }
+        .contact-reply-form textarea { width:100%; min-height:105px; resize:vertical; box-sizing:border-box; background:rgba(255,255,255,.02); color:#fff; border:1px solid rgba(57,255,20,.25); padding:13px; border-radius:4px; font-family:Montserrat,sans-serif; font-size:12px; line-height:1.5; outline:none; }
+        .contact-reply-form textarea:focus { border-color:#39FF14; box-shadow:0 0 12px rgba(57,255,20,.12); }
+        .contact-reply-actions { display:flex; justify-content:flex-end; margin-top:10px; }
+        .contact-reply-button { min-height:38px; padding:0 18px; border:1px solid #39FF14; border-radius:3px; background:#39FF14; color:#000; font:800 9px Orbitron,sans-serif; cursor:pointer; transition:.2s ease; }
+        .contact-reply-button:hover { box-shadow:0 0 18px rgba(57,255,20,.45); transform:translateY(-2px); }
+        .admin-reply-item { margin-top:14px; padding:13px; border:1px solid rgba(57,255,20,.20); background:rgba(57,255,20,.025); border-radius:4px; }
+        .admin-reply-meta { display:flex; justify-content:space-between; gap:12px; margin-bottom:7px; }
+        .admin-reply-label { color:#39FF14; font:800 9px Orbitron,sans-serif; }
+        .admin-reply-date { color:#777; font-size:9px; }
+        .dashboard-message { margin:20px 0; padding:13px 16px; border:1px solid rgba(57,255,20,.35); background:rgba(57,255,20,.04); color:#fff; font-size:12px; }
+
+        /* ========================================
            RESPONSIVE
         ======================================== */
 
@@ -1850,6 +1959,12 @@ $unreadContactCount =
             </span>
 
         </h1>
+
+        <?php if ($dashboardMessage): ?>
+            <div class="dashboard-message">
+                <?= htmlspecialchars($dashboardMessage, ENT_QUOTES, "UTF-8") ?>
+            </div>
+        <?php endif; ?>
 
 
         <!-- ====================================
@@ -2480,6 +2595,34 @@ $unreadContactCount =
 
                         </div>
 
+                        <?php if (!empty($contactReplies[(int)$contact["id"]])): ?>
+                            <?php foreach ($contactReplies[(int)$contact["id"]] as $reply): ?>
+                                <div class="admin-reply-item">
+                                    <div class="admin-reply-meta">
+                                        <div class="admin-reply-label">ADMIN REPLY</div>
+                                        <div class="admin-reply-date">
+                                            <?= htmlspecialchars(date("M d, Y h:i A", strtotime((string)$reply["created_at"])), ENT_QUOTES, "UTF-8") ?>
+                                        </div>
+                                    </div>
+                                    <div class="contact-value contact-message-text">
+                                        <?= htmlspecialchars((string)$reply["message"], ENT_QUOTES, "UTF-8") ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+
+                        <div class="contact-reply-box">
+                            <div class="contact-label">REPLY TO CUSTOMER</div>
+                            <form method="POST" class="contact-reply-form">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, "UTF-8") ?>">
+                                <input type="hidden" name="notification_action" value="reply_contact">
+                                <input type="hidden" name="contact_id" value="<?= (int)$contact["id"] ?>">
+                                <textarea name="reply_message" rows="4" maxlength="2000" placeholder="Type your reply to the customer..." required></textarea>
+                                <div class="contact-reply-actions">
+                                    <button type="submit" class="contact-reply-button">SEND REPLY</button>
+                                </div>
+                            </form>
+                        </div>
 
                     </div>
 

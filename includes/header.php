@@ -144,12 +144,19 @@ $userName = $_SESSION["user"]["name"] ?? "";
 
             <!-- CONTACT -->
 
-            <a
-                href="contact.php"
-                class="<?= $currentPage === "contact.php" ? "active" : "" ?>"
-            >
-                CONTACT
-            </a>
+            <?php if (($_SESSION["user_role"] ?? "customer") === "admin"): ?>
+
+    <a href="admin/dashboard.php#contact-messages">
+        CONTACT
+    </a>
+
+<?php else: ?>
+
+    <a href="contact.php">
+        CONTACT
+    </a>
+
+<?php endif; ?>
 
 
             <!-- LOGIN / PROFILE -->
